@@ -1,0 +1,23 @@
+﻿src/app/(dashboard)/projects/[id]/page.tsx(237,93): error TS2339: Property 'number' does not exist on type '{ items: { id: string; description: string; quantity: Decimal; unit: string; unitPrice: Decimal; contractId: string; }[]; } & { id: string; createdAt: Date; updatedAt: Date; ... 8 more ...; contractorId: string | null; }'.
+src/app/(dashboard)/projects/[id]/page.tsx(246,59): error TS2339: Property 'contractItems' does not exist on type '{ items: { id: string; description: string; quantity: Decimal; unit: string; unitPrice: Decimal; contractId: string; }[]; } & { id: string; createdAt: Date; updatedAt: Date; ... 8 more ...; contractorId: string | null; }'.
+src/app/(dashboard)/projects/[id]/page.tsx(284,81): error TS2339: Property 'role' does not exist on type '{ name: string; id: string; createdAt: Date; updatedAt: Date; companyId: string; status: EmployeeStatus; jobTitle: string; document: string | null; skills: string[]; costPerHour: Decimal | null; }'.
+src/components/companies/delete-company-dialog.tsx(36,41): error TS2339: Property 'message' does not exist on type '{ success: boolean; error?: undefined; } | { success: boolean; error: any; }'.
+  Property 'message' does not exist on type '{ success: boolean; error?: undefined; }'.
+src/components/companies/delete-company-dialog.tsx(43,41): error TS2339: Property 'message' does not exist on type '{ success: boolean; error?: undefined; } | { success: boolean; error: any; }'.
+  Property 'message' does not exist on type '{ success: boolean; error?: undefined; }'.
+src/components/companies/edit-company-dialog.tsx(86,48): error TS2345: Argument of type '{}' is not assignable to parameter of type 'string'.
+src/components/companies/edit-company-dialog.tsx(91,41): error TS2339: Property 'message' does not exist on type '{ success: boolean; data: { name: string; id: string; email: string | null; createdAt: Date; updatedAt: Date; cnpj: string; phone: string | null; address: string | null; city: string | null; state: string | null; zipCode: string | null; }; error?: undefined; } | { ...; }'.
+  Property 'message' does not exist on type '{ success: boolean; data: { name: string; id: string; email: string | null; createdAt: Date; updatedAt: Date; cnpj: string; phone: string | null; address: string | null; city: string | null; state: string | null; zipCode: string | null; }; error?: undefined; }'.
+src/components/companies/edit-company-dialog.tsx(98,42): error TS2339: Property 'message' does not exist on type '{ success: boolean; data: { name: string; id: string; email: string | null; createdAt: Date; updatedAt: Date; cnpj: string; phone: string | null; address: string | null; city: string | null; state: string | null; zipCode: string | null; }; error?: undefined; } | { ...; }'.
+  Property 'message' does not exist on type '{ success: boolean; data: { name: string; id: string; email: string | null; createdAt: Date; updatedAt: Date; cnpj: string; phone: string | null; address: string | null; city: string | null; state: string | null; zipCode: string | null; }; error?: undefined; }'.
+src/components/dashboard/dashboard-charts.tsx(75,76): error TS18048: 'percent' is possibly 'undefined'.
+src/components/dashboard/dashboard-charts.tsx(105,33): error TS2322: Type '(value: number) => string' is not assignable to type 'Formatter<number, NameType> & ((value: number, name: NameType, item: Payload<number, NameType>, index: number, payload: Payload<number, NameType>[]) => ReactNode | [...])'.
+  Type '(value: number) => string' is not assignable to type 'Formatter<number, NameType>'.
+    Types of parameters 'value' and 'value' are incompatible.
+      Type 'number | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/components/dashboard/dashboard-charts.tsx(140,33): error TS2322: Type '(value: number) => string' is not assignable to type 'Formatter<number, NameType> & ((value: number, name: NameType, item: Payload<number, NameType>, index: number, payload: Payload<number, NameType>[]) => ReactNode | [...])'.
+  Type '(value: number) => string' is not assignable to type 'Formatter<number, NameType>'.
+    Types of parameters 'value' and 'value' are incompatible.
+      Type 'number | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
