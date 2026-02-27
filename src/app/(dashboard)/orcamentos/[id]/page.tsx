@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
 import { getBudgetById } from "@/app/actions/budget-actions"
 import { BudgetDetailClient } from "@/components/orcamentos/budget-detail-client"
+import { toNumber } from "@/lib/formatters"
 
 interface BudgetPageProps {
     params: Promise<{ id: string }>
@@ -28,5 +29,17 @@ export default async function BudgetDetailPage({ params }: BudgetPageProps) {
         redirect("/orcamentos")
     }
 
-    return <BudgetDetailClient budget={budget} companyId={companyId} />
+    // Converter Decimal para number para Client Component
+    const serializedBudget = {
+        ...budget,
+        totalValue: toNumber(budget.totalValue),
+        items: budget.items.map(item => ({
+            ...item,
+            quantity: toNumber(item.quantity),
+            unitPrice: toNumber(item.unitPrice),
+            totalPrice: toNumber(item.totalPrice),
+        })),
+    }
+
+    return <BudgetDetailClient budget={serializedBudget} companyId={companyId} />
 }

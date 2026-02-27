@@ -1,0 +1,184 @@
+
+> erp-eixo-global@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+
+[2m[0.34ms][22m [@tailwindcss/postcss] src\app\transitions.css
+[2m[0.32ms][22m  [2m ↳ [22mQuick bail check
+
+
+[2m[942.94ms][22m [@tailwindcss/postcss] src\app\globals.css
+[2m[  0.01ms][22m  [2m ↳ [22mQuick bail check
+[2m[142.68ms][22m  [2m ↳ [22mSetup compiler
+[2m[  0.59ms][22m    [2m ↳ [22mPostCSS AST -> Tailwind CSS AST
+[2m[142.06ms][22m    [2m ↳ [22mCreate compiler
+[2m[  0.36ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[  3.38ms][22m  [2m ↳ [22mSetup scanner
+[2m[397.83ms][22m  [2m ↳ [22mScan for candidates
+[2m[103.09ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[182.81ms][22m  [2m ↳ [22mBuild utilities
+[2m[107.31ms][22m  [2m ↳ [22mOptimization
+[2m[  1.61ms][22m    [2m ↳ [22mAST -> CSS
+[2m[ 79.02ms][22m    [2m ↳ [22mLightning CSS
+[2m[ 26.63ms][22m    [2m ↳ [22mCSS -> PostCSS AST
+[2m[  4.93ms][22m  [2m ↳ [22mUpdate PostCSS AST
+
+
+[2m[0.09ms][22m [@tailwindcss/postcss] node_modules\leaflet\dist\leaflet.css
+[2m[0.08ms][22m  [2m ↳ [22mQuick bail check
+
+
+> Build error occurred
+Error: Turbopack build failed with 4 errors:
+./src/lib/generated/prisma/internal/class.ts:14:1
+Module not found: Can't resolve '@prisma/client/runtime/client'
+[0m [90m 12 |[39m [90m */[39m
+ [90m 13 |[39m
+[31m[1m>[22m[39m[90m 14 |[39m [36mimport[39m [33m*[39m [36mas[39m runtime [36mfrom[39m [32m"@prisma/client/runtime/client"[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 15 |[39m [36mimport[39m type [33m*[39m [36mas[39m [33mPrisma[39m [36mfrom[39m [32m"./prismaNamespace"[39m
+ [90m 16 |[39m
+ [90m 17 |[39m[0m
+
+
+
+Import traces:
+  App Route:
+    ./src/lib/generated/prisma/internal/class.ts
+    ./src/lib/generated/prisma/client.ts
+    ./src/lib/prisma.ts
+    ./src/app/api/notifications/stream/route.ts
+
+  Server Component:
+    ./src/lib/generated/prisma/internal/class.ts
+    ./src/lib/generated/prisma/client.ts
+    ./src/lib/prisma.ts
+    ./src/app/(dashboard)/rh/organograma/page.tsx
+
+  Instrumentation:
+    ./src/lib/generated/prisma/internal/class.ts
+    ./src/lib/generated/prisma/client.ts
+    ./src/lib/prisma.ts
+    ./src/lib/notification-scheduler.ts
+    ./src/instrumentation.ts
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./src/lib/generated/prisma/internal/prismaNamespace.ts:18:1
+Module not found: Can't resolve '@prisma/client/runtime/client'
+[0m [90m 16 |[39m [90m */[39m
+ [90m 17 |[39m
+[31m[1m>[22m[39m[90m 18 |[39m [36mimport[39m [33m*[39m [36mas[39m runtime [36mfrom[39m [32m"@prisma/client/runtime/client"[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 19 |[39m [36mimport[39m type [33m*[39m [36mas[39m [33mPrisma[39m [36mfrom[39m [32m"../models"[39m
+ [90m 20 |[39m [36mimport[39m { type [33mPrismaClient[39m } [36mfrom[39m [32m"./class"[39m
+ [90m 21 |[39m[0m
+
+
+
+Import traces:
+  App Route:
+    ./src/lib/generated/prisma/internal/prismaNamespace.ts
+    ./src/lib/generated/prisma/client.ts
+    ./src/lib/prisma.ts
+    ./src/app/api/notifications/stream/route.ts
+
+  Server Component:
+    ./src/lib/generated/prisma/internal/prismaNamespace.ts
+    ./src/lib/generated/prisma/client.ts
+    ./src/lib/prisma.ts
+    ./src/app/(dashboard)/rh/organograma/page.tsx
+
+  Instrumentation:
+    ./src/lib/generated/prisma/internal/prismaNamespace.ts
+    ./src/lib/generated/prisma/client.ts
+    ./src/lib/prisma.ts
+    ./src/lib/notification-scheduler.ts
+    ./src/instrumentation.ts
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./src/lib/generated/prisma/internal/class.ts:48:33
+Module not found: Can't resolve '@prisma/client/runtime/query_compiler_fast_bg.sqlite.mjs'
+[0m [90m 46 |[39m
+ [90m 47 |[39m config[33m.[39mcompilerWasm [33m=[39m {
+[31m[1m>[22m[39m[90m 48 |[39m   getRuntime[33m:[39m [36masync[39m () [33m=>[39m [36mawait[39m [36mimport[39m([32m"@prisma/client/runtime/query_compiler_fast_bg.sqlite.mjs"[39m)[33m,[39m
+ [90m    |[39m                                 [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 49 |[39m
+ [90m 50 |[39m   getQueryCompilerWasmModule[33m:[39m [36masync[39m () [33m=>[39m {
+ [90m 51 |[39m     [36mconst[39m { wasm } [33m=[39m [36mawait[39m [36mimport[39m([32m"@prisma/client/runtime/query_compiler_fast_bg.sqlite.wasm-base64.mjs"[39m)[0m
+
+
+
+Import traces:
+  App Route:
+    ./src/lib/generated/prisma/internal/class.ts
+    ./src/lib/generated/prisma/client.ts
+    ./src/lib/prisma.ts
+    ./src/app/api/notifications/stream/route.ts
+
+  Server Component:
+    ./src/lib/generated/prisma/internal/class.ts
+    ./src/lib/generated/prisma/client.ts
+    ./src/lib/prisma.ts
+    ./src/app/(dashboard)/rh/organograma/page.tsx
+
+  Instrumentation:
+    ./src/lib/generated/prisma/internal/class.ts
+    ./src/lib/generated/prisma/client.ts
+    ./src/lib/prisma.ts
+    ./src/lib/notification-scheduler.ts
+    ./src/instrumentation.ts
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./src/lib/generated/prisma/internal/class.ts:51:28
+Module not found: Can't resolve '@prisma/client/runtime/query_compiler_fast_bg.sqlite.wasm-base64.mjs'
+[0m [90m 49 |[39m
+ [90m 50 |[39m   getQueryCompilerWasmModule[33m:[39m [36masync[39m () [33m=>[39m {
+[31m[1m>[22m[39m[90m 51 |[39m     [36mconst[39m { wasm } [33m=[39m [36mawait[39m [36mimport[39m([32m"@prisma/client/runtime/query_compiler_fast_bg.sqlite.wasm-base64.mjs"[39m)
+ [90m    |[39m                            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 52 |[39m     [36mreturn[39m [36mawait[39m decodeBase64AsWasm(wasm)
+ [90m 53 |[39m   }[33m,[39m
+ [90m 54 |[39m[0m
+
+
+
+Import traces:
+  App Route:
+    ./src/lib/generated/prisma/internal/class.ts
+    ./src/lib/generated/prisma/client.ts
+    ./src/lib/prisma.ts
+    ./src/app/api/notifications/stream/route.ts
+
+  Server Component:
+    ./src/lib/generated/prisma/internal/class.ts
+    ./src/lib/generated/prisma/client.ts
+    ./src/lib/prisma.ts
+    ./src/app/(dashboard)/rh/organograma/page.tsx
+
+  Instrumentation:
+    ./src/lib/generated/prisma/internal/class.ts
+    ./src/lib/generated/prisma/client.ts
+    ./src/lib/prisma.ts
+    ./src/lib/notification-scheduler.ts
+    ./src/instrumentation.ts
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (./src/lib/generated/prisma/internal/class.ts:14:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./src/lib/generated/prisma/internal/prismaNamespace.ts:18:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./src/lib/generated/prisma/internal/class.ts:48:33)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./src/lib/generated/prisma/internal/class.ts:51:28)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)

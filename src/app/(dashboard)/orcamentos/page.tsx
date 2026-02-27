@@ -1,5 +1,3 @@
-'use server'
-
 import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { getBudgets } from "@/app/actions/budget-actions"
@@ -7,13 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { OrcamentosClient } from "@/components/orcamentos/orcamentos-client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileSpreadsheet, Clock, CheckCircle, TrendingUp } from "lucide-react"
-
-const formatBRL = (value: number) =>
-    new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-        minimumFractionDigits: 2,
-    }).format(value)
+import { toNumber, formatCurrency } from "@/lib/formatters"
 
 export default async function OrcamentosPage() {
     const session = await getSession()
@@ -34,7 +26,13 @@ export default async function OrcamentosPage() {
     const totalBudgets = budgets.length
     const draftBudgets = budgets.filter(b => b.status === 'DRAFT').length
     const approvedBudgets = budgets.filter(b => b.status === 'APPROVED').length
-    const totalValue = budgets.reduce((sum, b) => sum + b.totalValue, 0)
+    const totalValue = budgets.reduce((sum, b) => sum + toNumber(b.totalValue), 0)
+
+    // Converter Decimal para number para Client Component
+    const serializedBudgets = budgets.map(b => ({
+        ...b,
+        totalValue: toNumber(b.totalValue),
+    }))
 
     return (
         <div className="space-y-6">
@@ -85,7 +83,7 @@ export default async function OrcamentosPage() {
                         <TrendingUp className="h-4 w-4 text-purple-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{formatBRL(totalValue)}</div>
+                        <div className="text-2xl font-bold">{formatCurrency(totalValue)}</div>
                         <p className="text-xs text-muted-foreground">Soma de todos os orçamentos</p>
                     </CardContent>
                 </Card>
@@ -97,7 +95,7 @@ export default async function OrcamentosPage() {
                     <CardTitle>Lista de Orçamentos</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <OrcamentosClient budgets={budgets} projects={projects} companyId={companyId} />
+                    <OrcamentosClient budgets={serializedBudgets} projects={projects} companyId={companyId} />
                 </CardContent>
             </Card>
         </div>

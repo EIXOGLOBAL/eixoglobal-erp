@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/audit'
 import { revalidatePath } from 'next/cache'
 import { detectFileFormat, parseOFX, parseCSV } from '@/lib/statement-parser'
 import { autoReconcile, getSuggestions } from '@/lib/reconciliation-engine'
+import { toNumber } from '@/lib/formatters'
 
 // ============================================================================
 // IMPORT BANK STATEMENT
@@ -298,12 +299,12 @@ export async function createFinancialRecordFromTransaction(
     const record = await prisma.financialRecord.create({
       data: {
         description: data.description || txn.description,
-        amount: Math.abs(txn.amount),
+        amount: Math.abs(toNumber(txn.amount)),
         type: finType,
         status: 'PAID',
         dueDate: txn.date,
         paidDate: txn.date,
-        paidAmount: Math.abs(txn.amount),
+        paidAmount: Math.abs(toNumber(txn.amount)),
         bankAccountId: txn.statement.bankAccountId,
         companyId: user.companyId,
         category: data.category || null,
@@ -333,7 +334,7 @@ export async function createFinancialRecordFromTransaction(
       companyId: user.companyId,
       newData: {
         transactionId,
-        amount: Math.abs(txn.amount),
+        amount: Math.abs(toNumber(txn.amount)),
         type: finType,
       },
     })
@@ -392,6 +393,8 @@ export async function getStatements(bankAccountId?: string) {
 
         return {
           ...stmt,
+          totalCredits: toNumber(stmt.totalCredits),
+          totalDebits: toNumber(stmt.totalDebits),
           stats: { matched, pending, divergent, ignored, total, matchRate },
         }
       })
@@ -452,8 +455,9 @@ export async function getStatementTransactions(statementId: string, filter?: str
       success: true as const,
       data: transactions.map(t => ({
         ...t,
+        amount: toNumber(t.amount),
         financialRecord: t.financialRecord
-          ? { ...t.financialRecord, amount: Number(t.financialRecord.amount) }
+          ? { ...t.financialRecord, amount: toNumber(t.financialRecord.amount) }
           : null,
       })),
     }
@@ -494,10 +498,10 @@ export async function getReconciliationSummary(bankAccountId: string, period: st
     const allTxns = statements.flatMap(s => s.transactions)
     const totalCredits = allTxns
       .filter(t => t.type === 'CREDIT')
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+      .reduce((sum, t) => sum + Math.abs(toNumber(t.amount)), 0)
     const totalDebits = allTxns
       .filter(t => t.type === 'DEBIT')
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+      .reduce((sum, t) => sum + Math.abs(toNumber(t.amount)), 0)
 
     const matched = allTxns.filter(
       t => t.reconciliationStatus === 'MATCHED' || t.reconciliationStatus === 'AUTO_MATCHED'

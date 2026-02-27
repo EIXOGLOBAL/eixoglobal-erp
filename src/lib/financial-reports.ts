@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { toNumber } from '@/lib/formatters'
 
 // ============================================================
 // Types
@@ -609,23 +610,23 @@ export async function generateCashflowProjection(
 
   // Payroll projection
   const monthlyPayroll = activeEmployees.reduce(
-    (sum, e) => sum + (e.monthlySalary ? Number(e.monthlySalary) : 0),
+    (sum, e) => sum + (e.monthlySalary ? toNumber(e.monthlySalary) : 0),
     0
   )
 
   // Pending POs total (distribute over 3 months)
-  const pendingPOTotal = pendingPOs.reduce((sum, po) => sum + po.totalValue, 0)
+  const pendingPOTotal = pendingPOs.reduce((sum, po) => sum + toNumber(po.totalValue), 0)
   const monthlyPOBurn = pendingPOTotal / 3
 
   // Approved bulletins as future income (distribute over 2 months)
   const bulletinIncome = activeBulletins
     .filter(b => b.status === 'APPROVED' || b.status === 'BILLED')
-    .reduce((sum, b) => sum + Number(b.totalValue), 0)
+    .reduce((sum, b) => sum + toNumber(b.totalValue), 0)
   const monthlyBulletinIncome = bulletinIncome / 2
 
   // Rental monthly cost
   const monthlyRentalCost = activeRentals.reduce((sum, r) => {
-    const rate = Number(r.unitRate)
+    const rate = toNumber(r.unitRate)
     if (r.billingCycle === 'DAILY') return sum + rate * 30
     if (r.billingCycle === 'WEEKLY') return sum + rate * 4.3
     return sum + rate // MONTHLY
@@ -760,9 +761,9 @@ export async function generateCostCenterReport(
     const ccRecords = records.filter(r => r.costCenterId === cc.id)
     const ccBudgets = budgets.filter(b => b.costCenterId === cc.id)
 
-    const budgeted = ccBudgets.reduce((sum, b) => sum + b.budgetedAmount, 0)
+    const budgeted = ccBudgets.reduce((sum, b) => sum + toNumber(b.budgetedAmount), 0)
     const realized = ccRecords.reduce((sum, r) => {
-      const amount = Number(r.amount)
+      const amount = toNumber(r.amount)
       return sum + (r.type === 'EXPENSE' ? amount : -amount)
     }, 0)
     const variance = budgeted - realized
@@ -778,7 +779,7 @@ export async function generateCostCenterReport(
           const d = new Date(r.dueDate)
           return d >= mStart && d <= mEnd
         })
-        .reduce((sum, r) => sum + Number(r.amount), 0)
+        .reduce((sum, r) => sum + toNumber(r.amount), 0)
 
       const mLabel = new Date(year, m, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
       monthlyEvolution.push({ month: mLabel, value: monthTotal })

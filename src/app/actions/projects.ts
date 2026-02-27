@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { ProjectStatus } from "@/lib/generated/prisma/client"
+import { ProjectStatus } from "@/lib/generated/prisma"
 
 const createProjectSchema = z.object({
     name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import { getDailyReportById } from "@/app/actions/daily-report-actions"
 import { PrintButton } from "@/components/rdo/print-button"
+import { toNumber } from "@/lib/formatters"
 
 const WEATHER_LABELS: Record<string, string> = {
     SUNNY: "Ensolarado ☀️",
@@ -197,7 +198,7 @@ export default async function RdoPrintPage({ params }: PageProps) {
                     </div>
                     <div className="meta-item">
                         <label>Temperatura</label>
-                        <span>{report.temperature != null ? `${report.temperature}°C` : "—"}</span>
+                        <span>{report.temperature != null ? `${toNumber(report.temperature)}°C` : "—"}</span>
                     </div>
                     <div className="meta-item">
                         <label>Projeto</label>
@@ -273,10 +274,10 @@ export default async function RdoPrintPage({ params }: PageProps) {
                                             <span className="progress-bar">
                                                 <span
                                                     className="progress-fill"
-                                                    style={{ width: `${a.percentDone}%` }}
+                                                    style={{ width: `${toNumber(a.percentDone)}%` }}
                                                 />
                                             </span>
-                                            {a.percentDone}%
+                                            {toNumber(a.percentDone)}%
                                         </td>
                                     </tr>
                                 ))

@@ -11,6 +11,7 @@ import { WorkforceEditor } from "@/components/rdo/workforce-editor"
 import { ActivitiesEditor } from "@/components/rdo/activities-editor"
 import { DailyReportDialog } from "@/components/rdo/daily-report-dialog"
 import { prisma } from "@/lib/prisma"
+import { toNumber } from "@/lib/formatters"
 
 const WEATHER_LABELS: Record<string, string> = {
     SUNNY: "Ensolarado",
@@ -68,6 +69,16 @@ export default async function RdoDetailPage({ params }: PageProps) {
 
     const totalWorkers = report.workforce.reduce((sum, w) => sum + w.count, 0)
 
+    // Converter Decimal para number para Client Components
+    const serializedReport = {
+        ...report,
+        temperature: report.temperature !== null ? toNumber(report.temperature) : null,
+        activities: report.activities.map(a => ({
+            ...a,
+            percentDone: toNumber(a.percentDone),
+        })),
+    }
+
     return (
         <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
             {/* Header */}
@@ -102,7 +113,7 @@ export default async function RdoDetailPage({ params }: PageProps) {
                                 projectId: report.projectId,
                                 date: report.date,
                                 weather: report.weather,
-                                temperature: report.temperature,
+                                temperature: report.temperature !== null ? toNumber(report.temperature) : null,
                                 notes: report.notes,
                                 occurrences: report.occurrences,
                                 supervisorId: report.supervisorId,
@@ -185,7 +196,7 @@ export default async function RdoDetailPage({ params }: PageProps) {
                 <TabsContent value="activities" className="mt-4">
                     <ActivitiesEditor
                         reportId={report.id}
-                        activities={report.activities}
+                        activities={serializedReport.activities}
                         reportStatus={report.status}
                     />
                 </TabsContent>

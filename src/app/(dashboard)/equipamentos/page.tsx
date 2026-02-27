@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Truck, Wrench, AlertCircle, DollarSign } from "lucide-react"
 import { EquipmentDialog } from "@/components/equipamentos/equipment-dialog"
 import { EquipmentTable } from "@/components/equipamentos/equipment-table"
+import { toNumber, formatCurrency } from "@/lib/formatters"
 
 export default async function EquipamentosPage() {
     const session = await getSession()
@@ -22,8 +23,16 @@ export default async function EquipamentosPage() {
 
     const ownedWithCost = equipment.filter(e => e.isOwned && e.costPerHour != null)
     const avgCostPerHour = ownedWithCost.length > 0
-        ? ownedWithCost.reduce((sum, e) => sum + (e.costPerHour ?? 0), 0) / ownedWithCost.length
+        ? ownedWithCost.reduce((sum, e) => sum + toNumber(e.costPerHour), 0) / ownedWithCost.length
         : 0
+
+    // Converter Decimal para number para Client Components
+    const serializedEquipment = equipment.map(e => ({
+        ...e,
+        costPerHour: e.costPerHour !== null ? toNumber(e.costPerHour) : null,
+        costPerDay: e.costPerDay !== null ? toNumber(e.costPerDay) : null,
+        totalHoursWorked: toNumber(e.totalHoursWorked),
+    }))
 
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -79,7 +88,7 @@ export default async function EquipamentosPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(avgCostPerHour)}
+                            {formatCurrency(avgCostPerHour)}
                         </div>
                         <p className="text-xs text-muted-foreground">Equipamentos próprios</p>
                     </CardContent>
@@ -95,7 +104,7 @@ export default async function EquipamentosPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <EquipmentTable equipment={equipment} companyId={companyId} />
+                    <EquipmentTable equipment={serializedEquipment} companyId={companyId} />
                 </CardContent>
             </Card>
         </div>

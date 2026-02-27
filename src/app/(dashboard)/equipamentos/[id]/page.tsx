@@ -10,6 +10,7 @@ import { EquipmentDialog } from '@/components/equipamentos/equipment-dialog'
 import { UsageDialog } from '@/components/equipamentos/usage-dialog'
 import { MaintenanceDialog } from '@/components/equipamentos/maintenance-dialog'
 import { EquipmentDetailClient } from '@/components/equipamentos/equipment-detail-client'
+import { toNumber, formatCurrency } from '@/lib/formatters'
 
 const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
     VEHICLE: "Veículo", CRANE: "Guindaste/Grua", EXCAVATOR: "Escavadeira",
@@ -31,7 +32,7 @@ const STATUS_COLORS: Record<string, string> = {
 const MAINTENANCE_TYPE_LABELS: Record<string, string> = {
     PREVENTIVE: "Preventiva", CORRECTIVE: "Corretiva", INSPECTION: "Inspeção",
 }
-const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+const fmt = { format: formatCurrency } // Compatibilidade com código existente
 const fmtDate = (d: Date | string | null | undefined) =>
     d ? new Date(d).toLocaleDateString('pt-BR') : '—'
 interface PageProps { params: Promise<{ id: string }> }
@@ -47,25 +48,25 @@ export default async function EquipamentoDetailPage({ params }: PageProps) {
     if (!equipResult.success || !equipResult.data) notFound()
     const equipment = equipResult.data
     const projects = projectsResult.success ? (projectsResult.data ?? []) : []
-    const totalUsageCost = equipment.usages.reduce((sum, u) => sum + Number(u.totalCost || 0), 0)
+    const totalUsageCost = equipment.usages.reduce((sum, u) => sum + toNumber(u.totalCost), 0)
     const totalMaintenanceCost = equipment.maintenances
         .filter(m => m.completedAt)
-        .reduce((sum, m) => sum + Number(m.cost || 0), 0)
+        .reduce((sum, m) => sum + toNumber(m.cost), 0)
     const totalCost = totalUsageCost + totalMaintenanceCost
-    const totalHours = equipment.usages.reduce((sum, u) => sum + (u.hours || 0), 0)
-    const totalDays = equipment.usages.reduce((sum, u) => sum + (u.days || 0), 0)
+    const totalHours = equipment.usages.reduce((sum, u) => sum + toNumber(u.hours), 0)
+    const totalDays = equipment.usages.reduce((sum, u) => sum + toNumber(u.days), 0)
     const costPerHourActual = totalHours > 0 ? totalUsageCost / totalHours : 0
     const costByProject = equipment.usages.reduce((acc, u) => {
         const key = u.projectId ?? 'Sem Projeto'
         const name = u.project?.name ?? 'Sem Projeto'
         if (!acc[key]) acc[key] = { name, hours: 0, days: 0, cost: 0 }
-        acc[key].hours += u.hours || 0
-        acc[key].days += u.days || 0
-        acc[key].cost += Number(u.totalCost || 0)
+        acc[key].hours += toNumber(u.hours)
+        acc[key].days += toNumber(u.days)
+        acc[key].cost += toNumber(u.totalCost)
         return acc
     }, {} as Record<string, { name: string; hours: number; days: number; cost: number }>)
     const costByProjectList = Object.values(costByProject).sort((a, b) => b.cost - a.cost)
-    const registeredCostPerHour = equipment.costPerHour != null ? Number(equipment.costPerHour) : null
+    const registeredCostPerHour = equipment.costPerHour != null ? toNumber(equipment.costPerHour) : null
     const costVarianceAbove = registeredCostPerHour != null && costPerHourActual > registeredCostPerHour
     const costVarianceBelow = registeredCostPerHour != null && costPerHourActual < registeredCostPerHour
     return (
@@ -91,8 +92,10 @@ export default async function EquipamentoDetailPage({ params }: PageProps) {
                     <EquipmentDialog companyId={companyId} equipment={{
                         id: equipment.id, code: equipment.code, name: equipment.name,
                         type: equipment.type, brand: equipment.brand, model: equipment.model,
-                        year: equipment.year, costPerHour: equipment.costPerHour,
-                        costPerDay: equipment.costPerDay, isOwned: equipment.isOwned, notes: equipment.notes,
+                        year: equipment.year,
+                        costPerHour: equipment.costPerHour !== null ? toNumber(equipment.costPerHour) : null,
+                        costPerDay: equipment.costPerDay !== null ? toNumber(equipment.costPerDay) : null,
+                        isOwned: equipment.isOwned, notes: equipment.notes,
                     }} />
                 </div>
             </div>
@@ -117,14 +120,17 @@ export default async function EquipamentoDetailPage({ params }: PageProps) {
                             <EquipmentDetailClient
                                 usages={equipment.usages.map(u => ({
                                     id: u.id, projectName: u.project.name, startDate: u.startDate,
-                                    endDate: u.endDate ?? null, hours: u.hours ?? null, days: u.days ?? null,
-                                    totalCost: u.totalCost != null ? Number(u.totalCost) : null,
+                                    endDate: u.endDate ?? null,
+                                    hours: u.hours !== null ? toNumber(u.hours) : null,
+                                    days: u.days !== null ? toNumber(u.days) : null,
+                                    totalCost: u.totalCost !== null ? toNumber(u.totalCost) : null,
                                     operator: u.operator ?? null,
                                 }))}
                                 maintenances={equipment.maintenances.map(m => ({
                                     id: m.id, type: m.type, description: m.description,
                                     scheduledAt: m.scheduledAt, completedAt: m.completedAt ?? null,
-                                    cost: m.cost != null ? Number(m.cost) : null, provider: m.provider ?? null,
+                                    cost: m.cost !== null ? toNumber(m.cost) : null,
+                                    provider: m.provider ?? null,
                                 }))}
                                 equipmentId={equipment.id} activeTab="usage" />
                         )}

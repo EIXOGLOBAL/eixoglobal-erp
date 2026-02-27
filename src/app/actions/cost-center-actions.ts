@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { toNumber } from "@/lib/formatters"
 
 const costCenterSchema = z.object({
     code: z.string().min(1, "Código é obrigatório"),
@@ -163,10 +164,10 @@ export async function getCostCenterReport(companyId: string, projectId?: string)
         return {
             success: true,
             data: costCenters.map((cc) => {
-                const financial = cc.financialRecords.reduce((s, r) => s + Number(r.amount), 0)
-                const equipment = cc.equipmentUsages.reduce((s, u) => s + (u.totalCost ?? 0), 0)
-                const rentals = cc.rentalPayments.reduce((s, p) => s + Number(p.amount), 0)
-                const purchases = cc.purchaseOrders.reduce((s, o) => s + o.totalValue, 0)
+                const financial = cc.financialRecords.reduce((s, r) => s + toNumber(r.amount), 0)
+                const equipment = cc.equipmentUsages.reduce((s, u) => s + toNumber(u.totalCost), 0)
+                const rentals = cc.rentalPayments.reduce((s, p) => s + toNumber(p.amount), 0)
+                const purchases = cc.purchaseOrders.reduce((s, o) => s + toNumber(o.totalValue), 0)
                 const totalExpenses = financial + equipment + rentals + purchases
 
                 return {

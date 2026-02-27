@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { toNumber } from "@/lib/formatters"
 
 const budgetSchema = z.object({
     name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
@@ -216,6 +217,6 @@ export async function reviseBudget(id: string) {
 
 async function recalcBudgetTotal(budgetId: string) {
     const items = await prisma.budgetItem.findMany({ where: { budgetId } })
-    const total = items.reduce((sum, item) => sum + item.totalPrice, 0)
+    const total = items.reduce((sum, item) => sum + toNumber(item.totalPrice), 0)
     await prisma.budget.update({ where: { id: budgetId }, data: { totalValue: total } })
 }

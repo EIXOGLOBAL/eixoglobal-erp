@@ -2,7 +2,7 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../src/lib/generated/prisma"
 }
 
@@ -2056,4 +2056,169 @@ model CostCenterBudget {
 
   @@unique([costCenterId, year, month])
   @@map("cost_center_budgets")
+}
+
+// ============================================================
+// ENUMS E MODELS FALTANTES
+// ============================================================
+
+enum ContractType {
+  PUBLIC
+  PRIVATE
+  FRAMEWORK
+  OTHER
+}
+
+enum ReajusteIndex {
+  INCC
+  IPCA
+  IGP_M
+  CUSTOM
+}
+
+enum AmendmentType {
+  VALUE_CHANGE
+  DEADLINE_CHANGE
+  SCOPE_CHANGE
+  MIXED
+}
+
+enum CompositionStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum DepreciationMethod {
+  LINEAR
+  DECLINING_BALANCE
+  SUM_OF_YEARS_DIGITS
+}
+
+enum FuelType {
+  DIESEL
+  GASOLINE
+  ETHANOL
+  ELECTRIC
+  HYBRID
+}
+
+// ============================================================
+// MODELS FALTANTES (stubs - podem ser expandidos depois)
+// ============================================================
+
+model WorkCalendar {
+  id          String   @id @default(uuid())
+  name        String
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("work_calendars")
+}
+
+model BDIConfig {
+  id          String   @id @default(uuid())
+  name        String
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  percentage  Decimal  @db.Decimal(5, 2)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("bdi_configs")
+}
+
+model FinancialScheduleItem {
+  id          String   @id @default(uuid())
+  contractId  String
+  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  month       Int
+  percentage  Decimal  @db.Decimal(5, 2)
+  value       Decimal  @db.Decimal(18, 4)
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+
+  @@map("financial_schedule_items")
+}
+
+model CompositionVersion {
+  id             String          @id @default(uuid())
+  compositionId  String
+  composition    CostComposition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
+  version        Int
+  createdAt      DateTime        @default(now())
+  createdBy      String
+
+  @@unique([compositionId, version])
+  @@map("composition_versions")
+}
+
+model TaskDependency {
+  id            String      @id @default(uuid())
+  predecessorId String
+  predecessor   ProjectTask @relation("DependencyPredecessor", fields: [predecessorId], references: [id], onDelete: Cascade)
+  successorId   String
+  successor     ProjectTask @relation("DependencySuccessor", fields: [successorId], references: [id], onDelete: Cascade)
+  type          String      @default("FS") // FS, SS, FF, SF
+  lag           Int         @default(0)
+
+  @@unique([predecessorId, successorId])
+  @@map("task_dependencies")
+}
+
+model DailyReportPhoto {
+  id          String      @id @default(uuid())
+  reportId    String
+  report      DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  filename    String
+  filePath    String
+  description String?     @db.Text
+  uploadedAt  DateTime    @default(now())
+
+  @@map("daily_report_photos")
+}
+
+model DailyReportEquipment {
+  id           String      @id @default(uuid())
+  reportId     String
+  report       DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  equipmentId  String?
+  equipment    Equipment?  @relation(fields: [equipmentId], references: [id])
+  name         String
+  hours        Decimal     @db.Decimal(10, 2)
+  observations String?     @db.Text
+
+  @@map("daily_report_equipments")
+}
+
+model MaintenancePlanItem {
+  id               String    @id @default(uuid())
+  equipmentId      String
+  equipment        Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  maintenanceType  String
+  intervalDays     Int?
+  intervalHours    Decimal?  @db.Decimal(10, 2)
+  description      String    @db.Text
+  lastPerformedAt  DateTime?
+  nextScheduledAt  DateTime?
+
+  @@map("maintenance_plan_items")
+}
+
+model EquipmentDocument {
+  id          String    @id @default(uuid())
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  type        String    // LICENSE, INSURANCE, MANUAL, CERTIFICATE
+  filename    String
+  filePath    String
+  expiresAt   DateTime?
+  uploadedAt  DateTime  @default(now())
+
+  @@map("equipment_documents")
 }

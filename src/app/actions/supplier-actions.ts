@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import { logAudit } from "@/lib/audit"
+import { toNumber } from "@/lib/formatters"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 
@@ -331,7 +332,7 @@ export async function evaluateSupplier(
             where: { supplierId },
             select: { score: true },
         })
-        const avgRating = allEvals.reduce((sum, e) => sum + e.score, 0) / allEvals.length
+        const avgRating = allEvals.reduce((sum, e) => sum + toNumber(e.score), 0) / allEvals.length
         await prisma.supplier.update({
             where: { id: supplierId },
             data: { rating: Math.round(avgRating * 100) / 100 },
@@ -386,7 +387,7 @@ export async function getSupplierDetail(supplierId: string) {
             where: { supplierId },
             select: { totalValue: true, status: true },
         })
-        const poTotal = purchaseOrders.reduce((s, po) => s + po.totalValue, 0)
+        const poTotal = purchaseOrders.reduce((s, po) => s + toNumber(po.totalValue), 0)
 
         // Financial records via fiscal notes
         const fiscalNotes = await prisma.fiscalNote.findMany({
@@ -462,7 +463,7 @@ export async function getSupplierFinancialHistory(supplierId: string) {
             const d = new Date(po.createdAt)
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
             if (key in monthlyMap) {
-                monthlyMap[key]! += po.totalValue
+                monthlyMap[key]! += toNumber(po.totalValue)
             }
         }
 
@@ -485,8 +486,8 @@ export async function getSupplierFinancialHistory(supplierId: string) {
 
         // Totals
         const allValues = [
-            ...purchaseOrders.map(po => po.totalValue),
-            ...financialRecords.filter(fr => fr.status === 'PAID').map(fr => Number(fr.amount)),
+            ...purchaseOrders.map(po => toNumber(po.totalValue)),
+            ...financialRecords.filter(fr => fr.status === 'PAID').map(fr => toNumber(fr.amount)),
         ]
         const totalPaid = allValues.reduce((s, v) => s + v, 0)
         const nonZeroMonths = monthlyData.filter(m => m.total > 0)
@@ -499,7 +500,7 @@ export async function getSupplierFinancialHistory(supplierId: string) {
                 id: po.id,
                 date: po.createdAt,
                 description: `Pedido de Compra #${po.number}`,
-                value: po.totalValue,
+                value: toNumber(po.totalValue),
                 status: po.status,
                 source: 'PO' as const,
             })),
@@ -507,7 +508,7 @@ export async function getSupplierFinancialHistory(supplierId: string) {
                 id: fr.id,
                 date: fr.paidDate ?? fr.dueDate,
                 description: fr.description,
-                value: Number(fr.amount),
+                value: toNumber(fr.amount),
                 status: fr.status,
                 source: 'FR' as const,
             })),
@@ -659,7 +660,7 @@ export async function getSuppliersEnhanced(companyId: string) {
         // Best rated
         const bestRated = suppliers
             .filter(s => s.rating !== null && s.isActive)
-            .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+            .sort((a, b) => toNumber(b.rating ?? 0) - toNumber(a.rating ?? 0))
             .slice(0, 3)
             .map(s => ({ name: s.name, rating: s.rating }))
 

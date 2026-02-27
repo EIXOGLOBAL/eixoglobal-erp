@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { prisma } from '@/lib/prisma'
+import { toNumber } from '@/lib/formatters'
 
 export interface ReconciliationReport {
   total: number
@@ -70,7 +71,7 @@ export async function autoReconcile(
   for (const txn of transactions) {
     const txnType = txn.type // CREDIT or DEBIT
     const expectedFinType = txnType === 'CREDIT' ? 'INCOME' : 'EXPENSE'
-    const txnAmount = Math.abs(txn.amount)
+    const txnAmount = Math.abs(toNumber(txn.amount))
     const txnDate = new Date(txn.date)
 
     // Filter eligible records by type
@@ -82,7 +83,7 @@ export async function autoReconcile(
 
     // Level 1: Exact Match — same amount + same date
     for (const record of eligible) {
-      const recAmount = Number(record.paidAmount) > 0 ? Number(record.paidAmount) : Number(record.amount)
+      const recAmount = toNumber(record.paidAmount) > 0 ? toNumber(record.paidAmount) : toNumber(record.amount)
       const recDate = record.paidDate || record.dueDate
 
       if (
@@ -100,7 +101,7 @@ export async function autoReconcile(
 
     // Level 2: Value ± R$0.01 + Date ± 3 days
     for (const record of eligible) {
-      const recAmount = Number(record.paidAmount) > 0 ? Number(record.paidAmount) : Number(record.amount)
+      const recAmount = toNumber(record.paidAmount) > 0 ? toNumber(record.paidAmount) : toNumber(record.amount)
       const recDate = record.paidDate || record.dueDate
 
       if (
@@ -124,7 +125,7 @@ export async function autoReconcile(
 
     // Level 3: Value + Description similarity > 70%
     for (const record of eligible) {
-      const recAmount = Number(record.paidAmount) > 0 ? Number(record.paidAmount) : Number(record.amount)
+      const recAmount = toNumber(record.paidAmount) > 0 ? toNumber(record.paidAmount) : toNumber(record.amount)
 
       if (Math.abs(recAmount - txnAmount) < 0.005) {
         const similarity = textSimilarity(txn.description, record.description)
@@ -147,7 +148,7 @@ export async function autoReconcile(
     // Level 4: Suggestion — partial match (same amount, different date >3 days)
     let hasSuggestion = false
     for (const record of eligible) {
-      const recAmount = Number(record.paidAmount) > 0 ? Number(record.paidAmount) : Number(record.amount)
+      const recAmount = toNumber(record.paidAmount) > 0 ? toNumber(record.paidAmount) : toNumber(record.amount)
       const amountDiff = Math.abs(recAmount - txnAmount)
 
       if (amountDiff <= txnAmount * 0.05) {
@@ -189,10 +190,10 @@ export async function autoReconcile(
 
   const totalCredits = allTxns
     .filter(t => t.type === 'CREDIT')
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+    .reduce((sum, t) => sum + Math.abs(toNumber(t.amount)), 0)
   const totalDebits = allTxns
     .filter(t => t.type === 'DEBIT')
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+    .reduce((sum, t) => sum + Math.abs(toNumber(t.amount)), 0)
 
   const matchedCount = allTxns.filter(
     t => t.reconciliationStatus === 'MATCHED' || t.reconciliationStatus === 'AUTO_MATCHED'
@@ -251,7 +252,7 @@ export async function getSuggestions(
   const bankAccountId = txn.statement.bankAccountId
   const txnType = txn.type
   const expectedFinType = txnType === 'CREDIT' ? 'INCOME' : 'EXPENSE'
-  const txnAmount = Math.abs(txn.amount)
+  const txnAmount = Math.abs(toNumber(txn.amount))
   const txnDate = new Date(txn.date)
 
   // Find potential matches — broader search
@@ -288,7 +289,7 @@ export async function getSuggestions(
   const allCandidates = [...candidates, ...accountCandidates]
 
   const suggestions: Suggestion[] = allCandidates.map(record => {
-    const recAmount = Number(record.paidAmount) > 0 ? Number(record.paidAmount) : Number(record.amount)
+    const recAmount = toNumber(record.paidAmount) > 0 ? toNumber(record.paidAmount) : toNumber(record.amount)
     const recDate = record.paidDate || record.dueDate
     const similarity = textSimilarity(txn.description, record.description)
     const confidence = calculateConfidence(txnAmount, recAmount, txnDate, recDate, similarity)

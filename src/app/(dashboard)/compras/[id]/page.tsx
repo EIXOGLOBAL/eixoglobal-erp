@@ -11,6 +11,7 @@ import { getPurchaseOrderById } from "@/app/actions/purchase-actions"
 import { OrderItemsClient } from "@/components/compras/order-items-client"
 import { OrderStatusDialog } from "@/components/compras/order-status-dialog"
 import { PurchaseOrderDialog } from "@/components/compras/purchase-order-dialog"
+import { formatCurrency, toNumber } from "@/lib/formatters"
 
 const STATUS_LABELS: Record<string, string> = {
     DRAFT: "Rascunho",
@@ -66,8 +67,13 @@ export default async function PurchaseOrderDetailPage({ params }: PageProps) {
 
     if (!order) notFound()
 
-    const fmt = (n: number) =>
-        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n)
+    // Converter Decimal para number para Client Components
+    const serializedItems = order.items.map(item => ({
+        ...item,
+        quantity: toNumber(item.quantity),
+        unitPrice: toNumber(item.unitPrice),
+        totalPrice: toNumber(item.totalPrice),
+    }))
 
     const fmtDate = (d: Date | null | undefined) => {
         if (!d) return "—"
@@ -156,7 +162,7 @@ export default async function PurchaseOrderDetailPage({ params }: PageProps) {
                         <DollarSign className="h-4 w-4 text-green-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-xl font-bold text-green-700">{fmt(order.totalValue)}</div>
+                        <div className="text-xl font-bold text-green-700">{formatCurrency(order.totalValue)}</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -185,9 +191,9 @@ export default async function PurchaseOrderDetailPage({ params }: PageProps) {
                 <TabsContent value="items" className="mt-4">
                     <OrderItemsClient
                         orderId={order.id}
-                        items={order.items}
+                        items={serializedItems}
                         materials={materials}
-                        totalValue={order.totalValue}
+                        totalValue={toNumber(order.totalValue)}
                     />
                 </TabsContent>
 

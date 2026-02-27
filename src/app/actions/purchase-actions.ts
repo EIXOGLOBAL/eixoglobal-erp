@@ -3,9 +3,10 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { PurchaseOrderStatus } from "@/lib/generated/prisma/client"
+import { PurchaseOrderStatus } from "@/lib/generated/prisma"
 import { createNotificationForMany } from "./notification-actions"
 import { notifyUsers } from "@/lib/sse-notifications"
+import { toNumber } from "@/lib/formatters"
 
 // ============================================================================
 // SCHEMAS
@@ -181,7 +182,7 @@ async function recalculateTotalValue(purchaseOrderId: string) {
         where: { purchaseOrderId },
         select: { totalPrice: true }
     })
-    const totalValue = items.reduce((sum, item) => sum + item.totalPrice, 0)
+    const totalValue = items.reduce((sum, item) => sum + toNumber(item.totalPrice), 0)
     await prisma.purchaseOrder.update({
         where: { id: purchaseOrderId },
         data: { totalValue }

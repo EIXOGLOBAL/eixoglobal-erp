@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getStatements } from '@/app/actions/bank-reconciliation-actions'
 import { getBankAccounts } from '@/app/actions/financial-actions'
 import { ReconciliationClient } from './reconciliation-client'
+import { toNumber } from '@/lib/formatters'
 
 export default async function ConciliacaoPage() {
   const session = await getSession()
@@ -23,6 +24,13 @@ export default async function ConciliacaoPage() {
 
   const statements = statementsResult.success ? statementsResult.data! : []
 
+  // Converter Decimal para number para Client Component
+  const serializedStatements = statements.map(s => ({
+    ...s,
+    totalCredits: toNumber(s.totalCredits),
+    totalDebits: toNumber(s.totalDebits),
+  }))
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div>
@@ -34,7 +42,7 @@ export default async function ConciliacaoPage() {
 
       <ReconciliationClient
         bankAccounts={bankAccounts}
-        initialStatements={statements}
+        initialStatements={serializedStatements}
       />
     </div>
   )

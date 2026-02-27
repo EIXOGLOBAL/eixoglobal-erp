@@ -6,6 +6,7 @@ import { ShoppingCart, DollarSign, Clock, CalendarDays } from "lucide-react"
 import { getPurchaseOrders } from "@/app/actions/purchase-actions"
 import { PurchaseOrdersTable } from "@/components/compras/purchase-orders-table"
 import { PurchaseOrderDialog } from "@/components/compras/purchase-order-dialog"
+import { toNumber, formatCurrency } from "@/lib/formatters"
 
 export default async function ComprasPage() {
     const session = await getSession()
@@ -29,7 +30,7 @@ export default async function ComprasPage() {
     ])
 
     const activeOrders = orders.filter(o => o.status !== 'DRAFT' && o.status !== 'CANCELLED')
-    const totalActiveValue = activeOrders.reduce((sum, o) => sum + o.totalValue, 0)
+    const totalActiveValue = activeOrders.reduce((sum, o) => sum + toNumber(o.totalValue), 0)
     const awaitingReceival = orders.filter(o => o.status === 'ORDERED' || o.status === 'PARTIALLY_RECEIVED')
 
     const now = new Date()
@@ -40,8 +41,11 @@ export default async function ComprasPage() {
         return d >= startOfMonth && d <= endOfMonth
     })
 
-    const fmt = (n: number) =>
-        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n)
+    // Converter Decimal para number para Client Components
+    const serializedOrders = orders.map(order => ({
+        ...order,
+        totalValue: toNumber(order.totalValue)
+    }))
 
     return (
         <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
@@ -77,7 +81,7 @@ export default async function ComprasPage() {
                         <DollarSign className="h-4 w-4 text-green-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-green-700">{fmt(totalActiveValue)}</div>
+                        <div className="text-2xl font-bold text-green-700">{formatCurrency(totalActiveValue)}</div>
                         <p className="text-xs text-muted-foreground">Soma dos pedidos ativos</p>
                     </CardContent>
                 </Card>
@@ -110,7 +114,7 @@ export default async function ComprasPage() {
                 </CardHeader>
                 <CardContent>
                     <PurchaseOrdersTable
-                        orders={orders}
+                        orders={serializedOrders}
                         companyId={companyId}
                         suppliers={suppliers}
                         projects={projects}

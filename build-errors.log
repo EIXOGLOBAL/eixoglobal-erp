@@ -1,0 +1,347 @@
+
+> erp-eixo-global@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+
+[2m[391.24ms][22m [@tailwindcss/postcss] src\app\globals.css
+[2m[  0.07ms][22m  [2m ↳ [22mQuick bail check
+[2m[ 44.56ms][22m  [2m ↳ [22mSetup compiler
+[2m[  0.40ms][22m    [2m ↳ [22mPostCSS AST -> Tailwind CSS AST
+[2m[ 44.13ms][22m    [2m ↳ [22mCreate compiler
+[2m[  0.39ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[  1.49ms][22m  [2m ↳ [22mSetup scanner
+[2m[148.94ms][22m  [2m ↳ [22mScan for candidates
+[2m[ 48.86ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[ 72.46ms][22m  [2m ↳ [22mBuild utilities
+[2m[ 66.29ms][22m  [2m ↳ [22mOptimization
+[2m[  2.49ms][22m    [2m ↳ [22mAST -> CSS
+[2m[ 42.09ms][22m    [2m ↳ [22mLightning CSS
+[2m[ 21.65ms][22m    [2m ↳ [22mCSS -> PostCSS AST
+[2m[  7.77ms][22m  [2m ↳ [22mUpdate PostCSS AST
+
+
+[2m[0.35ms][22m [@tailwindcss/postcss] src\app\transitions.css
+[2m[0.33ms][22m  [2m ↳ [22mQuick bail check
+
+
+[2m[0.16ms][22m [@tailwindcss/postcss] node_modules\leaflet\dist\leaflet.css
+[2m[0.15ms][22m  [2m ↳ [22mQuick bail check
+
+✓ Compiled successfully in 11.4s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/(dashboard)/compras/[id]/page.tsx:159:80
+Type error: Argument of type 'Decimal' is not assignable to parameter of type 'number'.
+
+[0m [90m 157 |[39m                     [33m<[39m[33m/[39m[33mCardHeader[39m[33m>[39m
+ [90m 158 |[39m                     [33m<[39m[33mCardContent[39m[33m>[39m
+[31m[1m>[22m[39m[90m 159 |[39m                         [33m<[39m[33mdiv[39m className[33m=[39m[32m"text-xl font-bold text-green-700"[39m[33m>[39m{fmt(order[33m.[39mtotalValue)}[33m<[39m[33m/[39m[33mdiv[39m[33m>[39m
+ [90m     |[39m                                                                                [31m[1m^[22m[39m
+ [90m 160 |[39m                     [33m<[39m[33m/[39m[33mCardContent[39m[33m>[39m
+ [90m 161 |[39m                 [33m<[39m[33m/[39m[33mCard[39m[33m>[39m
+ [90m 162 |[39m                 [33m<[39m[33mCard[39m[33m>[39m[0m
+Next.js build worker exited with code: 1 and signal: null
+
+> erp-eixo-global@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+
+[2m[0.34ms][22m [@tailwindcss/postcss] src\app\transitions.css
+[2m[0.32ms][22m  [2m ↳ [22mQuick bail check
+
+
+[2m[328.51ms][22m [@tailwindcss/postcss] src\app\globals.css
+[2m[  0.01ms][22m  [2m ↳ [22mQuick bail check
+[2m[ 38.01ms][22m  [2m ↳ [22mSetup compiler
+[2m[  0.69ms][22m    [2m ↳ [22mPostCSS AST -> Tailwind CSS AST
+[2m[ 37.30ms][22m    [2m ↳ [22mCreate compiler
+[2m[  0.39ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[  2.01ms][22m  [2m ↳ [22mSetup scanner
+[2m[111.45ms][22m  [2m ↳ [22mScan for candidates
+[2m[ 46.85ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[ 68.64ms][22m  [2m ↳ [22mBuild utilities
+[2m[ 50.62ms][22m  [2m ↳ [22mOptimization
+[2m[  1.67ms][22m    [2m ↳ [22mAST -> CSS
+[2m[ 33.63ms][22m    [2m ↳ [22mLightning CSS
+[2m[ 15.28ms][22m    [2m ↳ [22mCSS -> PostCSS AST
+[2m[  9.91ms][22m  [2m ↳ [22mUpdate PostCSS AST
+
+
+[2m[0.05ms][22m [@tailwindcss/postcss] node_modules\leaflet\dist\leaflet.css
+[2m[0.05ms][22m  [2m ↳ [22mQuick bail check
+
+✓ Compiled successfully in 11.4s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/(dashboard)/compras/[id]/page.tsx:186:25
+Type error: Type '({ material: { id: string; name: string; unit: string; } | null; } & { id: string; createdAt: Date; description: string; unit: string; quantity: Decimal; unitPrice: Decimal; totalPrice: Decimal; materialId: string | null; purchaseOrderId: string; })[]' is not assignable to type 'OrderItem[]'.
+  Type '{ material: { id: string; name: string; unit: string; } | null; } & { id: string; createdAt: Date; description: string; unit: string; quantity: Decimal; unitPrice: Decimal; totalPrice: Decimal; materialId: string | null; purchaseOrderId: string; }' is not assignable to type 'OrderItem'.
+    Types of property 'quantity' are incompatible.
+      Type 'Decimal' is not assignable to type 'number'.
+
+[0m [90m 184 |[39m                     [33m<[39m[33mOrderItemsClient[39m
+ [90m 185 |[39m                         orderId[33m=[39m{order[33m.[39mid}
+[31m[1m>[22m[39m[90m 186 |[39m                         items[33m=[39m{order[33m.[39mitems}
+ [90m     |[39m                         [31m[1m^[22m[39m
+ [90m 187 |[39m                         materials[33m=[39m{materials}
+ [90m 188 |[39m                         totalValue[33m=[39m{order[33m.[39mtotalValue}
+ [90m 189 |[39m                     [33m/[39m[33m>[39m[0m
+Next.js build worker exited with code: 1 and signal: null
+
+> erp-eixo-global@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+
+[2m[0.20ms][22m [@tailwindcss/postcss] src\app\transitions.css
+[2m[0.19ms][22m  [2m ↳ [22mQuick bail check
+
+
+[2m[336.67ms][22m [@tailwindcss/postcss] src\app\globals.css
+[2m[  0.01ms][22m  [2m ↳ [22mQuick bail check
+[2m[ 37.17ms][22m  [2m ↳ [22mSetup compiler
+[2m[  0.38ms][22m    [2m ↳ [22mPostCSS AST -> Tailwind CSS AST
+[2m[ 36.77ms][22m    [2m ↳ [22mCreate compiler
+[2m[  0.34ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[  1.97ms][22m  [2m ↳ [22mSetup scanner
+[2m[117.46ms][22m  [2m ↳ [22mScan for candidates
+[2m[ 47.11ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[ 75.41ms][22m  [2m ↳ [22mBuild utilities
+[2m[ 49.35ms][22m  [2m ↳ [22mOptimization
+[2m[  2.18ms][22m    [2m ↳ [22mAST -> CSS
+[2m[ 31.58ms][22m    [2m ↳ [22mLightning CSS
+[2m[ 15.55ms][22m    [2m ↳ [22mCSS -> PostCSS AST
+[2m[  7.14ms][22m  [2m ↳ [22mUpdate PostCSS AST
+
+
+[2m[0.11ms][22m [@tailwindcss/postcss] node_modules\leaflet\dist\leaflet.css
+[2m[0.10ms][22m  [2m ↳ [22mQuick bail check
+
+✓ Compiled successfully in 10.2s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/(dashboard)/compras/page.tsx:32:62
+Type error: Operator '+' cannot be applied to types 'number' and 'Decimal'.
+
+[0m [90m 30 |[39m
+ [90m 31 |[39m     [36mconst[39m activeOrders [33m=[39m orders[33m.[39mfilter(o [33m=>[39m o[33m.[39mstatus [33m!==[39m [32m'DRAFT'[39m [33m&&[39m o[33m.[39mstatus [33m!==[39m [32m'CANCELLED'[39m)
+[31m[1m>[22m[39m[90m 32 |[39m     [36mconst[39m totalActiveValue [33m=[39m activeOrders[33m.[39mreduce((sum[33m,[39m o) [33m=>[39m sum [33m+[39m o[33m.[39mtotalValue[33m,[39m [35m0[39m)
+ [90m    |[39m                                                              [31m[1m^[22m[39m
+ [90m 33 |[39m     [36mconst[39m awaitingReceival [33m=[39m orders[33m.[39mfilter(o [33m=>[39m o[33m.[39mstatus [33m===[39m [32m'ORDERED'[39m [33m||[39m o[33m.[39mstatus [33m===[39m [32m'PARTIALLY_RECEIVED'[39m)
+ [90m 34 |[39m
+ [90m 35 |[39m     [36mconst[39m now [33m=[39m [36mnew[39m [33mDate[39m()[0m
+Next.js build worker exited with code: 1 and signal: null
+
+> erp-eixo-global@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+
+[2m[0.33ms][22m [@tailwindcss/postcss] src\app\transitions.css
+[2m[0.31ms][22m  [2m ↳ [22mQuick bail check
+
+
+[2m[350.25ms][22m [@tailwindcss/postcss] src\app\globals.css
+[2m[  0.01ms][22m  [2m ↳ [22mQuick bail check
+[2m[ 40.94ms][22m  [2m ↳ [22mSetup compiler
+[2m[  0.54ms][22m    [2m ↳ [22mPostCSS AST -> Tailwind CSS AST
+[2m[ 40.37ms][22m    [2m ↳ [22mCreate compiler
+[2m[  0.32ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[  1.96ms][22m  [2m ↳ [22mSetup scanner
+[2m[123.51ms][22m  [2m ↳ [22mScan for candidates
+[2m[ 50.78ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[ 76.06ms][22m  [2m ↳ [22mBuild utilities
+[2m[ 47.82ms][22m  [2m ↳ [22mOptimization
+[2m[  1.69ms][22m    [2m ↳ [22mAST -> CSS
+[2m[ 29.28ms][22m    [2m ↳ [22mLightning CSS
+[2m[ 16.39ms][22m    [2m ↳ [22mCSS -> PostCSS AST
+[2m[  8.37ms][22m  [2m ↳ [22mUpdate PostCSS AST
+
+
+[2m[0.05ms][22m [@tailwindcss/postcss] node_modules\leaflet\dist\leaflet.css
+[2m[0.05ms][22m  [2m ↳ [22mQuick bail check
+
+✓ Compiled successfully in 11.3s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/(dashboard)/compras/page.tsx:111:25
+Type error: Type '({ _count: { items: number; }; project: { id: string; name: string; } | null; supplier: { id: string; name: string; } | null; } & { number: string; companyId: string; id: string; createdAt: Date; ... 8 more ...; receivedAt: Date | null; })[]' is not assignable to type 'Order[]'.
+  Type '{ _count: { items: number; }; project: { id: string; name: string; } | null; supplier: { id: string; name: string; } | null; } & { number: string; companyId: string; id: string; createdAt: Date; ... 8 more ...; receivedAt: Date | null; }' is not assignable to type 'Order'.
+    Types of property 'totalValue' are incompatible.
+      Type 'Decimal' is not assignable to type 'number'.
+
+[0m [90m 109 |[39m                 [33m<[39m[33mCardContent[39m[33m>[39m
+ [90m 110 |[39m                     [33m<[39m[33mPurchaseOrdersTable[39m
+[31m[1m>[22m[39m[90m 111 |[39m                         orders[33m=[39m{orders}
+ [90m     |[39m                         [31m[1m^[22m[39m
+ [90m 112 |[39m                         companyId[33m=[39m{companyId}
+ [90m 113 |[39m                         suppliers[33m=[39m{suppliers}
+ [90m 114 |[39m                         projects[33m=[39m{projects}[0m
+Next.js build worker exited with code: 1 and signal: null
+
+> erp-eixo-global@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+
+[2m[0.36ms][22m [@tailwindcss/postcss] src\app\transitions.css
+[2m[0.34ms][22m  [2m ↳ [22mQuick bail check
+
+
+[2m[329.60ms][22m [@tailwindcss/postcss] src\app\globals.css
+[2m[  0.03ms][22m  [2m ↳ [22mQuick bail check
+[2m[ 42.32ms][22m  [2m ↳ [22mSetup compiler
+[2m[  0.69ms][22m    [2m ↳ [22mPostCSS AST -> Tailwind CSS AST
+[2m[ 41.60ms][22m    [2m ↳ [22mCreate compiler
+[2m[  0.35ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[  1.88ms][22m  [2m ↳ [22mSetup scanner
+[2m[104.27ms][22m  [2m ↳ [22mScan for candidates
+[2m[ 49.84ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[ 69.87ms][22m  [2m ↳ [22mBuild utilities
+[2m[ 52.48ms][22m  [2m ↳ [22mOptimization
+[2m[  1.56ms][22m    [2m ↳ [22mAST -> CSS
+[2m[ 34.97ms][22m    [2m ↳ [22mLightning CSS
+[2m[ 15.91ms][22m    [2m ↳ [22mCSS -> PostCSS AST
+[2m[  7.35ms][22m  [2m ↳ [22mUpdate PostCSS AST
+
+
+[2m[0.05ms][22m [@tailwindcss/postcss] node_modules\leaflet\dist\leaflet.css
+[2m[0.05ms][22m  [2m ↳ [22mQuick bail check
+
+✓ Compiled successfully in 11.4s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/(dashboard)/equipamentos/[id]/page.tsx:55:60
+Type error: Operator '+' cannot be applied to types 'number' and 'number | Decimal'.
+
+[0m [90m 53 |[39m         [33m.[39mreduce((sum[33m,[39m m) [33m=>[39m sum [33m+[39m [33mNumber[39m(m[33m.[39mcost [33m||[39m [35m0[39m)[33m,[39m [35m0[39m)
+ [90m 54 |[39m     [36mconst[39m totalCost [33m=[39m totalUsageCost [33m+[39m totalMaintenanceCost
+[31m[1m>[22m[39m[90m 55 |[39m     [36mconst[39m totalHours [33m=[39m equipment[33m.[39musages[33m.[39mreduce((sum[33m,[39m u) [33m=>[39m sum [33m+[39m (u[33m.[39mhours [33m||[39m [35m0[39m)[33m,[39m [35m0[39m)
+ [90m    |[39m                                                            [31m[1m^[22m[39m
+ [90m 56 |[39m     [36mconst[39m totalDays [33m=[39m equipment[33m.[39musages[33m.[39mreduce((sum[33m,[39m u) [33m=>[39m sum [33m+[39m (u[33m.[39mdays [33m||[39m [35m0[39m)[33m,[39m [35m0[39m)
+ [90m 57 |[39m     [36mconst[39m costPerHourActual [33m=[39m totalHours [33m>[39m [35m0[39m [33m?[39m totalUsageCost [33m/[39m totalHours [33m:[39m [35m0[39m
+ [90m 58 |[39m     [36mconst[39m costByProject [33m=[39m equipment[33m.[39musages[33m.[39mreduce((acc[33m,[39m u) [33m=>[39m {[0m
+Next.js build worker exited with code: 1 and signal: null
+
+> erp-eixo-global@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+
+[2m[0.19ms][22m [@tailwindcss/postcss] src\app\transitions.css
+[2m[0.18ms][22m  [2m ↳ [22mQuick bail check
+
+
+[2m[702.67ms][22m [@tailwindcss/postcss] src\app\globals.css
+[2m[  0.05ms][22m  [2m ↳ [22mQuick bail check
+[2m[ 35.35ms][22m  [2m ↳ [22mSetup compiler
+[2m[  0.65ms][22m    [2m ↳ [22mPostCSS AST -> Tailwind CSS AST
+[2m[ 34.67ms][22m    [2m ↳ [22mCreate compiler
+[2m[  0.42ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[  2.15ms][22m  [2m ↳ [22mSetup scanner
+[2m[279.09ms][22m  [2m ↳ [22mScan for candidates
+[2m[ 34.44ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[171.65ms][22m  [2m ↳ [22mBuild utilities
+[2m[173.77ms][22m  [2m ↳ [22mOptimization
+[2m[  1.80ms][22m    [2m ↳ [22mAST -> CSS
+[2m[ 34.82ms][22m    [2m ↳ [22mLightning CSS
+[2m[137.10ms][22m    [2m ↳ [22mCSS -> PostCSS AST
+[2m[  5.37ms][22m  [2m ↳ [22mUpdate PostCSS AST
+
+
+[2m[0.10ms][22m [@tailwindcss/postcss] node_modules\leaflet\dist\leaflet.css
+[2m[0.09ms][22m  [2m ↳ [22mQuick bail check
+
+✓ Compiled successfully in 11.9s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/(dashboard)/equipamentos/[id]/page.tsx:95:47
+Type error: Type 'Decimal | null' is not assignable to type 'number | null'.
+  Type 'Decimal' is not assignable to type 'number'.
+
+[0m [90m 93 |[39m                         id[33m:[39m equipment[33m.[39mid[33m,[39m code[33m:[39m equipment[33m.[39mcode[33m,[39m name[33m:[39m equipment[33m.[39mname[33m,[39m
+ [90m 94 |[39m                         type[33m:[39m equipment[33m.[39mtype[33m,[39m brand[33m:[39m equipment[33m.[39mbrand[33m,[39m model[33m:[39m equipment[33m.[39mmodel[33m,[39m
+[31m[1m>[22m[39m[90m 95 |[39m                         year[33m:[39m equipment[33m.[39myear[33m,[39m costPerHour[33m:[39m equipment[33m.[39mcostPerHour[33m,[39m
+ [90m    |[39m                                               [31m[1m^[22m[39m
+ [90m 96 |[39m                         costPerDay[33m:[39m equipment[33m.[39mcostPerDay[33m,[39m isOwned[33m:[39m equipment[33m.[39misOwned[33m,[39m notes[33m:[39m equipment[33m.[39mnotes[33m,[39m
+ [90m 97 |[39m                     }} [33m/[39m[33m>[39m
+ [90m 98 |[39m                 [33m<[39m[33m/[39m[33mdiv[39m[33m>[39m[0m
+Next.js build worker exited with code: 1 and signal: null
+
+> erp-eixo-global@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+
+[2m[479.35ms][22m [@tailwindcss/postcss] src\app\globals.css
+[2m[  0.04ms][22m  [2m ↳ [22mQuick bail check
+[2m[ 39.20ms][22m  [2m ↳ [22mSetup compiler
+[2m[  0.34ms][22m    [2m ↳ [22mPostCSS AST -> Tailwind CSS AST
+[2m[ 38.85ms][22m    [2m ↳ [22mCreate compiler
+[2m[  0.28ms][22m  [2m ↳ [22mRegister full rebuild paths
+[2m[  1.22ms][22m  [2m ↳ [22mSetup scanner
+[2m[216.33ms][22m  [2m ↳ [22mScan for candidates
+[2m[ 30.28ms][22m  [2m ↳ [22mRegister dependency messages
+[2m[ 82.65ms][22m  [2m ↳ [22mBuild utilities
+[2m[101.61ms][22m  [2m ↳ [22mOptimization
+[2m[  1.23ms][22m    [2m ↳ [22mAST -> CSS
+[2m[ 20.00ms][22m    [2m ↳ [22mLightning CSS
+[2m[ 80.33ms][22m    [2m ↳ [22mCSS -> PostCSS AST
+[2m[  7.25ms][22m  [2m ↳ [22mUpdate PostCSS AST
+
+
+[2m[0.20ms][22m [@tailwindcss/postcss] src\app\transitions.css
+[2m[0.19ms][22m  [2m ↳ [22mQuick bail check
+
+
+[2m[0.31ms][22m [@tailwindcss/postcss] node_modules\leaflet\dist\leaflet.css
+[2m[0.31ms][22m  [2m ↳ [22mQuick bail check
+
+✓ Compiled successfully in 11.7s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/(dashboard)/equipamentos/[id]/page.tsx:121:33
+Type error: Type '{ id: string; projectName: string; startDate: Date; endDate: Date | null; hours: Decimal | null; days: Decimal | null; totalCost: number | null; operator: string | null; }[]' is not assignable to type 'UsageRow[]'.
+  Type '{ id: string; projectName: string; startDate: Date; endDate: Date | null; hours: Decimal | null; days: Decimal | null; totalCost: number | null; operator: string | null; }' is not assignable to type 'UsageRow'.
+    Types of property 'hours' are incompatible.
+      Type 'Decimal | null' is not assignable to type 'number | null'.
+        Type 'Decimal' is not assignable to type 'number'.
+
+[0m [90m 119 |[39m                         ) [33m:[39m (
+ [90m 120 |[39m                             [33m<[39m[33mEquipmentDetailClient[39m
+[31m[1m>[22m[39m[90m 121 |[39m                                 usages[33m=[39m{equipment[33m.[39musages[33m.[39mmap(u [33m=>[39m ({
+ [90m     |[39m                                 [31m[1m^[22m[39m
+ [90m 122 |[39m                                     id[33m:[39m u[33m.[39mid[33m,[39m projectName[33m:[39m u[33m.[39mproject[33m.[39mname[33m,[39m startDate[33m:[39m u[33m.[39mstartDate[33m,[39m
+ [90m 123 |[39m                                     endDate[33m:[39m u[33m.[39mendDate [33m?[39m[33m?[39m [36mnull[39m[33m,[39m hours[33m:[39m u[33m.[39mhours [33m?[39m[33m?[39m [36mnull[39m[33m,[39m days[33m:[39m u[33m.[39mdays [33m?[39m[33m?[39m [36mnull[39m[33m,[39m
+ [90m 124 |[39m                                     totalCost[33m:[39m u[33m.[39mtotalCost [33m!=[39m [36mnull[39m [33m?[39m [33mNumber[39m(u[33m.[39mtotalCost) [33m:[39m [36mnull[39m[33m,[39m[0m
+Next.js build worker exited with code: 1 and signal: null

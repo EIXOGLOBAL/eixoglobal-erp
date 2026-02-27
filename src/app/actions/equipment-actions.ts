@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import { assertCanDelete } from "@/lib/permissions"
+import { toNumber } from "@/lib/formatters"
 
 // ============================================================================
 // SCHEMAS
@@ -281,7 +282,7 @@ export async function addUsage(
 
         const endDate = validated.endDate ? new Date(validated.endDate) : null
         const totalCost = endDate
-            ? calcTotalCost(validated.hours, validated.days, equipment.costPerHour, equipment.costPerDay)
+            ? calcTotalCost(validated.hours, validated.days, equipment.costPerHour !== null ? toNumber(equipment.costPerHour) : null, equipment.costPerDay !== null ? toNumber(equipment.costPerDay) : null)
             : null
 
         const usage = await prisma.equipmentUsage.create({
@@ -333,10 +334,10 @@ export async function endUsage(
         if (!usage) return { success: false, error: "Registro de uso não encontrado" }
 
         const totalCost = calcTotalCost(
-            hours ?? usage.hours,
-            days ?? usage.days,
-            usage.equipment.costPerHour,
-            usage.equipment.costPerDay
+            hours ?? (usage.hours !== null ? toNumber(usage.hours) : null),
+            days ?? (usage.days !== null ? toNumber(usage.days) : null),
+            usage.equipment.costPerHour !== null ? toNumber(usage.equipment.costPerHour) : null,
+            usage.equipment.costPerDay !== null ? toNumber(usage.equipment.costPerDay) : null
         )
 
         const updatedUsage = await prisma.equipmentUsage.update({

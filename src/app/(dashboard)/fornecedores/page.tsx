@@ -4,6 +4,7 @@ import { getSuppliersEnhanced } from "@/app/actions/supplier-actions"
 import { FornecedoresClient } from "@/components/fornecedores/fornecedores-client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Truck, AlertTriangle, Star, DollarSign } from "lucide-react"
+import { toNumber, formatCurrency as fmt } from "@/lib/formatters"
 
 export default async function FornecedoresPage() {
     const session = await getSession()
@@ -16,12 +17,15 @@ export default async function FornecedoresPage() {
     const suppliers = result.success ? (result.data ?? []) : []
     const kpis = result.kpis
 
-    const bestRatedText = kpis?.bestRated && kpis.bestRated.length > 0
-        ? kpis.bestRated.map(s => `${s.name} (${(s.rating ?? 0).toFixed(1)})`).join(", ")
-        : "Nenhuma avaliação"
+    // Converter Decimal para number para Client Components
+    const serializedSuppliers = suppliers.map(s => ({
+        ...s,
+        rating: s.rating !== null ? toNumber(s.rating) : null,
+    }))
 
-    const formatCurrency = (value: number) =>
-        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+    const bestRatedText = kpis?.bestRated && kpis.bestRated.length > 0
+        ? kpis.bestRated.map(s => `${s.name} (${toNumber(s.rating ?? 0).toFixed(1)})`).join(", ")
+        : "Nenhuma avaliação"
 
     return (
         <div className="space-y-6">
@@ -74,7 +78,7 @@ export default async function FornecedoresPage() {
                         <DollarSign className="h-4 w-4 text-green-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(kpis?.totalPaidMonth ?? 0)}</div>
+                        <div className="text-2xl font-bold">{fmt(kpis?.totalPaidMonth ?? 0)}</div>
                         <p className="text-xs text-muted-foreground">Pagamentos no mes atual</p>
                     </CardContent>
                 </Card>
@@ -86,7 +90,7 @@ export default async function FornecedoresPage() {
                     <CardTitle>Lista de Fornecedores</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <FornecedoresClient suppliers={suppliers} companyId={companyId} />
+                    <FornecedoresClient suppliers={serializedSuppliers} companyId={companyId} />
                 </CardContent>
             </Card>
         </div>

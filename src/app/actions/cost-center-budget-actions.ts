@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { revalidatePath } from 'next/cache'
+import { toNumber } from '@/lib/formatters'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -229,9 +230,9 @@ export async function getCostCenterBudgetReport(companyId: string, year: number)
     const report: CostCenterBudgetReportItem[] = costCenters
       .filter((cc) => cc.budgets.length > 0)
       .map((cc) => {
-        const budgeted = cc.budgets.reduce((sum, b) => sum + b.budgetedAmount, 0)
+        const budgeted = cc.budgets.reduce((sum, b) => sum + toNumber(b.budgetedAmount), 0)
         const realized = cc.financialRecords.reduce(
-          (sum, r) => sum + Number(r.amount),
+          (sum, r) => sum + toNumber(r.amount),
           0
         )
         const remaining = budgeted - realized
@@ -290,9 +291,9 @@ export async function getCostCenterHierarchy(companyId: string, year?: number) {
     // Build flat nodes
     const nodesMap = new Map<string, CostCenterHierarchyNode>()
     for (const cc of costCenters) {
-      const budgeted = cc.budgets.reduce((sum, b) => sum + b.budgetedAmount, 0)
+      const budgeted = cc.budgets.reduce((sum, b) => sum + toNumber(b.budgetedAmount), 0)
       const realized = cc.financialRecords.reduce(
-        (sum, r) => sum + Number(r.amount),
+        (sum, r) => sum + toNumber(r.amount),
         0
       )
       const burnRate = budgeted > 0 ? (realized / budgeted) * 100 : 0
@@ -353,7 +354,7 @@ export async function getRecentFinancialRecords(costCenterId: string) {
       success: true,
       data: records.map((r) => ({
         ...r,
-        amount: Number(r.amount),
+        amount: toNumber(r.amount),
         dueDate: r.dueDate.toISOString(),
         paidDate: r.paidDate?.toISOString() ?? null,
       })),

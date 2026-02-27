@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma generate)",
+      "Bash(npm install @prisma/client@5.22.0)",
+      "Bash(npm run build)",
+      "Bash(tee build-errors.log)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

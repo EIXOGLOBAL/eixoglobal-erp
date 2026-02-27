@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { notifyUsers } from '@/lib/sse-notifications'
+import { toNumber } from '@/lib/formatters'
 
 const ONE_HOUR = 60 * 60 * 1000
 
@@ -265,8 +266,8 @@ async function checkCostCenterBudgetOverruns() {
         _sum: { amount: true },
       })
 
-      const realized = Number(result._sum?.amount ?? 0)
-      const budgetAmount = budget.budgetedAmount
+      const realized = toNumber(result._sum?.amount ?? 0)
+      const budgetAmount = toNumber(budget.budgetedAmount)
       if (budgetAmount <= 0) continue
 
       const percentUsed = (realized / budgetAmount) * 100

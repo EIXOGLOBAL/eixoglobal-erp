@@ -15,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { addActivity, updateActivity, deleteActivity } from "@/app/actions/daily-report-actions"
 import { Plus, Trash2, Pencil, Check, X, ClipboardList } from "lucide-react"
+import { toNumber } from "@/lib/formatters"
+import type { Decimal } from "@prisma/client/runtime/library"
 
 interface Activity {
     id: string
@@ -24,15 +26,25 @@ interface Activity {
     reportId: string
 }
 
+interface ActivityFromDB {
+    id: string
+    description: string
+    location: string | null
+    percentDone: number | Decimal
+    reportId: string
+}
+
 interface ActivitiesEditorProps {
     reportId: string
-    activities: Activity[]
+    activities: ActivityFromDB[]
     reportStatus: string
 }
 
 export function ActivitiesEditor({ reportId, activities: initialActivities, reportStatus }: ActivitiesEditorProps) {
     const { toast } = useToast()
-    const [activities, setActivities] = useState<Activity[]>(initialActivities)
+    const [activities, setActivities] = useState<Activity[]>(
+        initialActivities.map(a => ({ ...a, percentDone: toNumber(a.percentDone) }))
+    )
 
     // Add form state
     const [addDesc, setAddDesc] = useState("")
@@ -62,7 +74,10 @@ export function ActivitiesEditor({ reportId, activities: initialActivities, repo
                 percentDone: addPercent,
             })
             if (result.success && result.data) {
-                setActivities(prev => [...prev, result.data as Activity])
+                setActivities(prev => [...prev, {
+                    ...result.data,
+                    percentDone: toNumber(result.data.percentDone)
+                } as Activity])
                 setAddDesc("")
                 setAddLocation("")
                 setAddPercent(0)

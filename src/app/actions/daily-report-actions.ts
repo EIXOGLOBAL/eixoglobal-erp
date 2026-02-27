@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { WeatherCondition, DailyReportStatus } from "@/lib/generated/prisma/client"
+import { WeatherCondition, DailyReportStatus } from "@/lib/generated/prisma"
 
 // ============================================================================
 // SCHEMAS
