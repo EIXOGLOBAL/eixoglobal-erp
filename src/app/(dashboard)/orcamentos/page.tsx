@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileSpreadsheet, Clock, CheckCircle, TrendingUp } from "lucide-react"
 import { toNumber, formatCurrency } from "@/lib/formatters"
 
+export const dynamic = 'force-dynamic'
+
 export default async function OrcamentosPage() {
     const session = await getSession()
     if (!session) redirect("/login")

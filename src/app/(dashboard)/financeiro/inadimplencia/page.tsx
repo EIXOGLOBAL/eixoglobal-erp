@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle, TrendingDown, Clock, DollarSign } from 'lucide-react'
 import { InadimplenciaClient } from '@/components/financeiro/inadimplencia-client'
 
+export const dynamic = 'force-dynamic'
+
 function agingBucket(dueDate: Date, now: Date): string {
   const days = Math.floor((now.getTime() - new Date(dueDate).getTime()) / 86400000)
   if (days <= 30) return '1-30 dias'

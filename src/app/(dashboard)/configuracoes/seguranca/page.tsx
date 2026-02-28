@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChangePasswordForm } from "@/components/configuracoes/change-password-form"
 
+export const dynamic = 'force-dynamic'
+
 export default async function SegurancaPage() {
     const session = await getSession()
     if (!session) redirect("/login")

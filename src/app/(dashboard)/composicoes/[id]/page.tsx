@@ -15,6 +15,8 @@ import { EquipmentEditor } from "@/components/compositions/equipment-editor"
 import { DuplicateCompositionDialog } from "@/components/compositions/duplicate-composition-dialog"
 import { DeleteCompositionButton } from "@/components/compositions/delete-composition-button"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ComposicaoDetailsPage({
     params,
 }: {

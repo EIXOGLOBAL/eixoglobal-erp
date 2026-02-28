@@ -11,6 +11,8 @@ import { RentalDialog } from '@/components/locacoes/rental-dialog'
 import { RentalItemDialog } from '@/components/locacoes/rental-item-dialog'
 import { RentalItemsTable } from '@/components/locacoes/rental-items-table'
 
+export const dynamic = 'force-dynamic'
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }

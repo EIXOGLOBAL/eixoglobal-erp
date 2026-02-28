@@ -24,6 +24,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Building2, Users, ShieldCheck, UserCheck, KeyRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+export const dynamic = 'force-dynamic'
+
 export default async function UsersPage() {
     const session = await requireAdmin()
 

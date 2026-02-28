@@ -4,6 +4,8 @@ import { notFound, redirect } from "next/navigation"
 import { PrintContractClient } from "@/components/contracts/print-contract-client"
 import { prisma } from "@/lib/prisma"
 
+export const dynamic = 'force-dynamic'
+
 export default async function PrintContractPage({ params }: { params: Promise<{ id: string }> }) {
         const { id } = await params
 const session = await getSession()

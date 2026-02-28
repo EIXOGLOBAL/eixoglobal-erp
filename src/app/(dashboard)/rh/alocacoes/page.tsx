@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { UserCog, FolderKanban, Users, Calendar } from "lucide-react"
 import { AllocationsClient } from "@/components/rh/allocations-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function AlocacoesPage() {
     const session = await getSession()
     if (!session) redirect("/login")

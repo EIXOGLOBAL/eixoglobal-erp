@@ -5,6 +5,8 @@ import { OrgChart } from '@/components/rh/org-chart'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, Building2, GitBranch } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 export default async function OrganogramaPage() {
   const session = await getSession()
   if (!session) redirect('/login')

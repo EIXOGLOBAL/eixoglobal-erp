@@ -7,6 +7,8 @@ import { redirect } from "next/navigation"
 import { CompositionDialog } from "@/components/compositions/composition-dialog"
 import { CompositionsTable } from "@/components/compositions/compositions-table"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ComposicoesPage() {
     const session = await getSession()
     if (!session) {

@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { GraduationCap, CalendarClock, CheckCircle2, Clock } from "lucide-react"
 import { TrainingsClient } from "@/components/rh/trainings-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function TreinamentosPage() {
     const session = await getSession()
     if (!session) redirect("/login")

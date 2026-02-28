@@ -16,6 +16,8 @@ import {
 import { FiscalNotesClient } from "@/components/financeiro/fiscal-notes-client"
 import { cn } from "@/lib/utils"
 
+export const dynamic = 'force-dynamic'
+
 export default async function NotasFiscaisPage() {
     const session = await getSession()
     if (!session) redirect("/login")

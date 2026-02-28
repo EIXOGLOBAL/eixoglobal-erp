@@ -4,6 +4,8 @@ import { getNotifications } from "@/app/actions/notification-actions"
 import { NotificationsClient } from "@/components/notifications/notifications-client"
 import { Bell } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 export default async function NotificacoesPage() {
   const session = await getSession()
   if (!session) redirect("/login")

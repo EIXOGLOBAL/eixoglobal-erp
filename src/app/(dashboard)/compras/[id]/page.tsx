@@ -13,6 +13,8 @@ import { OrderStatusDialog } from "@/components/compras/order-status-dialog"
 import { PurchaseOrderDialog } from "@/components/compras/purchase-order-dialog"
 import { formatCurrency, toNumber } from "@/lib/formatters"
 
+export const dynamic = 'force-dynamic'
+
 const STATUS_LABELS: Record<string, string> = {
     DRAFT: "Rascunho",
     PENDING_APPROVAL: "Aguardando Aprovação",

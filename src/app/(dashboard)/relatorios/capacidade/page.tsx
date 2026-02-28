@@ -6,6 +6,8 @@ import { ArrowLeft, Users, Building2, Wrench, AlertTriangle, TrendingUp } from "
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+export const dynamic = 'force-dynamic'
+
 export default async function RelatorioCapacidadePage() {
     const session = await getSession()
     if (!session) redirect("/login")

@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { UpdateProfileForm } from "@/components/configuracoes/update-profile-form"
 
+export const dynamic = 'force-dynamic'
+
 const roleLabels: Record<string, string> = {
     ADMIN: 'Administrador',
     MANAGER: 'Gerente',

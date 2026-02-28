@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Truck, AlertTriangle, Star, DollarSign } from "lucide-react"
 import { toNumber, formatCurrency as fmt } from "@/lib/formatters"
 
+export const dynamic = 'force-dynamic'
+
 export default async function FornecedoresPage() {
     const session = await getSession()
     if (!session) redirect("/login")

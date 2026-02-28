@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { EvmChart } from "@/components/evm/evm-chart"
 
+export const dynamic = 'force-dynamic'
+
 const fmt = (n: number) =>
     new Intl.NumberFormat("pt-BR", {
         style: "currency",

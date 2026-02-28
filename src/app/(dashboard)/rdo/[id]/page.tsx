@@ -13,6 +13,8 @@ import { DailyReportDialog } from "@/components/rdo/daily-report-dialog"
 import { prisma } from "@/lib/prisma"
 import { toNumber } from "@/lib/formatters"
 
+export const dynamic = 'force-dynamic'
+
 const WEATHER_LABELS: Record<string, string> = {
     SUNNY: "Ensolarado",
     CLOUDY: "Nublado",

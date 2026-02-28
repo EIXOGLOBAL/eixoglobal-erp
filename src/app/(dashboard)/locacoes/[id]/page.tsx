@@ -22,6 +22,8 @@ import {
   RENTAL_STATUS_LABELS,
 } from '@/lib/rental-icons'
 
+export const dynamic = 'force-dynamic'
+
 function formatCurrency(value: number | { toString(): string } | null | undefined) {
   if (value == null) return 'R$ 0,00'
   const num = typeof value === 'number' ? value : parseFloat(value.toString())

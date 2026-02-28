@@ -4,6 +4,8 @@ import { checkSetup } from "@/app/actions/auth-actions"
 import { redirect } from "next/navigation"
 import { SetupForm } from "@/components/auth/setup-form"
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
     title: "Configuração Inicial - Eixo Global",
     description: "Configure o administrador do sistema.",

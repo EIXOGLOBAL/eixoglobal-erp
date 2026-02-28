@@ -7,6 +7,8 @@ import { EquipmentDialog } from "@/components/equipamentos/equipment-dialog"
 import { EquipmentTable } from "@/components/equipamentos/equipment-table"
 import { toNumber, formatCurrency } from "@/lib/formatters"
 
+export const dynamic = 'force-dynamic'
+
 export default async function EquipamentosPage() {
     const session = await getSession()
     if (!session) redirect("/login")

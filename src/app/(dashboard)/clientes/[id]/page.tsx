@@ -31,6 +31,8 @@ import {
 } from 'lucide-react'
 import { ClientDialog } from '@/components/clients/client-dialog'
 
+export const dynamic = 'force-dynamic'
+
 const statusVariants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   ACTIVE: 'default',
   INACTIVE: 'secondary',

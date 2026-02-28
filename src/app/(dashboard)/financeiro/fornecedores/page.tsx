@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, CheckCircle, XCircle, FileText } from "lucide-react"
 import { SuppliersClient } from "@/components/financeiro/suppliers-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function FornecedoresPage() {
     const session = await getSession()
     if (!session) redirect("/login")

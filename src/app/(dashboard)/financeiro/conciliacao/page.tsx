@@ -5,6 +5,8 @@ import { getBankAccounts } from '@/app/actions/financial-actions'
 import { ReconciliationClient } from './reconciliation-client'
 import { toNumber } from '@/lib/formatters'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ConciliacaoPage() {
   const session = await getSession()
   if (!session) redirect('/login')

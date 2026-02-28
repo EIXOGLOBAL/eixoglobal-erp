@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/card"
 import { FileText, DollarSign, Clock, FileEdit, AlertTriangle } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ContractsPage() {
     const session = await getSession()
     if (!session) redirect("/login")

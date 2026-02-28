@@ -8,6 +8,8 @@ import { PurchaseOrdersTable } from "@/components/compras/purchase-orders-table"
 import { PurchaseOrderDialog } from "@/components/compras/purchase-order-dialog"
 import { toNumber, formatCurrency } from "@/lib/formatters"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ComprasPage() {
     const session = await getSession()
     if (!session) redirect("/login")

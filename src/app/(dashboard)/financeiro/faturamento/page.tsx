@@ -7,6 +7,8 @@ import { FinancialRecordDialog } from "@/components/financeiro/financial-record-
 import { FinancialRecordsTable } from "@/components/financeiro/financial-records-table"
 import { CreateBankAccountDialog } from "@/components/settings/create-bank-account-dialog"
 
+export const dynamic = 'force-dynamic'
+
 export default async function FaturamentoPage() {
     const session = await getSession()
     if (!session) redirect("/login")

@@ -7,6 +7,8 @@ import { Users, UserCheck, UserMinus, Clock } from "lucide-react"
 import { EmployeeDialog } from "@/components/rh/employee-dialog"
 import { EmployeesTable } from "@/components/rh/employees-table"
 
+export const dynamic = 'force-dynamic'
+
 export default async function FuncionariosPage() {
     const session = await getSession()
     if (!session) {

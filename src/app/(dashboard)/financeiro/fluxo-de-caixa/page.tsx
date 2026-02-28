@@ -3,6 +3,8 @@ import { redirect } from "next/navigation"
 import { generateCashflowProjection, getFinancialKPIs } from "@/lib/financial-reports"
 import { CashflowProjectionClient } from "@/components/financeiro/cashflow-projection-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function FluxoDeCaixaPage() {
     const session = await getSession()
     if (!session) redirect("/login")

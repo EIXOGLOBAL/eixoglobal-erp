@@ -6,6 +6,8 @@ import { TasksClient } from "@/components/tarefas/tasks-client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ClipboardList, AlertCircle, Clock, CheckCheck } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 export default async function TarefasPage() {
   const session = await getSession()
   if (!session) redirect("/login")

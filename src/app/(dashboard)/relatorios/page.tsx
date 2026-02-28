@@ -26,6 +26,8 @@ import { Button } from "@/components/ui/button"
 import { RelatoriosMedicoesPorStatus } from "@/components/relatorios/relatorios-medicoes-status"
 import { RelatoriosFinanceiro } from "@/components/relatorios/relatorios-financeiro"
 
+export const dynamic = 'force-dynamic'
+
 export default async function RelatoriosPage() {
     const session = await getSession()
     if (!session) redirect("/login")

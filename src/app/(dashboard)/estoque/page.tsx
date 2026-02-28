@@ -7,6 +7,8 @@ import { MaterialDialog } from "@/components/inventory/material-dialog"
 import { MaterialsTable } from "@/components/inventory/materials-table"
 import { Badge } from "@/components/ui/badge"
 
+export const dynamic = 'force-dynamic'
+
 export default async function EstoquePage() {
     const session = await getSession()
     if (!session) redirect("/login")

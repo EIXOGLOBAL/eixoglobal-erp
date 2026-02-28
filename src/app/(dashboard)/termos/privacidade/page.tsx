@@ -5,6 +5,8 @@ import Link from "next/link"
 import { Shield, ArrowLeft, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+export const dynamic = 'force-dynamic'
+
 export default async function PrivacidadePage() {
   const session = await getSession()
   if (!session) redirect("/login")

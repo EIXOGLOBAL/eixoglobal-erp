@@ -12,6 +12,8 @@ import { Layers, CheckCircle, GitBranch, LayoutGrid, DollarSign } from "lucide-r
 import { CostCentersClient } from "@/components/financeiro/cost-centers-client"
 import { CostCenterBudgetClient } from "@/components/financial/cost-center-budget-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function CentrosDeCustoPage() {
     const session = await getSession()
     if (!session) redirect("/login")

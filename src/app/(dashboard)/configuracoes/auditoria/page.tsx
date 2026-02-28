@@ -2,6 +2,8 @@ import { requireAdmin } from '@/lib/route-guard'
 import { Shield } from 'lucide-react'
 import { AuditPanel } from '@/components/audit/audit-panel'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AuditoriaPage() {
   const session = await requireAdmin()
   const user = session.user as { id: string; role: string; companyId: string }

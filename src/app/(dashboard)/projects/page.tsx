@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/card"
 import { FolderKanban, TrendingUp, Clock, CheckCircle2 } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ProjectsPage() {
     const session = await getSession()
     if (!session) redirect("/login")

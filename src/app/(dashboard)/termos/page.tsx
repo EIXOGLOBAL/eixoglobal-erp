@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { FileText, Shield, AlertTriangle } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 export default async function TermosPage() {
   const session = await getSession()
   if (!session) redirect("/login")

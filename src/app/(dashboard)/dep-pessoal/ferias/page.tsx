@@ -6,6 +6,8 @@ import { CalendarDays, CheckCircle2, Users, Clock } from "lucide-react"
 import { getVacationRequests } from "@/app/actions/vacation-actions"
 import { VacationsClient } from "@/components/rh/vacations-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function FeriasPage() {
     const session = await getSession()
     if (!session) redirect("/login")

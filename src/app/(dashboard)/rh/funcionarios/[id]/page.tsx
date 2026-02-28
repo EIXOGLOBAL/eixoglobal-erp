@@ -39,6 +39,8 @@ import { SalaryHistoryCard } from "@/components/rh/salary-history"
 import { MatriculaEditor } from "@/components/rh/matricula-editor"
 import { EmployeeBenefits } from "@/components/rh/employee-benefits"
 
+export const dynamic = 'force-dynamic'
+
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
     ACTIVE: "default",
     INACTIVE: "destructive",

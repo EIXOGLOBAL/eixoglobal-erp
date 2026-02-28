@@ -3,6 +3,8 @@ import { redirect } from "next/navigation"
 import { getSupplierDetail, getSupplierFinancialHistory } from "@/app/actions/supplier-actions"
 import { SupplierDetailClient } from "@/components/suppliers/supplier-detail-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function SupplierDetailPage({
     params,
 }: {

@@ -23,6 +23,8 @@ import { DeleteSalaryTableButton, DeleteSalaryGradeButton } from "@/components/r
 import { LayoutList, Award, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+export const dynamic = 'force-dynamic'
+
 const fmt = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 

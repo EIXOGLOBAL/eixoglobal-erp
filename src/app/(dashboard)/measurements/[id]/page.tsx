@@ -27,6 +27,8 @@ import { CommentsSection } from "@/components/bulletins/comments-section"
 import { AttachmentUploader } from "@/components/bulletins/attachment-uploader"
 import { SignaturePanel } from "@/components/signatures/SignaturePanel"
 
+export const dynamic = 'force-dynamic'
+
 // Helper for status colors
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
     DRAFT: "outline",

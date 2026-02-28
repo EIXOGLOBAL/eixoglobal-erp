@@ -8,6 +8,8 @@ import { ArrowLeft, TrendingUp, TrendingDown, Building2, Ruler } from 'lucide-re
 import { Button } from '@/components/ui/button'
 import { BenchmarkChart } from '@/components/relatorios/benchmark-chart'
 
+export const dynamic = 'force-dynamic'
+
 const fmt = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 }).format(n)
 const fmtM2 = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + "/m²"
 const fmtNum = (n: number) => new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(n)

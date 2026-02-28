@@ -12,6 +12,8 @@ import { MaintenanceDialog } from '@/components/equipamentos/maintenance-dialog'
 import { EquipmentDetailClient } from '@/components/equipamentos/equipment-detail-client'
 import { toNumber, formatCurrency } from '@/lib/formatters'
 
+export const dynamic = 'force-dynamic'
+
 const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
     VEHICLE: "Veículo", CRANE: "Guindaste/Grua", EXCAVATOR: "Escavadeira",
     CONCRETE_MIXER: "Betoneira", COMPRESSOR: "Compressor", GENERATOR: "Gerador",

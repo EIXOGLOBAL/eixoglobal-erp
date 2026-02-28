@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingDown, Clock, CheckCircle, AlertCircle } from "lucide-react"
 import { DespesasTable } from "@/components/financeiro/despesas-table"
 
+export const dynamic = 'force-dynamic'
+
 export default async function DespesasPage() {
     const session = await getSession()
     if (!session) redirect("/login")

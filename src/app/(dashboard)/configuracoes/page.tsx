@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Settings, Building2, Users, Lock, UserCircle, BarChart3, Shield, FileText } from "lucide-react"
 import Link from "next/link"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ConfiguracoesPage() {
     const session = await requireAuth()
 

@@ -6,6 +6,8 @@ import { ContractorsTable } from "@/components/contractors/contractors-table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Users, FileText } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 export default async function EmpreiteirasPage() {
     const session = await getSession()
     if (!session) redirect("/login")

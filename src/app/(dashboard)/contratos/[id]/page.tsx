@@ -39,6 +39,8 @@ import {
     FileSignature,
 } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
     DRAFT: "outline",
     ACTIVE: "default",

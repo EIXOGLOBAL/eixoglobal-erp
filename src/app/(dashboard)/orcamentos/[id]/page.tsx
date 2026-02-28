@@ -4,6 +4,8 @@ import { getBudgetById } from "@/app/actions/budget-actions"
 import { BudgetDetailClient } from "@/components/orcamentos/budget-detail-client"
 import { toNumber } from "@/lib/formatters"
 
+export const dynamic = 'force-dynamic'
+
 interface BudgetPageProps {
     params: Promise<{ id: string }>
 }

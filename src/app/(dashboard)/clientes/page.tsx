@@ -7,6 +7,8 @@ import { Users, Building2, CheckCircle2, CalendarDays } from 'lucide-react'
 import { ClientsTable } from '@/components/clients/clients-table'
 import { ClientDialog } from '@/components/clients/client-dialog'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ClientesPage() {
   const session = await getSession()
   if (!session) redirect('/login')

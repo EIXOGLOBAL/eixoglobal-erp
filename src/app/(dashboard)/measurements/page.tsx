@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/card"
 import { FileText, CheckCircle2, Clock, XCircle } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 export default async function MeasurementsPage() {
     const session = await getSession()
     if (!session) redirect("/login")

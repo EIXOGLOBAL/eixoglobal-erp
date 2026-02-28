@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, Clock, CheckCircle, AlertCircle } from "lucide-react"
 import { ReceiveisTable } from "@/components/financeiro/recebiveis-table"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ReceiveisPage() {
     const session = await getSession()
     if (!session) redirect("/login")

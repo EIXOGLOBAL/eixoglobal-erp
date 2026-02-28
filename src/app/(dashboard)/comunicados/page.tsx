@@ -4,6 +4,8 @@ import { getAnnouncements } from "@/app/actions/announcement-actions"
 import { AnnouncementsClient } from "@/components/comunicados/announcements-client"
 import { Megaphone } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ComunicadosPage() {
   const session = await getSession()
   if (!session) redirect("/login")

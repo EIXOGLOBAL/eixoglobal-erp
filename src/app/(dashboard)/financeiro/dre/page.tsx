@@ -3,6 +3,8 @@ import { redirect } from "next/navigation"
 import { generateDRE } from "@/lib/financial-reports"
 import { DREClient } from "@/components/financeiro/dre-client"
 
+export const dynamic = 'force-dynamic'
+
 export default async function DrePage() {
     const session = await getSession()
     if (!session) redirect("/login")

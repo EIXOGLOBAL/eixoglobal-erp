@@ -7,6 +7,8 @@ import { getDailyReports } from "@/app/actions/daily-report-actions"
 import { DailyReportsTable } from "@/components/rdo/daily-reports-table"
 import { DailyReportDialog } from "@/components/rdo/daily-report-dialog"
 
+export const dynamic = 'force-dynamic'
+
 export default async function RdoPage() {
     const session = await getSession()
     if (!session) redirect("/login")

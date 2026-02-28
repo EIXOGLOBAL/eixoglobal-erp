@@ -44,6 +44,8 @@ import {
 import { StatusHistory } from "@/components/projects/status-history"
 import { BudgetComparison } from "@/components/projects/budget-comparison"
 
+export const dynamic = 'force-dynamic'
+
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
     PLANNING: "outline",
     IN_PROGRESS: "default",

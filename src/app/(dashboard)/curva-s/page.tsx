@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CurvaSChart } from "@/components/curva-s/curva-s-chart"
 
+export const dynamic = 'force-dynamic'
+
 export default async function CurvaSPage() {
     const session = await getSession()
     if (!session) redirect("/login")

@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/table"
 import { ArrowLeft, DollarSign, Users, TrendingUp, Calendar } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 // ---------------------------------------------------------------------------
 // Brazilian Payroll Calculation Helpers
 // INSS: Portaria Interministerial MPS/MF nº 13, de 09/01/2026

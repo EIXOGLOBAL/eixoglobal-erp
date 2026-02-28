@@ -23,6 +23,8 @@ import { ptBR } from "date-fns/locale"
 import { ArrowLeft, FileText, Printer } from "lucide-react"
 import Link from "next/link"
 
+export const dynamic = 'force-dynamic'
+
 interface InvoicePageProps {
     params: Promise<{ id: string }>;
 }

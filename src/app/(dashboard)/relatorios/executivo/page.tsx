@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PrintButton } from "@/components/relatorios/print-button"
 
+export const dynamic = 'force-dynamic'
+
 export default async function RelatorioExecutivoPage() {
     const session = await getSession()
     if (!session) redirect("/login")
