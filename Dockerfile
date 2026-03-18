@@ -1,4 +1,4 @@
-FROM node:latest AS base
+FROM node:alpine AS base
 RUN apk add --no-cache openssl openssl-dev libc6-compat python3 make g++
 
 # --- Dependencies ---
@@ -20,7 +20,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # --- Runner ---
-FROM node:latest AS runner
+FROM node:alpine AS runner
 RUN apk add --no-cache openssl libc6-compat
 WORKDIR /app
 
