@@ -47,7 +47,7 @@ export function CurvaSChart({ data }: CurvaSChartProps) {
                     tick={{ fontSize: 11 }}
                 />
                 <Tooltip
-                    formatter={(value: number | undefined) => [value != null ? value.toFixed(1) + "%" : "0%", ""]}
+                    formatter={(value) => [typeof value === 'number' ? value.toFixed(1) + "%" : "0%", ""]}
                 />
                 <Legend verticalAlign="top" />
                 <Line

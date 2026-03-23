@@ -48,7 +48,7 @@ export function ComparativoChart({ data }: ComparativoClientProps) {
                     width={120}
                     tick={{ fontSize: 11 }}
                 />
-                <Tooltip formatter={(v: number | undefined) => v != null ? fmt(v) : "-"} />
+                <Tooltip formatter={(v) => typeof v === 'number' ? fmt(v) : "-"} />
                 <Legend />
                 <Bar dataKey="orcamento" name="Orcamento" fill="#6366f1" radius={[0, 4, 4, 0]} />
                 <Bar dataKey="medido" name="Medido (Aprovado)" fill="#22c55e" radius={[0, 4, 4, 0]} />

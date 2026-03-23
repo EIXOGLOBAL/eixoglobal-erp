@@ -22,7 +22,7 @@ export function BenchmarkChart({ data }: BenchmarkChartProps) {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" angle={-30} textAnchor="end" interval={0} tick={{ fontSize: 11 }} />
                 <YAxis tickFormatter={(v) => "R$" + new Intl.NumberFormat("pt-BR", { notation: "compact" }).format(v)} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(value: number | undefined) => value != null ? ["R$ " + new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(value) + "/m²", ""] : ["-", ""]} />
+                <Tooltip formatter={(value) => typeof value === 'number' ? ["R$ " + new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(value) + "/m²", ""] : ["-", ""]} />
                 <Legend verticalAlign="top" />
                 <Bar dataKey="orcado" name="Orçado/m²" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="realizado" name="Realizado/m²" fill="#10b981" radius={[4, 4, 0, 0]} />

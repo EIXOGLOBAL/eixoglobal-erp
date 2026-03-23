@@ -56,7 +56,7 @@ export function EvmChart({ data }: EvmChartProps) {
                     tick={{ fontSize: 11 }}
                 />
                 <Tooltip
-                    formatter={(value: number | undefined) => [value != null ? fmtCurrency(value) : "R$ 0", ""]}
+                    formatter={(value) => [typeof value === 'number' ? fmtCurrency(value) : "R$ 0", ""]}
                 />
                 <Legend verticalAlign="top" />
                 <Bar dataKey="BAC" name="BAC (Orcamento)" fill="#94a3b8" radius={[4, 4, 0, 0]} />
