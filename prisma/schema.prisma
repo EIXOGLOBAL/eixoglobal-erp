@@ -59,6 +59,8 @@ model User {
   supplierEvaluations SupplierEvaluation[] @relation("SupplierEvaluator")
 
   @@map("users")
+  @@index([companyId])
+  @@index([email])
 }
 
 model Company {
@@ -188,6 +190,7 @@ model Employee {
   updatedAt   DateTime @updatedAt
 
   @@map("employees")
+  @@index([companyId, status])
 }
 
 model EmployeeBenefit {
@@ -278,6 +281,8 @@ model Project {
   workCalendars      WorkCalendar[]
 
   @@map("projects")
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
 }
 
 
@@ -333,6 +338,9 @@ model Contract {
   updatedAt   DateTime @updatedAt
 
   @@map("contracts")
+  @@index([companyId, status])
+  @@index([projectId])
+  @@index([endDate])
 }
 
 model ContractItem {
@@ -401,6 +409,8 @@ model Measurement {
   updatedAt   DateTime @updatedAt
 
   @@map("measurements")
+  @@index([projectId, status])
+  @@index([contractItemId])
 }
 
 
@@ -427,6 +437,7 @@ model BankAccount {
   updatedAt   DateTime @updatedAt
 
   @@map("bank_accounts")
+  @@index([companyId])
 }
 
 model FinancialRecord {
@@ -461,6 +472,10 @@ model FinancialRecord {
   updatedAt   DateTime @updatedAt
 
   @@map("financial_records")
+  @@index([companyId, type, status])
+  @@index([companyId, dueDate])
+  @@index([costCenterId])
+  @@index([projectId])
 }
 
 // --------------------------------------------------------
@@ -501,6 +516,7 @@ model Supplier {
   updatedAt   DateTime @updatedAt
 
   @@map("suppliers")
+  @@index([companyId, isActive])
 }
 
 model FiscalNote {
@@ -535,6 +551,8 @@ model FiscalNote {
   updatedAt   DateTime @updatedAt
 
   @@map("fiscal_notes")
+  @@index([companyId, status])
+  @@index([supplierId])
 }
 
 // --------------------------------------------------------
@@ -648,6 +666,8 @@ model MeasurementBulletin {
   updatedAt              DateTime @updatedAt
 
   @@map("measurement_bulletins")
+  @@index([projectId, status])
+  @@index([contractId])
 }
 
 model MeasurementBulletinItem {
@@ -842,6 +862,7 @@ model Material {
 
   @@unique([code, companyId])
   @@map("materials")
+  @@index([companyId])
 }
 
 model InventoryMovement {
@@ -1117,6 +1138,9 @@ model CostCenter {
 
   @@unique([code, companyId])
   @@map("cost_centers")
+  @@index([companyId, isActive])
+  @@index([parentId])
+  @@index([projectId])
 }
 
 enum CostCenterType {
@@ -1303,6 +1327,9 @@ model PurchaseOrder {
   costCenter   CostCenter?         @relation("PurchaseOrderCostCenter", fields: [costCenterId], references: [id])
 
   @@map("purchase_orders")
+  @@index([companyId])
+  @@index([supplierId])
+  @@index([projectId])
 }
 
 model PurchaseOrderItem {
@@ -1369,6 +1396,8 @@ model DailyReport {
 
   @@unique([date, projectId])
   @@map("daily_reports")
+  @@index([companyId, date])
+  @@index([projectId, date])
 }
 
 model DailyReportWorker {
@@ -1451,6 +1480,7 @@ model Equipment {
 
   @@unique([code, companyId])
   @@map("equipment")
+  @@index([companyId, status])
 }
 
 model EquipmentUsage {
@@ -1596,6 +1626,8 @@ model WorkTask {
   updatedAt    DateTime         @updatedAt
   @@index([companyId, status])
   @@map("work_tasks")
+  @@index([projectId])
+  @@index([createdById])
 }
 
 model WorkTaskAssignment {
@@ -1764,6 +1796,7 @@ model AuditLog {
   @@index([companyId, createdAt])
   @@index([entity, entityId])
   @@map("audit_logs")
+  @@index([userId])
 }
 
 // ============================================================

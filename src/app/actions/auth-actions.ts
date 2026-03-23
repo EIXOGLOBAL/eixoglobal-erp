@@ -3,9 +3,10 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { encrypt } from "@/lib/session"
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
+import { loginRateLimiter } from "@/lib/rate-limit"
 
 const loginSchema = z.object({
     email: z.string().email("Email inválido"),
@@ -22,12 +23,29 @@ export type LoginState = {
 }
 
 export async function login(prevState: LoginState, formData: FormData) {
+    const headersList = await headers()
+    const ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || '127.0.0.1'
+    const ipKey = `login:${ip}`
+
+    // Check rate limit
+    const rateLimit = loginRateLimiter.check(ipKey)
+    if (!rateLimit.success) {
+        const resetAtMs = rateLimit.resetAt.getTime()
+        const nowMs = Date.now()
+        const minutesRemaining = Math.ceil((resetAtMs - nowMs) / 60000)
+        return {
+            message: `Muitas tentativas de login. Tente novamente em ${minutesRemaining} minuto(s).`,
+        }
+    }
+
     const result = loginSchema.safeParse({
         email: formData.get("email"),
         password: formData.get("password"),
     })
 
     if (!result.success) {
+        // Log failed attempt (validation error)
+        await logFailedLoginAttempt(ip, 'validation_error', null)
         return {
             errors: result.error.flatten().fieldErrors,
             message: "Dados de login inválidos.",
@@ -42,6 +60,8 @@ export async function login(prevState: LoginState, formData: FormData) {
         })
 
         if (!user || !user.password) {
+            // Log failed attempt (user not found)
+            await logFailedLoginAttempt(ip, 'user_not_found', email)
             return {
                 message: "Credenciais inválidas.",
             }
@@ -50,6 +70,8 @@ export async function login(prevState: LoginState, formData: FormData) {
         const passwordsMatch = await bcrypt.compare(password, user.password)
 
         if (!passwordsMatch) {
+            // Log failed attempt (wrong password)
+            await logFailedLoginAttempt(ip, 'invalid_password', email)
             return {
                 message: "Credenciais inválidas.",
             }
@@ -75,15 +97,61 @@ export async function login(prevState: LoginState, formData: FormData) {
         })
 
         const cookieStore = await cookies()
-        cookieStore.set("session", session, { expires, httpOnly: true })
+        cookieStore.set("session", session, { expires, httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' })
+
+        // Log successful login
+        await logSuccessfulLogin(user.id, ip)
 
         return { success: true }
 
     } catch (error) {
         console.error("Login error:", error)
+        // Log system error
+        await logFailedLoginAttempt(ip, 'system_error', null)
         return {
             message: "Erro ao tentar realizar login.",
         }
+    }
+}
+
+/**
+ * Log successful login attempt to audit trail
+ */
+async function logSuccessfulLogin(userId: string, ipAddress: string) {
+    try {
+        // If you have an AuditLog table, uncomment and use:
+        // await prisma.auditLog.create({
+        //     data: {
+        //         userId,
+        //         action: 'LOGIN_SUCCESS',
+        //         ipAddress,
+        //         timestamp: new Date(),
+        //     }
+        // })
+        console.log(`[AUDIT] Login successful: user=${userId}, ip=${ipAddress}`)
+    } catch (error) {
+        console.error('Failed to log successful login:', error)
+    }
+}
+
+/**
+ * Log failed login attempt to audit trail
+ */
+async function logFailedLoginAttempt(ipAddress: string, reason: string, email: string | null) {
+    try {
+        // If you have an AuditLog table, uncomment and use:
+        // await prisma.auditLog.create({
+        //     data: {
+        //         action: 'LOGIN_FAILED',
+        //         reason,
+        //         email,
+        //         ipAddress,
+        //         timestamp: new Date(),
+        //     }
+        // })
+        console.log(`[AUDIT] Login failed: reason=${reason}, email=${email}, ip=${ipAddress}`)
+    } catch (error) {
+        console.error('Failed to log failed login:', error)
     }
 }
 
