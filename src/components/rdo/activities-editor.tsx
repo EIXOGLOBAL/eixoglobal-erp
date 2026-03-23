@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast"
 import { addActivity, updateActivity, deleteActivity } from "@/app/actions/daily-report-actions"
 import { Plus, Trash2, Pencil, Check, X, ClipboardList } from "lucide-react"
 import { toNumber } from "@/lib/formatters"
-import type { Decimal } from "@prisma/client/runtime/library"
+import type { Decimal } from "@prisma/client/runtime/client"
 
 interface Activity {
     id: string

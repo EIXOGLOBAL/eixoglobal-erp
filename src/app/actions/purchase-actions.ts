@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { PurchaseOrderStatus } from "@/lib/generated/prisma"
+import { PurchaseOrderStatus } from "@/lib/generated/prisma/client"
 import { createNotificationForMany } from "./notification-actions"
 import { notifyUsers } from "@/lib/sse-notifications"
 import { toNumber } from "@/lib/formatters"

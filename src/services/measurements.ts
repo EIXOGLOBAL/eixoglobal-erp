@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { MeasurementStatus, ProjectStatus } from "@/lib/generated/prisma";
+import { MeasurementStatus, ProjectStatus } from "@/lib/generated/prisma/client";
 
 export const measurementService = {
     /**

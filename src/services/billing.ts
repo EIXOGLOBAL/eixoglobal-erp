@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { FiscalNoteStatus, DocumentType, MeasurementStatus } from "@/lib/generated/prisma";
+import { FiscalNoteStatus, DocumentType, MeasurementStatus } from "@/lib/generated/prisma/client";
 
 export const billingService = {
     /**
