@@ -15,7 +15,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useState, useTransition } from "react"
-import { createUser } from "@/app/actions/users"
+import { createUser } from "@/app/actions/user-actions"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Plus } from "lucide-react"
 import {

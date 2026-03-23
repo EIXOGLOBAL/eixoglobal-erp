@@ -288,3 +288,16 @@ export async function changeProjectStatus(id: string, status: 'PLANNING' | 'IN_P
         return { success: false, error: error.message || 'Erro ao alterar status do projeto' }
     }
 }
+
+export async function getProjectStatusHistory(projectId: string) {
+    try {
+        const history = await prisma.projectStatusHistory.findMany({
+            where: { projectId },
+            orderBy: { createdAt: 'desc' },
+        })
+        return { success: true, data: history }
+    } catch (error) {
+        console.error("Erro ao buscar histórico de status:", error)
+        return { success: false, error: "Erro ao buscar histórico de status", data: [] }
+    }
+}

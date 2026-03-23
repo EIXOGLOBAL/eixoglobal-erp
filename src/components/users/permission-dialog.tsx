@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Shield, ShieldCheck, Info } from 'lucide-react'
-import { updateUserPermissions } from '@/app/actions/users'
+import { updateUserPermissions } from '@/app/actions/user-actions'
 import { useToast } from '@/hooks/use-toast'
 import { UserPermissions } from '@/lib/permissions'
 

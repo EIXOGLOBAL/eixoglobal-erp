@@ -111,3 +111,19 @@ export async function deleteAnnouncement(id: string) {
     return { success: false as const, error: String(error) }
   }
 }
+
+export async function getAnnouncementById(id: string) {
+  try {
+    const user = await getUser()
+    const announcement = await prisma.announcement.findUnique({
+      where: { id },
+      include: { author: { select: { id: true, name: true } } },
+    })
+    if (!announcement || announcement.companyId !== user.companyId) {
+      return { success: false as const, error: "Comunicado não encontrado" }
+    }
+    return { success: true as const, data: announcement }
+  } catch (error) {
+    return { success: false as const, error: String(error) }
+  }
+}

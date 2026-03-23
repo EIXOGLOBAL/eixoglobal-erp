@@ -212,3 +212,23 @@ export async function updateTaskProgress(id: string, percentDone: number) {
         }
     }
 }
+
+export async function getTaskById(id: string) {
+    try {
+        const task = await prisma.projectTask.findUnique({
+            where: { id },
+            include: {
+                project: { select: { id: true, name: true } },
+                parent: { select: { id: true, name: true } },
+                children: { select: { id: true, name: true, percentDone: true, status: true }, orderBy: { startDate: 'asc' } },
+                dependenciesAsPredecessor: { include: { successor: { select: { id: true, name: true } } } },
+                dependenciesAsSuccessor: { include: { predecessor: { select: { id: true, name: true } } } },
+            },
+        })
+        if (!task) return { success: false, error: "Tarefa não encontrada" }
+        return { success: true, data: task }
+    } catch (error) {
+        console.error("Erro ao buscar tarefa:", error)
+        return { success: false, error: "Erro ao buscar tarefa" }
+    }
+}

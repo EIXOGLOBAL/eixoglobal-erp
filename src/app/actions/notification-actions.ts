@@ -157,3 +157,19 @@ export async function createNotificationForMany(data: {
     return { success: false as const, error: error instanceof Error ? error.message : "Erro" }
   }
 }
+
+export async function updateNotification(notificationId: string, data: { read?: boolean; title?: string; message?: string }) {
+  try {
+    const user = await getUser()
+    const notification = await prisma.notification.updateMany({
+      where: { id: notificationId, userId: user.id },
+      data: {
+        ...(data.read !== undefined && { read: data.read }),
+      },
+    })
+    revalidatePath("/")
+    return { success: true as const }
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Erro" }
+  }
+}

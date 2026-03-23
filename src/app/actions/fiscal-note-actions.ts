@@ -170,3 +170,22 @@ export async function getFiscalNoteSummary(companyId: string) {
         return { success: false, error: "Erro ao calcular resumo" }
     }
 }
+
+export async function getFiscalNoteById(id: string) {
+    try {
+        const note = await prisma.fiscalNote.findUnique({
+            where: { id },
+            include: {
+                supplier: { select: { id: true, name: true, cnpj: true } },
+                project: { select: { id: true, name: true } },
+                costCenter: { select: { id: true, code: true, name: true } },
+                measurements: { select: { id: true, quantity: true, date: true, status: true } },
+            },
+        })
+        if (!note) return { success: false, error: "Nota fiscal não encontrada" }
+        return { success: true, data: { ...note, value: Number(note.value) } }
+    } catch (error) {
+        console.error("Erro ao buscar nota fiscal:", error)
+        return { success: false, error: "Erro ao buscar nota fiscal" }
+    }
+}

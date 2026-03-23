@@ -30,7 +30,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { registerPayment } from "@/app/actions/finance-actions"
+import { registerPayment } from "@/app/actions/financial-actions"
 import { Loader2 } from "lucide-react"
 
 const formSchema = z.object({

@@ -219,19 +219,18 @@ export async function deleteBudget(id: string) {
     try {
         const budget = await prisma.budget.findUnique({
             where: { id },
+            select: { status: true },
         })
-        if (!budget) {
-            return { success: false, error: "Orçamento não encontrado" }
-        }
-        if (budget.status !== 'DRAFT' && budget.status !== 'REJECTED') {
-            return { success: false, error: "Apenas orçamentos em rascunho ou rejeitados podem ser excluídos" }
+        if (!budget) return { success: false, error: "Orçamento não encontrado" }
+        if (budget.status === 'APPROVED') {
+            return { success: false, error: "Não é possível excluir um orçamento aprovado" }
         }
         await prisma.budget.delete({ where: { id } })
         revalidatePath('/orcamentos')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao excluir orçamento:", error)
-        return { success: false, error: "Erro ao excluir orçamento" }
+        console.error("Erro ao deletar orçamento:", error)
+        return { success: false, error: "Erro ao deletar orçamento" }
     }
 }
 

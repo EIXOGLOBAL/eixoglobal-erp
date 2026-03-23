@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Trash2, Loader2 } from "lucide-react"
 import { useState, useTransition } from "react"
-import { deleteUser } from "@/app/actions/users"
+import { deleteUser } from "@/app/actions/user-actions"
 import { useToast } from "@/hooks/use-toast"
 
 interface DeleteUserDialogProps {

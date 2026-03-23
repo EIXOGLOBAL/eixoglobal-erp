@@ -662,3 +662,39 @@ export async function saveBulletinAttachment(
         return { success: false, error: error.message || 'Erro ao salvar anexo' }
     }
 }
+
+export async function updateBulletin(
+    bulletinId: string,
+    data: {
+        referenceMonth?: string
+        periodStart?: string
+        periodEnd?: string
+    }
+) {
+    try {
+        const bulletin = await prisma.measurementBulletin.findUnique({
+            where: { id: bulletinId },
+        })
+
+        if (!bulletin) return { success: false, error: "Boletim não encontrado" }
+        if (bulletin.status !== 'DRAFT') {
+            return { success: false, error: "Apenas boletins em rascunho podem ser editados" }
+        }
+
+        const updated = await prisma.measurementBulletin.update({
+            where: { id: bulletinId },
+            data: {
+                ...(data.referenceMonth && { referenceMonth: data.referenceMonth }),
+                ...(data.periodStart && { periodStart: new Date(data.periodStart) }),
+                ...(data.periodEnd && { periodEnd: new Date(data.periodEnd) }),
+            },
+        })
+
+        revalidatePath('/medicoes/boletins')
+        revalidatePath(`/medicoes/boletins/${bulletinId}`)
+        return { success: true, data: updated }
+    } catch (error) {
+        console.error("Erro ao atualizar boletim:", error)
+        return { success: false, error: "Erro ao atualizar boletim" }
+    }
+}

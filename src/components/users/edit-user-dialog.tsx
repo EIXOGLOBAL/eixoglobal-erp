@@ -15,7 +15,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useState, useTransition, useEffect } from "react"
-import { updateUser } from "@/app/actions/users"
+import { updateUser } from "@/app/actions/user-actions"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Pencil } from "lucide-react"
 import {

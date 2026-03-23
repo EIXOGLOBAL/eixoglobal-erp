@@ -397,3 +397,23 @@ export async function deleteEmployeeBenefit(benefitId: string, employeeId: strin
         return { success: false, error: error instanceof Error ? error.message : 'Erro ao excluir benefício' }
     }
 }
+
+export async function getSalaryHistory(employeeId: string) {
+    try {
+        const history = await prisma.salaryHistory.findMany({
+            where: { employeeId },
+            orderBy: { effectiveDate: 'desc' },
+        })
+        return {
+            success: true,
+            data: history.map(h => ({
+                ...h,
+                previousCost: Number(h.previousCost),
+                newCost: Number(h.newCost),
+            })),
+        }
+    } catch (error) {
+        console.error("Erro ao buscar histórico salarial:", error)
+        return { success: false, error: "Erro ao buscar histórico salarial", data: [] }
+    }
+}

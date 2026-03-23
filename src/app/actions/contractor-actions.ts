@@ -96,3 +96,23 @@ export async function changeContractorStatus(id: string, status: 'ACTIVE' | 'INA
     return { success: false, error: error.message || "Erro ao alterar status da empreiteira" }
   }
 }
+
+export async function getContractorById(id: string) {
+    try {
+        const contractor = await prisma.contractor.findUnique({
+            where: { id },
+            include: {
+                contracts: {
+                    include: { project: { select: { id: true, name: true } } },
+                    orderBy: { startDate: 'desc' },
+                },
+                company: { select: { id: true, name: true } },
+                _count: { select: { contracts: true } },
+            },
+        })
+        if (!contractor) return { success: false, error: "Empreiteira não encontrada" }
+        return { success: true, data: contractor }
+    } catch (error: any) {
+        return { success: false, error: error.message || "Erro ao buscar empreiteira" }
+    }
+}

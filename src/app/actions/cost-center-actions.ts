@@ -199,3 +199,23 @@ export async function toggleCostCenterStatus(id: string, isActive: boolean) {
         return { success: false, error: "Erro ao alterar status do centro de custo" }
     }
 }
+
+export async function getCostCenterById(id: string) {
+    try {
+        const costCenter = await prisma.costCenter.findUnique({
+            where: { id },
+            include: {
+                parent: { select: { id: true, name: true, code: true } },
+                children: { select: { id: true, name: true, code: true, isActive: true }, orderBy: { code: 'asc' } },
+                project: { select: { id: true, name: true } },
+                budgets: { orderBy: { year: 'desc' } },
+                _count: { select: { children: true, financialRecords: true } },
+            },
+        })
+        if (!costCenter) return { success: false, error: "Centro de custo não encontrado" }
+        return { success: true, data: costCenter }
+    } catch (error) {
+        console.error("Erro ao buscar centro de custo:", error)
+        return { success: false, error: "Erro ao buscar centro de custo" }
+    }
+}

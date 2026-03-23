@@ -265,3 +265,34 @@ export async function getUsers(companyId?: string) {
         return { success: false, error: 'Erro ao buscar usuários', data: [] }
     }
 }
+
+export async function getUserById(id: string) {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                avatarUrl: true,
+                companyId: true,
+                createdAt: true,
+                updatedAt: true,
+                canDelete: true,
+                canApprove: true,
+                canManageFinancial: true,
+                canManageHR: true,
+                canManageSystem: true,
+                canViewReports: true,
+                company: { select: { id: true, name: true } },
+                _count: { select: { projects: true, registeredMeasurements: true, inventoryMovements: true } },
+            },
+        })
+        if (!user) return { success: false, error: 'Usuário não encontrado' }
+        return { success: true, data: user }
+    } catch (error) {
+        console.error(error)
+        return { success: false, error: 'Erro ao buscar usuário' }
+    }
+}

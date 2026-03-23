@@ -200,3 +200,36 @@ export async function deleteMeasurement(id: string) {
         return { success: false, error: error.message };
     }
 }
+
+export async function getMeasurementById(id: string) {
+    const session = await getSession()
+    if (!session?.user) return { success: false, error: 'Não autenticado' }
+
+    try {
+        const measurement = await prisma.measurement.findUnique({
+            where: { id },
+            include: {
+                project: { select: { id: true, name: true } },
+                employee: { select: { id: true, name: true } },
+                contractItem: true,
+                registeredBy: { select: { id: true, name: true } },
+                approvedBy: { select: { id: true, name: true } },
+            },
+        })
+        if (!measurement) return { success: false, error: "Medição não encontrada" }
+        return {
+            success: true,
+            data: {
+                ...measurement,
+                quantity: Number(measurement.quantity),
+                contractItem: measurement.contractItem ? {
+                    ...measurement.contractItem,
+                    unitPrice: Number(measurement.contractItem.unitPrice),
+                    quantity: Number(measurement.contractItem.quantity),
+                } : null,
+            },
+        }
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
+}
