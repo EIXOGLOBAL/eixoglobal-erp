@@ -1,8 +1,6 @@
-version: "3.8"
-
 services:
   db:
-    image: postgres:latest
+    image: postgres:17
     container_name: eixo_erp_db
     restart: unless-stopped
     environment:
