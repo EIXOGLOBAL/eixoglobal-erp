@@ -78,6 +78,28 @@ export async function createAnnouncement(data: z.infer<typeof schema>) {
   }
 }
 
+export async function updateAnnouncement(id: string, data: z.infer<typeof schema>) {
+  try {
+    const user = await getUser()
+    if (!["ADMIN","MANAGER"].includes(user.role)) return { success: false as const, error: "Sem permissão" }
+    const v = schema.parse(data)
+    const ann = await prisma.announcement.update({
+      where: { id },
+      data: {
+        title: v.title,
+        content: v.content,
+        priority: v.priority,
+        isPinned: v.isPinned,
+        expiresAt: v.expiresAt ? new Date(v.expiresAt) : null,
+      },
+    })
+    revalidatePath("/comunicados")
+    return { success: true as const, data: ann }
+  } catch (error) {
+    return { success: false as const, error: String(error) }
+  }
+}
+
 export async function deleteAnnouncement(id: string) {
   try {
     const user = await getUser()

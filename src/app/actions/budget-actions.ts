@@ -215,6 +215,26 @@ export async function reviseBudget(id: string) {
     }
 }
 
+export async function deleteBudget(id: string) {
+    try {
+        const budget = await prisma.budget.findUnique({
+            where: { id },
+        })
+        if (!budget) {
+            return { success: false, error: "Orçamento não encontrado" }
+        }
+        if (budget.status !== 'DRAFT' && budget.status !== 'REJECTED') {
+            return { success: false, error: "Apenas orçamentos em rascunho ou rejeitados podem ser excluídos" }
+        }
+        await prisma.budget.delete({ where: { id } })
+        revalidatePath('/orcamentos')
+        return { success: true }
+    } catch (error) {
+        console.error("Erro ao excluir orçamento:", error)
+        return { success: false, error: "Erro ao excluir orçamento" }
+    }
+}
+
 async function recalcBudgetTotal(budgetId: string) {
     const items = await prisma.budgetItem.findMany({ where: { budgetId } })
     const total = items.reduce((sum, item) => sum + toNumber(item.totalPrice), 0)

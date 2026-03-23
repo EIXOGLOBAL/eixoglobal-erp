@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getSession } from '@/lib/auth';
 
 // Schemas
 const CreateSchema = z.object({
@@ -15,9 +16,12 @@ const CreateSchema = z.object({
     employeeId: z.string().optional(),
 });
 
+const UpdateSchema = CreateSchema.partial();
+
 export async function createMeasurementAction(data: z.infer<typeof CreateSchema>) {
-    // Mock Auth (Replace with getSession/auth() in real)
-    const user = { id: "mock-user-id", role: "ENGINEER" };
+    const session = await getSession()
+    if (!session?.user) return { success: false, error: 'Não autenticado' }
+    const user = session.user as { id: string; role: string; companyId: string }
 
     try {
         const { unitPrice, ...dbData } = data; // Remove unitPrice if not needed for Measurement model
@@ -46,8 +50,9 @@ export async function createMeasurementAction(data: z.infer<typeof CreateSchema>
 }
 
 export async function getMeasurements(status?: 'PENDING' | 'ALL') {
-    // Mock Auth
-    const user = { id: "mock-user-id", role: "ENGINEER" };
+    const session = await getSession()
+    if (!session?.user) return { success: false, error: 'Não autenticado' }
+    const user = session.user as { id: string; role: string; companyId: string }
 
     try {
         const where: any = {};
@@ -83,7 +88,9 @@ export async function getMeasurements(status?: 'PENDING' | 'ALL') {
 }
 
 export async function approveMeasurement(id: string) {
-    const user = { id: "mock-manager-id", role: "MANAGER" };
+    const session = await getSession()
+    if (!session?.user) return { success: false, error: 'Não autenticado' }
+    const user = session.user as { id: string; role: string; companyId: string }
 
     if (user.role !== 'MANAGER') {
         return { success: false, error: "Unauthorized" };
@@ -105,7 +112,9 @@ export async function approveMeasurement(id: string) {
 }
 
 export async function rejectMeasurement(id: string, reason: string) {
-    const user = { id: "mock-manager-id", role: "MANAGER" };
+    const session = await getSession()
+    if (!session?.user) return { success: false, error: 'Não autenticado' }
+    const user = session.user as { id: string; role: string; companyId: string }
 
     try {
         await prisma.measurement.update({
@@ -124,7 +133,9 @@ export async function rejectMeasurement(id: string, reason: string) {
 }
 
 export async function bulkApproveMeasurements(ids: string[]) {
-    const user = { id: "mock-manager-id", role: "MANAGER" };
+    const session = await getSession()
+    if (!session?.user) return { success: false, error: 'Não autenticado' }
+    const user = session.user as { id: string; role: string; companyId: string }
 
     try {
         await prisma.measurement.updateMany({
@@ -137,6 +148,52 @@ export async function bulkApproveMeasurements(ids: string[]) {
                 approvedById: user.id
             }
         });
+        revalidatePath("/dashboard/medicoes");
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function updateMeasurement(id: string, data: z.infer<typeof UpdateSchema>) {
+    const session = await getSession()
+    if (!session?.user) return { success: false, error: 'Não autenticado' }
+    const user = session.user as { id: string; role: string; companyId: string }
+
+    try {
+        const validated = UpdateSchema.parse(data);
+
+        const measurement = await prisma.measurement.update({
+            where: { id },
+            data: {
+                ...validated,
+                date: validated.date ? new Date(validated.date) : undefined,
+            }
+        });
+
+        revalidatePath("/dashboard/medicoes");
+
+        const serialized = {
+            ...measurement,
+            quantity: Number(measurement.quantity),
+        };
+
+        return { success: true, data: serialized };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deleteMeasurement(id: string) {
+    const session = await getSession()
+    if (!session?.user) return { success: false, error: 'Não autenticado' }
+    const user = session.user as { id: string; role: string; companyId: string }
+
+    try {
+        await prisma.measurement.delete({
+            where: { id }
+        });
+
         revalidatePath("/dashboard/medicoes");
         return { success: true };
     } catch (error: any) {

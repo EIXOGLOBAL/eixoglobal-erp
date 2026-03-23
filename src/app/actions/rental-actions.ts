@@ -236,6 +236,60 @@ export async function createRental(data: z.infer<typeof rentalSchema>) {
   }
 }
 
+export async function updateRental(id: string, data: z.infer<typeof rentalSchema>) {
+  try {
+    const validated = rentalSchema.parse(data)
+    const rental = await prisma.rental.update({
+      where: { id },
+      data: {
+        itemId: validated.itemId,
+        projectId: validated.projectId ?? null,
+        billingCycle: validated.billingCycle,
+        unitRate: validated.unitRate,
+        startDate: new Date(validated.startDate),
+        expectedEndDate: validated.expectedEndDate ? new Date(validated.expectedEndDate) : null,
+        notes: validated.notes,
+        costCenterId: validated.costCenterId ?? null,
+      },
+    })
+    revalidatePath('/locacoes')
+    revalidatePath(`/locacoes/${id}`)
+    return { success: true, data: rental }
+  } catch (error) {
+    console.error('Erro ao atualizar locação:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro ao atualizar locação',
+    }
+  }
+}
+
+export async function deleteRental(id: string) {
+  try {
+    const rental = await prisma.rental.findUnique({
+      where: { id },
+      include: {
+        payments: { select: { id: true } },
+      },
+    })
+    if (!rental) {
+      return { success: false, error: 'Locação não encontrada' }
+    }
+    if (rental.payments.length > 0) {
+      return { success: false, error: 'Não é possível excluir locação com pagamentos registrados' }
+    }
+    if (rental.status !== 'ACTIVE' && rental.status !== 'CANCELLED') {
+      return { success: false, error: 'Apenas locações ativas ou canceladas podem ser excluídas' }
+    }
+    await prisma.rental.delete({ where: { id } })
+    revalidatePath('/locacoes')
+    return { success: true }
+  } catch (error) {
+    console.error('Erro ao excluir locação:', error)
+    return { success: false, error: 'Erro ao excluir locação' }
+  }
+}
+
 export async function returnRental(id: string, actualEndDate: string) {
   try {
     const rental = await prisma.rental.update({

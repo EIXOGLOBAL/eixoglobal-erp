@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getNextCode } from '@/lib/sequence'
+import { getSession } from '@/lib/auth'
+import { assertCanDelete } from '@/lib/permissions'
 
 const clientSchema = z.object({
   type: z.enum(['COMPANY', 'INDIVIDUAL']).default('COMPANY'),
@@ -186,5 +188,37 @@ export async function changeClientStatus(id: string, status: 'ACTIVE' | 'INACTIV
     return { success: true, data: client }
   } catch (error: any) {
     return { success: false, error: error.message || 'Erro ao alterar status do cliente' }
+  }
+}
+
+export async function deleteClient(id: string) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return { success: false, error: 'Não autenticado' }
+    }
+
+    assertCanDelete(session.user)
+
+    // Check for active projects
+    const activeProjects = await prisma.project.findMany({
+      where: {
+        clientId: id,
+        status: { notIn: ['COMPLETED', 'CANCELLED'] }
+      }
+    })
+
+    if (activeProjects.length > 0) {
+      return { success: false, error: `Não é possível deletar um cliente com ${activeProjects.length} projeto(s) ativo(s)` }
+    }
+
+    await prisma.client.delete({
+      where: { id }
+    })
+
+    revalidatePath('/clientes')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Erro ao deletar cliente' }
   }
 }

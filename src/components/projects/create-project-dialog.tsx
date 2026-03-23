@@ -15,7 +15,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useState, useTransition } from "react"
-import { createProject } from "@/app/actions/projects"
+import { createProject } from "@/app/actions/project-actions"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Plus } from "lucide-react"
 import {
@@ -69,24 +69,19 @@ export function CreateProjectDialog({ companies, engineers }: CreateProjectDialo
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         startTransition(async () => {
-            const formData = new FormData()
-            formData.append("name", values.name)
-            if (values.description) formData.append("description", values.description)
-            if (values.location) formData.append("location", values.location)
-            formData.append("startDate", values.startDate)
-            if (values.endDate) formData.append("endDate", values.endDate)
-            formData.append("status", values.status)
-            formData.append("companyId", values.companyId)
-            if (values.engineerId && values.engineerId !== "none") {
-                formData.append("engineerId", values.engineerId)
-            }
-
-            const result = await createProject({}, formData)
+            const result = await createProject({
+                name: values.name,
+                description: values.description,
+                companyId: values.companyId,
+                startDate: values.startDate,
+                endDate: values.endDate,
+                status: values.status as 'PLANNING' | 'IN_PROGRESS' | 'COMPLETED' | 'ON_HOLD' | 'CANCELLED',
+            })
 
             if (result?.success) {
                 toast({
                     title: "Sucesso!",
-                    description: result.message,
+                    description: "Projeto criado com sucesso!",
                 })
                 setOpen(false)
                 form.reset()
@@ -94,7 +89,7 @@ export function CreateProjectDialog({ companies, engineers }: CreateProjectDialo
                 toast({
                     variant: "destructive",
                     title: "Erro ao criar projeto",
-                    description: result?.message || "Erro desconhecido",
+                    description: result?.error || "Erro desconhecido",
                 })
             }
         })

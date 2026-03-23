@@ -17,7 +17,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useState, useTransition } from "react"
-import { createCompany } from "@/app/actions/companies"
+import { createCompany } from "@/app/actions/company-actions"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Plus } from "lucide-react"
 import {
@@ -55,17 +55,16 @@ export function CreateCompanyDialog() {
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         startTransition(async () => {
-            const formData = new FormData()
-            formData.append("name", values.name)
-            formData.append("cnpj", values.cnpj)
-            if (values.address) formData.append("address", values.address)
-
-            const result = await createCompany({}, formData)
+            const result = await createCompany({
+                name: values.name,
+                cnpj: values.cnpj,
+                address: values.address,
+            })
 
             if (result?.success) {
                 toast({
                     title: "Sucesso!",
-                    description: result.message,
+                    description: "Empresa criada com sucesso!",
                 })
                 setOpen(false)
                 form.reset()
@@ -73,7 +72,7 @@ export function CreateCompanyDialog() {
                 toast({
                     variant: "destructive",
                     title: "Erro ao criar empresa",
-                    description: result?.message || "Erro desconhecido",
+                    description: result?.error || "Erro desconhecido",
                 })
             }
         })
