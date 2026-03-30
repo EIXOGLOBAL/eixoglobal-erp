@@ -24,14 +24,26 @@ export async function createMeasurementAction(data: z.infer<typeof CreateSchema>
     const user = session.user as { id: string; role: string; companyId: string }
 
     try {
-        const { unitPrice, ...dbData } = data; // Remove unitPrice if not needed for Measurement model
+        // Verify project belongs to user's company
+        const project = await prisma.project.findUnique({
+            where: { id: data.projectId },
+            select: { companyId: true }
+        })
+        if (!project || project.companyId !== user.companyId) {
+            return { success: false, error: 'Acesso negado' }
+        }
 
         const measurement = await prisma.measurement.create({
             data: {
-                ...dbData,
-                date: new Date(dbData.date),
+                projectId: data.projectId,
+                contractItemId: data.contractItemId,
+                quantity: data.quantity,
+                date: new Date(data.date),
+                description: data.description,
+                employeeId: data.employeeId,
                 registeredById: user.id,
-                status: 'SUBMITTED' // Default to SUBMITTED effectively acts as pending
+                companyId: user.companyId, // Set company ownership
+                status: 'SUBMITTED' as const // Default to SUBMITTED for consistency
             }
         });
         revalidatePath("/dashboard/medicoes");
@@ -55,9 +67,13 @@ export async function getMeasurements(status?: 'PENDING' | 'ALL') {
     const user = session.user as { id: string; role: string; companyId: string }
 
     try {
-        const where: any = {};
+        const where: any = {
+            project: {
+                companyId: user.companyId
+            }
+        };
         if (status === 'PENDING') {
-            where.status = 'SUBMITTED';
+            where.status = 'PENDING';
         }
         // status 'ALL' implies no filter or filtered by user. keeping it open for now.
 
@@ -92,11 +108,20 @@ export async function approveMeasurement(id: string) {
     if (!session?.user) return { success: false, error: 'Não autenticado' }
     const user = session.user as { id: string; role: string; companyId: string }
 
-    if (user.role !== 'MANAGER') {
+    if (user.role !== 'MANAGER' && user.role !== 'ADMIN') {
         return { success: false, error: "Unauthorized" };
     }
 
     try {
+        // Verify measurement belongs to user's company
+        const measurement = await prisma.measurement.findUnique({
+            where: { id },
+            select: { project: { select: { companyId: true } } }
+        })
+        if (!measurement || measurement.project.companyId !== user.companyId) {
+            return { success: false, error: 'Acesso negado' }
+        }
+
         await prisma.measurement.update({
             where: { id },
             data: {
@@ -117,12 +142,21 @@ export async function rejectMeasurement(id: string, reason: string) {
     const user = session.user as { id: string; role: string; companyId: string }
 
     try {
+        // Verify measurement belongs to user's company
+        const measurement = await prisma.measurement.findUnique({
+            where: { id },
+            select: { project: { select: { companyId: true } } }
+        })
+        if (!measurement || measurement.project.companyId !== user.companyId) {
+            return { success: false, error: 'Acesso negado' }
+        }
+
         await prisma.measurement.update({
             where: { id },
             data: {
                 status: 'REJECTED',
                 rejectionReason: reason,
-                approvedById: user.id
+                // Do not set approvedById when rejecting - only set when approved
             }
         });
         revalidatePath("/dashboard/medicoes");
@@ -141,7 +175,8 @@ export async function bulkApproveMeasurements(ids: string[]) {
         await prisma.measurement.updateMany({
             where: {
                 id: { in: ids },
-                status: 'SUBMITTED' // Only approve submitted ones
+                status: 'SUBMITTED', // Only approve submitted ones
+                project: { companyId: user.companyId } // Filter by company
             },
             data: {
                 status: 'APPROVED',
@@ -161,6 +196,15 @@ export async function updateMeasurement(id: string, data: z.infer<typeof UpdateS
     const user = session.user as { id: string; role: string; companyId: string }
 
     try {
+        // Verify measurement belongs to user's company
+        const existing = await prisma.measurement.findUnique({
+            where: { id },
+            select: { project: { select: { companyId: true } } }
+        })
+        if (!existing || existing.project.companyId !== user.companyId) {
+            return { success: false, error: 'Acesso negado' }
+        }
+
         const validated = UpdateSchema.parse(data);
 
         const measurement = await prisma.measurement.update({
@@ -189,7 +233,21 @@ export async function deleteMeasurement(id: string) {
     if (!session?.user) return { success: false, error: 'Não autenticado' }
     const user = session.user as { id: string; role: string; companyId: string }
 
+    // Check delete permission
+    if (user.role !== "ADMIN" && !(session.user as any).canDelete) {
+        return { success: false, error: 'Sem permissão para excluir' }
+    }
+
     try {
+        // Verify measurement belongs to user's company
+        const existing = await prisma.measurement.findUnique({
+            where: { id },
+            select: { project: { select: { companyId: true } } }
+        })
+        if (!existing || existing.project.companyId !== user.companyId) {
+            return { success: false, error: 'Acesso negado' }
+        }
+
         await prisma.measurement.delete({
             where: { id }
         });
@@ -204,12 +262,13 @@ export async function deleteMeasurement(id: string) {
 export async function getMeasurementById(id: string) {
     const session = await getSession()
     if (!session?.user) return { success: false, error: 'Não autenticado' }
+    const user = session.user as { id: string; role: string; companyId: string }
 
     try {
         const measurement = await prisma.measurement.findUnique({
             where: { id },
             include: {
-                project: { select: { id: true, name: true } },
+                project: { select: { id: true, name: true, companyId: true } },
                 employee: { select: { id: true, name: true } },
                 contractItem: true,
                 registeredBy: { select: { id: true, name: true } },
@@ -217,6 +276,12 @@ export async function getMeasurementById(id: string) {
             },
         })
         if (!measurement) return { success: false, error: "Medição não encontrada" }
+
+        // Verify company access
+        if (measurement.project.id && measurement.project.companyId !== user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         return {
             success: true,
             data: {

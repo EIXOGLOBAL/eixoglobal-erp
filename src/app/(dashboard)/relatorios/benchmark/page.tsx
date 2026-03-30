@@ -23,7 +23,7 @@ export default async function BenchmarkPage() {
     const projects = await prisma.project.findMany({
         where: { companyId, status: { in: ["IN_PROGRESS", "COMPLETED"] } },
         include: {
-            bulletins: { where: { status: { in: ["APPROVED", "BILLED"] } }, select: { totalValue: true } },
+            bulletins: { where: { status: { in: ["APPROVED", "MANAGER_APPROVED"] } }, select: { totalValue: true } },
             company: { select: { name: true } },
         },
     })

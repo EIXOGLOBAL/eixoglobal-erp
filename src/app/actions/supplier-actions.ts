@@ -27,6 +27,14 @@ const supplierSchema = z.object({
 
 export async function createSupplier(data: z.infer<typeof supplierSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify company access
+        if (data.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = supplierSchema.parse(data)
 
         const supplier = await prisma.supplier.create({
@@ -61,9 +69,21 @@ export async function createSupplier(data: z.infer<typeof supplierSchema>) {
 
 export async function updateSupplier(id: string, data: z.infer<typeof supplierSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify supplier belongs to user's company
+        const supplier = await prisma.supplier.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!supplier || supplier.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = supplierSchema.parse(data)
 
-        const supplier = await prisma.supplier.update({
+        const updated = await prisma.supplier.update({
             where: { id },
             data: {
                 name: validated.name,
@@ -83,7 +103,7 @@ export async function updateSupplier(id: string, data: z.infer<typeof supplierSc
 
         revalidatePath('/fornecedores')
         revalidatePath('/financeiro/fornecedores')
-        return { success: true, data: supplier }
+        return { success: true, data: updated }
     } catch (error) {
         console.error("Erro ao atualizar fornecedor:", error)
         return { success: false, error: "Erro ao atualizar fornecedor" }
@@ -92,6 +112,23 @@ export async function updateSupplier(id: string, data: z.infer<typeof supplierSc
 
 export async function deleteSupplier(id: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir" }
+        }
+
+        // Verify supplier belongs to user's company
+        const supplier = await prisma.supplier.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!supplier || supplier.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         // Check if supplier has fiscal notes linked
         const count = await prisma.fiscalNote.count({ where: { supplierId: id } })
         if (count > 0) {
@@ -143,13 +180,25 @@ export async function getActiveSuppliers(companyId: string) {
 
 export async function toggleSupplierStatus(id: string, isActive: boolean) {
     try {
-        const supplier = await prisma.supplier.update({
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify supplier belongs to user's company
+        const supplier = await prisma.supplier.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!supplier || supplier.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
+        const updated = await prisma.supplier.update({
             where: { id },
             data: { isActive }
         })
         revalidatePath('/fornecedores')
         revalidatePath('/financeiro/fornecedores')
-        return { success: true, data: supplier }
+        return { success: true, data: updated }
     } catch (error) {
         return { success: false, error: "Erro ao alterar status do fornecedor" }
     }
@@ -166,6 +215,15 @@ export async function addSupplierContact(
     try {
         const session = await getSession()
         if (!session) return { success: false, error: "Sessão expirada" }
+
+        // Verify supplier belongs to user's company
+        const supplierCheck = await prisma.supplier.findUnique({
+            where: { id: supplierId },
+            select: { companyId: true }
+        })
+        if (!supplierCheck || supplierCheck.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
 
         // If this contact is primary, unset any existing primary contacts
         if (data.isPrimary) {

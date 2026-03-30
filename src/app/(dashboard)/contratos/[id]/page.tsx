@@ -4,10 +4,15 @@ import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import { ContractDialog } from "@/components/contracts/contract-dialog"
 import { ContractItemsTable } from "@/components/contracts/contract-items-table"
+import { ContractItemsTableEnhanced } from "@/components/contracts/contract-items-table-enhanced"
+import { ContractExecutionChart } from "@/components/contracts/contract-execution-chart"
+import { ContractExecutiveSummary } from "@/components/contracts/contract-executive-summary"
+import { AmendmentsTimeline } from "@/components/contracts/amendments-timeline"
 import { AmendmentDialog } from "@/components/contracts/amendment-dialog"
 import { AdjustmentDialog } from "@/components/contracts/adjustment-dialog"
 import { AmendmentsTable } from "@/components/contracts/amendments-table"
 import { AdjustmentsTable } from "@/components/contracts/adjustments-table"
+import { ContractDetailsSection } from "@/components/contracts/contract-details-section"
 import { SignaturePanel } from "@/components/signatures/SignaturePanel"
 import { prisma } from "@/lib/prisma"
 import {
@@ -146,259 +151,270 @@ const [result, session] = await Promise.all([
                 />
             </div>
 
-            {/* Info Cards */}
-            <div className="grid gap-4 md:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Projeto</CardTitle>
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-lg font-bold">
-                            <Link
-                                href={`/projects/${contract.project.id}`}
-                                className="hover:underline"
-                            >
-                                {contract.project.name}
-                            </Link>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Projeto vinculado
-                        </p>
-                    </CardContent>
-                </Card>
+            {/* Executive Summary */}
+            <ContractExecutiveSummary
+                identifier={contract.identifier}
+                value={Number(contract.value || 0)}
+                measuredValue={totalMeasured}
+                paidValue={totalMeasured} // You may want to calculate actual paid value from bulletins
+                itemsCount={totalItems}
+                amendmentsCount={totalAmendments}
+                bulletinsCount={contract.bulletins?.length || 0}
+                status={contract.status}
+            />
 
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Contratada</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-lg font-bold">
-                            {contract.contractor?.name || 'Não informada'}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Empresa contratada
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Valor do Contrato</CardTitle>
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-lg font-bold">
-                            {new Intl.NumberFormat('pt-BR', {
-                                style: 'currency',
-                                currency: 'BRL',
-                                minimumFractionDigits: 0,
-                            }).format(Number(totalValue))}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            {totalItems} itens cadastrados
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Período de Vigência</CardTitle>
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-sm font-medium">
-                            {new Date(contract.startDate).toLocaleDateString('pt-BR')}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            até {contract.endDate
-                                ? new Date(contract.endDate).toLocaleDateString('pt-BR')
-                                : 'Indefinido'
-                            }
-                        </p>
-                    </CardContent>
-                </Card>
-            </div>
+            {/* Info Cards - Using new component */}
+            <ContractDetailsSection
+                contract={contract}
+                statusVariants={statusVariants}
+                statusLabels={statusLabels}
+            />
 
             {/* Tabs */}
-            <Tabs defaultValue="dados" className="space-y-4">
-                <TabsList>
-                    <TabsTrigger value="dados">
-                        <FileText className="h-4 w-4 mr-2" />
-                        Dados Gerais
+            <Tabs defaultValue="geral" className="space-y-4">
+                <TabsList className="grid grid-cols-3 md:grid-cols-6 h-auto">
+                    <TabsTrigger value="geral" className="text-xs md:text-sm">
+                        <FileText className="h-4 w-4 mr-1 md:mr-2" />
+                        <span className="hidden sm:inline">Geral</span>
                     </TabsTrigger>
-                    <TabsTrigger value="itens">
-                        Itens do Contrato
-                        <Badge variant="secondary" className="ml-2">{totalItems}</Badge>
+                    <TabsTrigger value="itens" className="text-xs md:text-sm">
+                        <span className="hidden sm:inline">Itens</span>
+                        <span className="sm:hidden">It.</span>
+                        <Badge variant="secondary" className="ml-1 text-xs">{totalItems}</Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="aditivos">
-                        Termos Aditivos
-                        <Badge variant="secondary" className="ml-2">{totalAmendments}</Badge>
+                    <TabsTrigger value="aditivos" className="text-xs md:text-sm">
+                        <span className="hidden sm:inline">Aditivos</span>
+                        <span className="sm:hidden">Ad.</span>
+                        <Badge variant="secondary" className="ml-1 text-xs">{totalAmendments}</Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="reajustes">
-                        Reajustes
-                        <Badge variant="secondary" className="ml-2">{totalAdjustments}</Badge>
+                    <TabsTrigger value="reajustes" className="text-xs md:text-sm">
+                        <span className="hidden sm:inline">Reajustes</span>
+                        <span className="sm:hidden">Rej.</span>
+                        <Badge variant="secondary" className="ml-1 text-xs">{totalAdjustments}</Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="boletins">
-                        Boletins de Medição
-                        <Badge variant="secondary" className="ml-2">
+                    <TabsTrigger value="boletins" className="text-xs md:text-sm">
+                        <span className="hidden sm:inline">Medições</span>
+                        <span className="sm:hidden">Med.</span>
+                        <Badge variant="secondary" className="ml-1 text-xs">
                             {contract.bulletins?.length || 0}
                         </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="assinatura">
-                        <FileSignature className="h-4 w-4 mr-2" />
-                        Assinatura Digital
+                    <TabsTrigger value="assinatura" className="text-xs md:text-sm">
+                        <FileSignature className="h-4 w-4 mr-1" />
+                        <span className="hidden sm:inline">Assinatura</span>
+                        <span className="sm:hidden">Ass.</span>
                     </TabsTrigger>
                 </TabsList>
 
-                {/* Tab: Dados Gerais */}
-                <TabsContent value="dados" className="space-y-4">
+                {/* Tab: Geral */}
+                <TabsContent value="geral" className="space-y-4">
+                    {/* Financial Execution Chart */}
+                    <ContractExecutionChart
+                        contractValue={contractValue}
+                        measuredValue={totalMeasured}
+                        paidValue={totalMeasured}
+                    />
+
+                    {/* Informações Principais */}
                     <Card>
                         <CardHeader>
-                            <CardTitle>Informações do Contrato</CardTitle>
-                            <CardDescription>Dados cadastrais e informações gerais</CardDescription>
+                            <CardTitle>Informações Principais</CardTitle>
+                            <CardDescription>Dados cadastrais e informações gerais do contrato</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-6">
+                            {/* Linha 1: Identificador e Status */}
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                         Identificador
                                     </label>
-                                    <p className="text-base font-medium">{contract.identifier}</p>
+                                    <p className="text-lg font-bold">{contract.identifier}</p>
                                 </div>
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                         Status
                                     </label>
-                                    <div className="mt-1">
-                                        <Badge variant={statusVariants[contract.status]}>
-                                            {statusLabels[contract.status]}
-                                        </Badge>
-                                    </div>
+                                    <Badge variant={statusVariants[contract.status]} className="w-fit">
+                                        {statusLabels[contract.status]}
+                                    </Badge>
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="text-sm font-medium text-muted-foreground">
-                                    Descrição
-                                </label>
-                                <p className="text-base">{contract.description || 'Sem descrição'}</p>
-                            </div>
+                            {/* Descrição */}
+                            {contract.description && (
+                                <div className="space-y-1 pb-4 border-b">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                        Descrição
+                                    </label>
+                                    <p className="text-base leading-relaxed">{contract.description}</p>
+                                </div>
+                            )}
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">
+                            {/* Linha 2: Projeto e Contratada */}
+                            <div className="grid grid-cols-2 gap-4 pb-4 border-b">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                         Projeto
                                     </label>
-                                    <p className="text-base font-medium">
-                                        <Link
-                                            href={`/projects/${contract.project.id}`}
-                                            className="hover:underline text-primary"
-                                        >
-                                            {contract.project.name}
-                                        </Link>
-                                    </p>
+                                    <Link
+                                        href={`/projects/${contract.project.id}`}
+                                        className="text-base font-medium text-primary hover:underline"
+                                    >
+                                        {contract.project.name}
+                                    </Link>
                                 </div>
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                         Contratada
                                     </label>
-                                    <p className="text-base">{contract.contractor?.name || 'Não informada'}</p>
+                                    <p className="text-base font-medium">{contract.contractor?.name || '—'}</p>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4">
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">
+                            {/* Linha 3: Datas */}
+                            <div className="grid grid-cols-3 gap-4 pb-4 border-b">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                         Data de Início
                                     </label>
-                                    <p className="text-base">
+                                    <p className="text-base font-medium">
                                         {new Date(contract.startDate).toLocaleDateString('pt-BR')}
                                     </p>
                                 </div>
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                         Data de Término
                                     </label>
-                                    <p className="text-base">
+                                    <p className="text-base font-medium">
                                         {contract.endDate
                                             ? new Date(contract.endDate).toLocaleDateString('pt-BR')
-                                            : 'Não definido'
+                                            : '—'
                                         }
                                     </p>
                                 </div>
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                         Valor Total
                                     </label>
-                                    <p className="text-base font-bold text-green-700">
+                                    <p className="text-base font-bold text-green-700 dark:text-green-400">
                                         {new Intl.NumberFormat('pt-BR', {
                                             style: 'currency',
                                             currency: 'BRL',
+                                            minimumFractionDigits: 0,
                                         }).format(Number(totalValue))}
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="pt-4 border-t">
-                                <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                                    <div>
-                                        <span>Criado em: </span>
-                                        <span className="font-medium">
-                                            {new Date(contract.createdAt).toLocaleString('pt-BR')}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span>Última atualização: </span>
-                                        <span className="font-medium">
-                                            {new Date(contract.updatedAt).toLocaleString('pt-BR')}
-                                        </span>
-                                    </div>
+                            {/* Metadados */}
+                            <div className="flex justify-between text-xs text-muted-foreground pt-2">
+                                <div>
+                                    <span>Criado em: </span>
+                                    <span className="font-medium">
+                                        {new Date(contract.createdAt).toLocaleString('pt-BR')}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span>Última atualização: </span>
+                                    <span className="font-medium">
+                                        {new Date(contract.updatedAt).toLocaleString('pt-BR')}
+                                    </span>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Execução Financeira */}
                     <Card>
                         <CardHeader>
                             <CardTitle>Execução Financeira</CardTitle>
-                            <CardDescription>Comparativo entre valor do contrato e total medido aprovado</CardDescription>
+                            <CardDescription>
+                                Análise comparativa do contrato versus medições aprovadas
+                            </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-6">
+                            {/* Cards de Valores */}
                             <div className="grid grid-cols-3 gap-4">
-                                <div className="text-center p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30">
-                                    <p className="text-xs text-muted-foreground mb-1">Valor do Contrato</p>
-                                    <p className="text-lg font-bold text-blue-700 dark:text-blue-400">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contractValue)}
+                                <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+                                        Valor Contratado
+                                    </p>
+                                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                                        {new Intl.NumberFormat('pt-BR', {
+                                            style: 'currency',
+                                            currency: 'BRL',
+                                            minimumFractionDigits: 0,
+                                        }).format(contractValue)}
                                     </p>
                                 </div>
-                                <div className="text-center p-3 rounded-lg bg-orange-50 dark:bg-orange-950/30">
-                                    <p className="text-xs text-muted-foreground mb-1">Total Medido (aprovado)</p>
-                                    <p className="text-lg font-bold text-orange-700 dark:text-orange-400">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalMeasured)}
+                                <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-950/30 p-4 rounded-lg border border-orange-200 dark:border-orange-800">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+                                        Total Medido
+                                    </p>
+                                    <p className="text-2xl font-bold text-orange-700 dark:text-orange-400">
+                                        {new Intl.NumberFormat('pt-BR', {
+                                            style: 'currency',
+                                            currency: 'BRL',
+                                            minimumFractionDigits: 0,
+                                        }).format(totalMeasured)}
                                     </p>
                                 </div>
-                                <div className={`text-center p-3 rounded-lg ${totalMeasured > contractValue ? 'bg-red-50 dark:bg-red-950/30' : 'bg-green-50 dark:bg-green-950/30'}`}>
-                                    <p className="text-xs text-muted-foreground mb-1">{totalMeasured > contractValue ? 'Estouro' : 'Saldo a Medir'}</p>
-                                    <p className={`text-lg font-bold ${totalMeasured > contractValue ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Math.abs(contractValue - totalMeasured))}
+                                <div className={`bg-gradient-to-br p-4 rounded-lg border ${totalMeasured > contractValue
+                                    ? 'from-red-50 to-red-100 dark:from-red-950/50 dark:to-red-950/30 border-red-200 dark:border-red-800'
+                                    : 'from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-950/30 border-green-200 dark:border-green-800'
+                                    }`}>
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+                                        {totalMeasured > contractValue ? 'Estouro' : 'Saldo a Medir'}
+                                    </p>
+                                    <p className={`text-2xl font-bold ${totalMeasured > contractValue
+                                        ? 'text-red-700 dark:text-red-400'
+                                        : 'text-green-700 dark:text-green-400'
+                                        }`}>
+                                        {new Intl.NumberFormat('pt-BR', {
+                                            style: 'currency',
+                                            currency: 'BRL',
+                                            minimumFractionDigits: 0,
+                                        }).format(Math.abs(contractValue - totalMeasured))}
                                     </p>
                                 </div>
                             </div>
-                            <div>
-                                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                                    <span>Execução Financeira</span>
-                                    <span className={executionPercent > 100 ? 'text-red-600 font-medium' : ''}>{executionPercent.toFixed(1)}%</span>
+
+                            {/* Barra de Progresso */}
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-sm font-semibold">Execução Financeira</span>
+                                    <span className={`text-sm font-bold ${executionPercent > 100 ? 'text-red-600' : executionPercent > 80 ? 'text-orange-600' : 'text-blue-600'}`}>
+                                        {executionPercent.toFixed(1)}%
+                                    </span>
                                 </div>
-                                <div className="h-3 bg-muted rounded-full overflow-hidden">
+                                <div className="h-4 bg-muted rounded-full overflow-hidden shadow-inner">
                                     <div
-                                        className={`h-full rounded-full transition-all ${executionPercent > 100 ? 'bg-red-500' : executionPercent > 80 ? 'bg-orange-500' : 'bg-blue-500'}`}
+                                        className={`h-full rounded-full transition-all duration-500 ${executionPercent > 100
+                                            ? 'bg-gradient-to-r from-red-500 to-red-600'
+                                            : executionPercent > 80
+                                                ? 'bg-gradient-to-r from-orange-500 to-orange-600'
+                                                : 'bg-gradient-to-r from-blue-500 to-blue-600'
+                                            }`}
                                         style={{ width: `${Math.min(executionPercent, 100)}%` }}
                                     />
                                 </div>
                                 {totalMeasured > contractValue && (
-                                    <p className="text-xs text-red-600 mt-1 font-medium">Contrato acima do valor em {(executionPercent - 100).toFixed(1)}%</p>
+                                    <p className="text-xs text-red-600 dark:text-red-400 font-semibold">
+                                        ⚠️ Contrato ultrapassado em {(executionPercent - 100).toFixed(1)}%
+                                    </p>
                                 )}
+                            </div>
+
+                            {/* Estatísticas */}
+                            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                                <div className="text-sm">
+                                    <p className="text-muted-foreground text-xs mb-1">Itens do Contrato</p>
+                                    <p className="text-2xl font-bold">{totalItems}</p>
+                                </div>
+                                <div className="text-sm">
+                                    <p className="text-muted-foreground text-xs mb-1">Boletins de Medição</p>
+                                    <p className="text-2xl font-bold">{contract.bulletins?.length || 0}</p>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -407,29 +423,31 @@ const [result, session] = await Promise.all([
 
                 {/* Tab: Itens do Contrato */}
                 <TabsContent value="itens" className="space-y-4">
-                    <ContractItemsTable
-                        contractId={contract.id}
+                    <ContractItemsTableEnhanced
                         items={contract.items || []}
                     />
                 </TabsContent>
 
                 {/* Tab: Termos Aditivos */}
                 <TabsContent value="aditivos" className="space-y-4">
+                    <div className="flex justify-end mb-4">
+                        <AmendmentDialog
+                            contractId={contract.id}
+                            currentValue={totalValue}
+                            currentEndDate={contract.endDate ? new Date(contract.endDate).toISOString().split('T')[0] : undefined}
+                        />
+                    </div>
+
+                    {/* Timeline Visualization */}
+                    <AmendmentsTimeline amendments={(contract.amendments ?? []) as any} />
+
+                    {/* Table View */}
                     <Card>
                         <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <CardTitle>Termos Aditivos</CardTitle>
-                                    <CardDescription>
-                                        Histórico de alterações contratuais (valor, prazo, escopo)
-                                    </CardDescription>
-                                </div>
-                                <AmendmentDialog
-                                    contractId={contract.id}
-                                    currentValue={totalValue}
-                                    currentEndDate={contract.endDate ? new Date(contract.endDate).toISOString().split('T')[0] : undefined}
-                                />
-                            </div>
+                            <CardTitle>Lista de Aditivos</CardTitle>
+                            <CardDescription>
+                                Histórico de alterações contratuais (valor, prazo, escopo)
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <AmendmentsTable amendments={contract.amendments ?? []} />

@@ -20,6 +20,7 @@ import { MoreHorizontal, Eye, Send, Trash2, Search, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { deleteBulletin, submitBulletinForApproval } from "@/app/actions/bulletin-actions"
 import { ExportExcelButton } from "@/components/ui/export-excel-button"
+import { StatusBadgeEnhanced } from "./status-badge-enhanced"
 
 interface BulletinsTableProps {
     data: any[]
@@ -225,9 +226,7 @@ export function BulletinsTable({ data, userId = '' }: BulletinsTableProps) {
                                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(bulletin.totalValue || 0))}
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant={statusVariants[bulletin.status]}>
-                                        {statusLabels[bulletin.status]}
-                                    </Badge>
+                                    <StatusBadgeEnhanced status={bulletin.status} size="sm" />
                                 </TableCell>
                                 <TableCell>
                                     <span className="text-sm text-muted-foreground">

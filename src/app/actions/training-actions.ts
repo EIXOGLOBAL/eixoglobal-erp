@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { getSession } from "@/lib/auth"
 
 const trainingSchema = z.object({
     title: z.string().min(3, "Título deve ter no mínimo 3 caracteres"),
@@ -21,6 +22,14 @@ const trainingSchema = z.object({
 
 export async function createTraining(data: z.infer<typeof trainingSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify company access
+        if (data.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = trainingSchema.parse(data)
 
         const training = await prisma.training.create({
@@ -53,9 +62,21 @@ export async function createTraining(data: z.infer<typeof trainingSchema>) {
 
 export async function updateTraining(id: string, data: z.infer<typeof trainingSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify training belongs to user's company
+        const training = await prisma.training.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!training || training.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = trainingSchema.parse(data)
 
-        const training = await prisma.training.update({
+        const updated = await prisma.training.update({
             where: { id },
             data: {
                 title: validated.title,
@@ -73,7 +94,7 @@ export async function updateTraining(id: string, data: z.infer<typeof trainingSc
         })
 
         revalidatePath('/rh/treinamentos')
-        return { success: true, data: training }
+        return { success: true, data: updated }
     } catch (error) {
         console.error("Erro ao atualizar treinamento:", error)
         return {
@@ -85,6 +106,23 @@ export async function updateTraining(id: string, data: z.infer<typeof trainingSc
 
 export async function deleteTraining(id: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir" }
+        }
+
+        // Verify training belongs to user's company
+        const training = await prisma.training.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!training || training.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         await prisma.training.delete({
             where: { id },
         })
@@ -125,6 +163,27 @@ export async function getTrainings(companyId: string) {
 
 export async function addParticipant(trainingId: string, employeeId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify training belongs to user's company
+        const training = await prisma.training.findUnique({
+            where: { id: trainingId },
+            select: { companyId: true }
+        })
+        if (!training || training.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
+        // Verify employee belongs to user's company
+        const employee = await prisma.employee.findUnique({
+            where: { id: employeeId },
+            select: { companyId: true }
+        })
+        if (!employee || employee.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const participant = await prisma.trainingParticipant.create({
             data: {
                 trainingId,
@@ -145,6 +204,23 @@ export async function addParticipant(trainingId: string, employeeId: string) {
 
 export async function removeParticipant(trainingId: string, employeeId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir" }
+        }
+
+        // Verify training belongs to user's company
+        const training = await prisma.training.findUnique({
+            where: { id: trainingId },
+            select: { companyId: true }
+        })
+        if (!training || training.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         await prisma.trainingParticipant.delete({
             where: {
                 trainingId_employeeId: {
@@ -172,6 +248,18 @@ export async function markAttendance(
     certified: boolean
 ) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify training belongs to user's company
+        const training = await prisma.training.findUnique({
+            where: { id: trainingId },
+            select: { companyId: true }
+        })
+        if (!training || training.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const participant = await prisma.trainingParticipant.update({
             where: {
                 trainingId_employeeId: {
@@ -198,6 +286,18 @@ export async function markAttendance(
 
 export async function getTrainingParticipants(trainingId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify training belongs to user's company
+        const training = await prisma.training.findUnique({
+            where: { id: trainingId },
+            select: { companyId: true }
+        })
+        if (!training || training.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado", data: [] }
+        }
+
         const participants = await prisma.trainingParticipant.findMany({
             where: { trainingId },
             include: {

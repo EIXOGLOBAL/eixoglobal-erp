@@ -77,13 +77,17 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         startTransition(async () => {
-            const formData = new FormData()
-            formData.append("id", values.id)
-            formData.append("name", values.name)
-            formData.append("cnpj", values.cnpj)
-            if (values.address) formData.append("address", values.address)
-
-            const result = await updateCompany(values.id, values)
+            const result = await updateCompany(values.id, {
+                name: values.name,
+                cnpj: values.cnpj,
+                address: values.address,
+                tradeName: undefined,
+                email: undefined,
+                phone: undefined,
+                city: undefined,
+                state: undefined,
+                zipCode: undefined,
+            })
 
             if (result?.success) {
                 toast({

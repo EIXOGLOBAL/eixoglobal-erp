@@ -17,6 +17,31 @@ const contractSchema = z.object({
   status: z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED', 'DRAFT']).default('DRAFT'),
   projectId: z.string().uuid("Projeto inválido"),
   contractorId: z.string().uuid("Contratada inválida").optional().nullable(),
+  // Additional fields from schema
+  contractNumber: z.string().optional().nullable(),
+  contractType: z.enum(['PUBLIC', 'PRIVATE', 'FRAMEWORK', 'OTHER']).optional().nullable(),
+  modalidade: z.string().optional().nullable(),
+  object: z.string().optional().nullable(),
+  warrantyValue: z.number().min(0).optional().nullable(),
+  warrantyExpiry: z.string().optional().nullable(),
+  executionDeadline: z.number().optional().nullable(),
+  baselineEndDate: z.string().optional().nullable(),
+  reajusteIndex: z.enum(['INCC', 'IPCA', 'IGP_M', 'CUSTOM']).optional().nullable(),
+  reajusteBaseDate: z.string().optional().nullable(),
+  fiscalName: z.string().optional().nullable(),
+  witnessNames: z.string().optional().nullable(),
+  paymentTerms: z.string().optional().nullable(),
+  retentionPercent: z.number().min(0).max(100).optional().nullable(),
+}).refine((data) => {
+  if (data.endDate) {
+    const startDate = new Date(data.startDate)
+    const endDate = new Date(data.endDate)
+    return endDate >= startDate
+  }
+  return true
+}, {
+  message: "Data de término deve ser igual ou posterior à data de início",
+  path: ["endDate"]
 })
 
 const contractItemSchema = z.object({
@@ -65,6 +90,21 @@ export async function createContract(data: z.infer<typeof contractSchema>, compa
         projectId: validated.projectId,
         contractorId: validated.contractorId || null,
         companyId,
+        // Additional fields
+        contractNumber: validated.contractNumber || null,
+        contractType: validated.contractType || null,
+        modalidade: validated.modalidade || null,
+        object: validated.object || null,
+        warrantyValue: validated.warrantyValue || null,
+        warrantyExpiry: validated.warrantyExpiry ? new Date(validated.warrantyExpiry) : null,
+        executionDeadline: validated.executionDeadline || null,
+        baselineEndDate: validated.baselineEndDate ? new Date(validated.baselineEndDate) : null,
+        reajusteIndex: validated.reajusteIndex || null,
+        reajusteBaseDate: validated.reajusteBaseDate ? new Date(validated.reajusteBaseDate) : null,
+        fiscalName: validated.fiscalName || null,
+        witnessNames: validated.witnessNames || null,
+        paymentTerms: validated.paymentTerms || null,
+        retentionPercent: validated.retentionPercent || null,
       },
       include: {
         project: true,
@@ -95,6 +135,21 @@ export async function updateContract(id: string, data: z.infer<typeof contractSc
         status: validated.status,
         projectId: validated.projectId,
         contractorId: validated.contractorId || null,
+        // Additional fields
+        contractNumber: validated.contractNumber || null,
+        contractType: validated.contractType || null,
+        modalidade: validated.modalidade || null,
+        object: validated.object || null,
+        warrantyValue: validated.warrantyValue || null,
+        warrantyExpiry: validated.warrantyExpiry ? new Date(validated.warrantyExpiry) : null,
+        executionDeadline: validated.executionDeadline || null,
+        baselineEndDate: validated.baselineEndDate ? new Date(validated.baselineEndDate) : null,
+        reajusteIndex: validated.reajusteIndex || null,
+        reajusteBaseDate: validated.reajusteBaseDate ? new Date(validated.reajusteBaseDate) : null,
+        fiscalName: validated.fiscalName || null,
+        witnessNames: validated.witnessNames || null,
+        paymentTerms: validated.paymentTerms || null,
+        retentionPercent: validated.retentionPercent || null,
       },
       include: {
         project: true,
@@ -234,9 +289,9 @@ export async function getContractById(id: string) {
       ...contract,
       value: contract.value ? Number(contract.value) : null,
       items: contract.items.map(item => {
-        // Calcular quantidade medida (somente boletins aprovados ou faturados)
+        // Calcular quantidade medida (somente boletins aprovados - APPROVED status or with billedAt timestamp)
         const measuredQty = item.bulletinItems
-          .filter(bi => bi.bulletin.status === 'APPROVED' || bi.bulletin.status === 'BILLED')
+          .filter(bi => bi.bulletin.status === 'APPROVED' || bi.bulletin.status === 'MANAGER_APPROVED')
           .reduce((sum, bi) => sum + Number(bi.currentMeasured || 0), 0)
         return {
           ...item,
@@ -427,36 +482,82 @@ export async function createAdjustment(contractId: string, data: z.infer<typeof 
     const percentage = validated.percentage ||
       ((validated.newIndex - validated.oldIndex) / validated.oldIndex) * 100
 
-    // Criar reajuste
-    const adjustment = await prisma.contractAdjustment.create({
-      data: {
-        indexType: validated.indexType,
-        baseDate: new Date(validated.baseDate),
-        adjustmentDate: new Date(validated.adjustmentDate),
-        oldIndex: validated.oldIndex,
-        newIndex: validated.newIndex,
-        percentage: percentage,
-        contractId,
-      }
-    })
-
-    // Recalcular todos os preços unitários dos itens do contrato
-    const items = await prisma.contractItem.findMany({
-      where: { contractId }
-    })
-
-    for (const item of items) {
-      const currentPrice = Number(item.unitPrice)
-      const newPrice = currentPrice * (1 + percentage / 100)
-
-      await prisma.contractItem.update({
-        where: { id: item.id },
-        data: { unitPrice: newPrice }
+    // Wrap all operations in a transaction for atomicity
+    const adjustment = await prisma.$transaction(async (tx) => {
+      // Get current contract to calculate old and new values
+      const contract = await tx.contract.findUnique({
+        where: { id: contractId },
+        include: { items: true }
       })
-    }
 
-    // Recalcular valor total do contrato
-    await recalculateContractValue(contractId)
+      if (!contract) {
+        throw new Error("Contrato não encontrado")
+      }
+
+      // Criar reajuste
+      const adj = await tx.contractAdjustment.create({
+        data: {
+          indexType: validated.indexType,
+          baseDate: new Date(validated.baseDate),
+          adjustmentDate: new Date(validated.adjustmentDate),
+          oldIndex: validated.oldIndex,
+          newIndex: validated.newIndex,
+          percentage: percentage,
+          baseValue: contract.value || 0,
+          contractId,
+        }
+      })
+
+      // Recalcular todos os preços unitários dos itens do contrato
+      const items = contract.items
+      let newTotalValue = 0
+
+      for (const item of items) {
+        const currentPrice = Number(item.unitPrice)
+        const newPrice = currentPrice * (1 + percentage / 100)
+
+        await tx.contractItem.update({
+          where: { id: item.id },
+          data: { unitPrice: newPrice }
+        })
+
+        newTotalValue += Number(item.quantity) * newPrice
+      }
+
+      const oldContractValue = Number(contract.value || 0)
+      const adjustedValue = newTotalValue
+
+      // Update adjustment with calculated values
+      await tx.contractAdjustment.update({
+        where: { id: adj.id },
+        data: {
+          adjustedValue: adjustedValue
+        }
+      })
+
+      // Update contract value
+      await tx.contract.update({
+        where: { id: contractId },
+        data: { value: adjustedValue }
+      })
+
+      // Create or update associated amendment to track the adjustment
+      const amendmentNumber = `ADJ-${new Date().getFullYear()}/${String(Date.now()).slice(-6)}`
+
+      await tx.contractAmendment.create({
+        data: {
+          number: amendmentNumber,
+          description: `Reajuste automático ${validated.indexType}: ${percentage.toFixed(4)}%`,
+          type: 'VALUE_CHANGE',
+          oldValue: oldContractValue,
+          newValue: adjustedValue,
+          justification: `Reajuste de índice ${validated.indexType} de ${validated.oldIndex} para ${validated.newIndex}`,
+          contractId,
+        }
+      })
+
+      return adj
+    })
 
     revalidatePath(`/contratos/${contractId}`)
     return { success: true, data: adjustment }

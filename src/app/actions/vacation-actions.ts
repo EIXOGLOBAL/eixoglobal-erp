@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { createNotificationForMany } from "./notification-actions"
 import { notifyUsers } from "@/lib/sse-notifications"
+import { getSession } from "@/lib/auth"
 
 const vacationSchema = z.object({
     employeeId: z.string().uuid(),
@@ -24,6 +25,18 @@ function calculateDays(startDate: string, endDate: string): number {
 
 export async function createVacationRequest(data: VacationInput) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify employee belongs to user's company
+        const employee = await prisma.employee.findUnique({
+            where: { id: data.employeeId },
+            select: { companyId: true }
+        })
+        if (!employee || employee.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = vacationSchema.parse(data)
         const days = calculateDays(validated.startDate, validated.endDate)
 
@@ -54,6 +67,27 @@ export async function createVacationRequest(data: VacationInput) {
 
 export async function updateVacationRequest(id: string, data: VacationInput) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify vacation request belongs to user's company
+        const existing = await prisma.vacationRequest.findUnique({
+            where: { id },
+            select: { employee: { select: { companyId: true } } }
+        })
+        if (!existing || existing.employee.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
+        // Verify new employee belongs to user's company
+        const employee = await prisma.employee.findUnique({
+            where: { id: data.employeeId },
+            select: { companyId: true }
+        })
+        if (!employee || employee.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = vacationSchema.parse(data)
         const days = calculateDays(validated.startDate, validated.endDate)
 
@@ -84,10 +118,27 @@ export async function updateVacationRequest(id: string, data: VacationInput) {
 
 export async function deleteVacationRequest(id: string) {
     try {
-        const existing = await prisma.vacationRequest.findUnique({ where: { id } })
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir" }
+        }
+
+        const existing = await prisma.vacationRequest.findUnique({
+            where: { id },
+            select: { status: true, employee: { select: { companyId: true } } }
+        })
         if (!existing) {
             return { success: false, error: "Solicitação não encontrada" }
         }
+
+        // Verify company access
+        if (existing.employee.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         if (existing.status !== 'PENDING' && existing.status !== 'REJECTED') {
             return { success: false, error: "Apenas solicitações pendentes ou rejeitadas podem ser excluídas" }
         }
@@ -107,6 +158,18 @@ export async function deleteVacationRequest(id: string) {
 
 export async function approveVacationRequest(id: string, approvedBy: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify vacation request belongs to user's company
+        const existing = await prisma.vacationRequest.findUnique({
+            where: { id },
+            select: { employee: { select: { companyId: true } } }
+        })
+        if (!existing || existing.employee.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const request = await prisma.vacationRequest.update({
             where: { id },
             data: {
@@ -144,6 +207,18 @@ export async function approveVacationRequest(id: string, approvedBy: string) {
 
 export async function rejectVacationRequest(id: string, reason: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify vacation request belongs to user's company
+        const existing = await prisma.vacationRequest.findUnique({
+            where: { id },
+            select: { employee: { select: { companyId: true } } }
+        })
+        if (!existing || existing.employee.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const request = await prisma.vacationRequest.update({
             where: { id },
             data: {

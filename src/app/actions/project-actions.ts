@@ -20,6 +20,23 @@ const projectSchema = z.object({
     address: z.string().optional(),
     area: z.coerce.number().optional().nullable(),
     clientId: z.string().uuid().optional().nullable(),
+    // Additional fields from schema
+    location: z.string().optional().nullable(),
+    city: z.string().optional().nullable(),
+    state: z.string().optional().nullable(),
+    engineerId: z.string().uuid().optional().nullable(),
+    baselineStartDate: z.string().optional().nullable(),
+    baselineEndDate: z.string().optional().nullable(),
+}).refine((data) => {
+    if (data.endDate) {
+        const startDate = new Date(data.startDate)
+        const endDate = new Date(data.endDate)
+        return endDate >= startDate
+    }
+    return true
+}, {
+    message: "Data de término deve ser igual ou posterior à data de início",
+    path: ["endDate"]
 })
 
 export async function createProject(data: z.infer<typeof projectSchema>) {
@@ -43,6 +60,13 @@ export async function createProject(data: z.infer<typeof projectSchema>) {
                 address: validated.address ?? null,
                 area: validated.area ?? null,
                 clientId: validated.clientId ?? null,
+                // Additional fields
+                location: validated.location ?? null,
+                city: validated.city ?? null,
+                state: validated.state ?? null,
+                engineerId: validated.engineerId ?? null,
+                baselineStartDate: validated.baselineStartDate ? new Date(validated.baselineStartDate) : null,
+                baselineEndDate: validated.baselineEndDate ? new Date(validated.baselineEndDate) : null,
             }
         })
 
@@ -74,6 +98,13 @@ export async function updateProject(id: string, data: z.infer<typeof projectSche
                 address: validated.address ?? null,
                 area: validated.area ?? null,
                 clientId: validated.clientId ?? null,
+                // Additional fields
+                location: validated.location ?? null,
+                city: validated.city ?? null,
+                state: validated.state ?? null,
+                engineerId: validated.engineerId ?? null,
+                baselineStartDate: validated.baselineStartDate ? new Date(validated.baselineStartDate) : null,
+                baselineEndDate: validated.baselineEndDate ? new Date(validated.baselineEndDate) : null,
             }
         })
 

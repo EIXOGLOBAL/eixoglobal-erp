@@ -61,7 +61,7 @@ const session = await getSession()
     if (!session) redirect("/login")
 
     const employee = await getEmployeeById(id)
-    if (!employee) notFound()
+    if (!employee || 'error' in employee) notFound()
 
     const companyId = session.user?.companyId || ''
     const skills: string[] = JSON.parse(employee.skills || '[]')

@@ -44,7 +44,7 @@ export default async function MeasurementsPage() {
     // Calculate KPIs
     const totalBulletins = bulletins.length
     const draftBulletins = bulletins.filter(b => b.status === 'DRAFT').length
-    const pendingBulletins = bulletins.filter(b => b.status === 'PENDING_APPROVAL').length
+    const pendingBulletins = bulletins.filter(b => b.status === 'SUBMITTED').length
     const approvedBulletins = bulletins.filter(b => b.status === 'APPROVED').length
     const totalValue = bulletins
         .filter(b => b.status === 'APPROVED')

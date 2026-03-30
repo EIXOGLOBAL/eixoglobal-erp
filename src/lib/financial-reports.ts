@@ -562,7 +562,7 @@ export async function generateCashflowProjection(
       prisma.measurementBulletin.findMany({
         where: {
           project: { companyId },
-          status: { in: ['APPROVED', 'BILLED'] },
+          status: { in: ['APPROVED', 'MANAGER_APPROVED'] },
         },
         select: { totalValue: true, status: true },
       }),
@@ -620,7 +620,7 @@ export async function generateCashflowProjection(
 
   // Approved bulletins as future income (distribute over 2 months)
   const bulletinIncome = activeBulletins
-    .filter(b => b.status === 'APPROVED' || b.status === 'BILLED')
+    .filter(b => b.status === 'APPROVED' || b.status === 'MANAGER_APPROVED')
     .reduce((sum, b) => sum + toNumber(b.totalValue), 0)
   const monthlyBulletinIncome = bulletinIncome / 2
 

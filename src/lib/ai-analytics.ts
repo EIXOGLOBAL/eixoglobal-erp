@@ -544,7 +544,7 @@ export async function generateProjectRiskReport(projectId: string): Promise<Proj
 
     const totalContractValue = contracts.reduce((s, c) => s + Number(c.value ?? 0), 0)
     const totalMeasured = bulletins
-      .filter((b) => b.status === 'APPROVED' || b.status === 'BILLED')
+      .filter((b) => b.status === 'APPROVED' || b.status === 'MANAGER_APPROVED')
       .reduce((s, b) => s + Number(b.totalValue), 0)
 
     const totalTasks = tasks.length

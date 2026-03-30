@@ -20,7 +20,7 @@ export const measurementService = {
         // 1. Validação de Projeto
         const project = await prisma.project.findUnique({
             where: { id: data.projectId },
-            select: { status: true }
+            select: { status: true, companyId: true }
         });
 
         if (!project) throw new Error("Projeto não encontrado.");
@@ -38,6 +38,7 @@ export const measurementService = {
         // Por enquanto deixamos passar, mas seria uma warning.
 
         // 3. Criação
+
         const measurement = await prisma.measurement.create({
             data: {
                 projectId: data.projectId,
@@ -47,7 +48,8 @@ export const measurementService = {
                 description: data.description,
                 employeeId: data.employeeId,
                 registeredById: data.registeredById,
-                status: MeasurementStatus.SUBMITTED, // Default to SUBMITTED (Pending Approval) as per rule
+                companyId: project.companyId,
+                status: 'SUBMITTED', // Default to SUBMITTED (Pending Approval) as per rule
             },
             include: {
                 contractItem: true // Include to get unit price and calculate total

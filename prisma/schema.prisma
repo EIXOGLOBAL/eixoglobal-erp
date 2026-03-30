@@ -95,6 +95,7 @@ model Company {
   purchaseOrders  PurchaseOrder[]
   dailyReports    DailyReport[]
   equipment       Equipment[]
+  measurements    Measurement[]
 
   departments    Department[]
   workTasks      WorkTask[]
@@ -380,11 +381,15 @@ model Measurement {
   description String?  @db.Text
   status      MeasurementStatus @default(DRAFT)
   rejectionReason String? @db.Text
-  
+
+  // Company ownership (for multi-tenancy support)
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   // Who performed the work (Internal Employee)
   employeeId  String?
   employee    Employee? @relation(fields: [employeeId], references: [id])
-  
+
   // Who registered/approved (System User)
   registeredById String
   registeredBy   User @relation("MeasurementRegistrar", fields: [registeredById], references: [id])
@@ -395,7 +400,7 @@ model Measurement {
 
   contractItemId String
   contractItem   ContractItem @relation(fields: [contractItemId], references: [id], onDelete: Cascade)
-  
+
   // Direct link to project for faster queries
   projectId   String
   project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -409,6 +414,7 @@ model Measurement {
   updatedAt   DateTime @updatedAt
 
   @@map("measurements")
+  @@index([companyId, status])
   @@index([projectId, status])
   @@index([contractItemId])
 }
@@ -616,7 +622,7 @@ model MeasurementBulletin {
   periodStart            DateTime
   periodEnd              DateTime
   totalValue             Decimal  @default(0) @db.Decimal(18, 4)
-  status                 String   @default("DRAFT") // DRAFT, PENDING_APPROVAL, APPROVED, REJECTED, BILLED
+  status                 BulletinStatus @default(DRAFT) // DRAFT, SUBMITTED, ENGINEER_APPROVED, MANAGER_APPROVED, APPROVED, REJECTED
   
   // Workflow timestamps
   submittedAt            DateTime?
@@ -1023,6 +1029,15 @@ enum MeasurementStatus {
   REJECTED
   BILLED
   PAID
+}
+
+enum BulletinStatus {
+  DRAFT
+  SUBMITTED
+  ENGINEER_APPROVED
+  MANAGER_APPROVED
+  APPROVED
+  REJECTED
 }
 
 enum TransactionType {

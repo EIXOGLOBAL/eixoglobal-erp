@@ -113,14 +113,14 @@ const session = await getSession()
 
     // Calculate metrics from bulletins
     const totalMeasurements = bulletins.length
-    const approvedMeasurements = bulletins.filter(b => b.status === 'APPROVED' || b.status === 'BILLED').length
+    const approvedMeasurements = bulletins.filter(b => b.status === 'APPROVED' || b.status === 'MANAGER_APPROVED').length
     const totalMeasuredValue = bulletins
-        .filter(b => b.status === 'APPROVED' || b.status === 'BILLED')
+        .filter(b => b.status === 'APPROVED' || b.status === 'MANAGER_APPROVED')
         .reduce((acc, b) => acc + Number(b.totalValue || 0), 0)
 
     // Budget comparison (Feature 5)
     const totalApproved = bulletins
-        .filter(b => ['APPROVED', 'BILLED'].includes(b.status))
+        .filter(b => ['APPROVED', 'MANAGER_APPROVED'].includes(b.status))
         .reduce((sum, b) => sum + Number(b.totalValue || 0), 0)
     const budget = Number(project.budget || 0)
     const percentUsed = budget > 0 ? (totalApproved / budget) * 100 : 0
@@ -426,14 +426,14 @@ const session = await getSession()
                                                 <TableCell>{b.referenceMonth}</TableCell>
                                                 <TableCell>
                                                     <Badge variant={
-                                                        b.status === 'APPROVED' || b.status === 'BILLED' ? 'secondary' :
+                                                        b.status === 'APPROVED' || b.status === 'MANAGER_APPROVED' ? 'secondary' :
                                                         b.status === 'REJECTED' ? 'destructive' :
-                                                        b.status === 'PENDING_APPROVAL' ? 'default' : 'outline'
+                                                        b.status === 'SUBMITTED' ? 'default' : 'outline'
                                                     }>
                                                         {b.status === 'DRAFT' ? 'Rascunho' :
-                                                         b.status === 'PENDING_APPROVAL' ? 'Ag. Aprovação' :
+                                                         b.status === 'SUBMITTED' ? 'Ag. Aprovação' :
                                                          b.status === 'APPROVED' ? 'Aprovado' :
-                                                         b.status === 'REJECTED' ? 'Rejeitado' : 'Faturado'}
+                                                         b.status === 'REJECTED' ? 'Rejeitado' : 'Aprovado'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right font-medium">

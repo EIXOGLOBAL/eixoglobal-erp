@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { getSession } from "@/lib/auth"
 
 const fiscalNoteSchema = z.object({
     number: z.string().min(1, "Número é obrigatório"),
@@ -27,6 +28,14 @@ const fiscalNoteSchema = z.object({
 
 export async function createFiscalNote(data: z.infer<typeof fiscalNoteSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify company access
+        if (data.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = fiscalNoteSchema.parse(data)
 
         const note = await prisma.fiscalNote.create({
@@ -63,9 +72,21 @@ export async function createFiscalNote(data: z.infer<typeof fiscalNoteSchema>) {
 
 export async function updateFiscalNote(id: string, data: z.infer<typeof fiscalNoteSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify note belongs to user's company
+        const note = await prisma.fiscalNote.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!note || note.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = fiscalNoteSchema.parse(data)
 
-        const note = await prisma.fiscalNote.update({
+        const updatedNote = await prisma.fiscalNote.update({
             where: { id },
             data: {
                 number: validated.number,
@@ -87,7 +108,7 @@ export async function updateFiscalNote(id: string, data: z.infer<typeof fiscalNo
         })
 
         revalidatePath('/financeiro/notas')
-        return { success: true, data: { ...note, value: Number(note.value) } }
+        return { success: true, data: { ...updatedNote, value: Number(updatedNote.value) } }
     } catch (error) {
         console.error("Erro ao atualizar nota fiscal:", error)
         return { success: false, error: "Erro ao atualizar nota fiscal" }
@@ -96,13 +117,25 @@ export async function updateFiscalNote(id: string, data: z.infer<typeof fiscalNo
 
 export async function updateFiscalNoteStatus(id: string, status: 'DRAFT' | 'ISSUED' | 'CANCELLED' | 'DENIED') {
     try {
-        const note = await prisma.fiscalNote.update({
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify note belongs to user's company
+        const note = await prisma.fiscalNote.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!note || note.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
+        const updated = await prisma.fiscalNote.update({
             where: { id },
             data: { status }
         })
 
         revalidatePath('/financeiro/notas')
-        return { success: true, data: { ...note, value: Number(note.value) } }
+        return { success: true, data: { ...updated, value: Number(updated.value) } }
     } catch (error) {
         console.error("Erro ao atualizar status da nota:", error)
         return { success: false, error: "Erro ao atualizar nota fiscal" }
@@ -111,8 +144,22 @@ export async function updateFiscalNoteStatus(id: string, status: 'DRAFT' | 'ISSU
 
 export async function deleteFiscalNote(id: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir" }
+        }
+
         const note = await prisma.fiscalNote.findUnique({ where: { id } })
         if (!note) return { success: false, error: "Nota não encontrada" }
+
+        // Verify company access
+        if (note.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         if (note.status === 'ISSUED') return {
             success: false,
             error: "Não é possível excluir um documento emitido. Cancele primeiro."
@@ -173,6 +220,9 @@ export async function getFiscalNoteSummary(companyId: string) {
 
 export async function getFiscalNoteById(id: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
         const note = await prisma.fiscalNote.findUnique({
             where: { id },
             include: {
@@ -183,6 +233,12 @@ export async function getFiscalNoteById(id: string) {
             },
         })
         if (!note) return { success: false, error: "Nota fiscal não encontrada" }
+
+        // Verify company access
+        if (note.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         return { success: true, data: { ...note, value: Number(note.value) } }
     } catch (error) {
         console.error("Erro ao buscar nota fiscal:", error)

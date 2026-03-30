@@ -3,6 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { ContractDialog } from "./contract-dialog"
+import { ContractExecutionSparkline } from "./contract-execution-sparkline"
+import { ContractsExportCSV } from "./contracts-export-csv"
 import { deleteContract } from "@/app/actions/contract-actions"
 import {
     Table,
@@ -34,6 +36,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Progress } from "@/components/ui/progress"
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
@@ -125,9 +128,9 @@ export function ContractsTable({ data, projects, contractors, companyId }: Contr
 
     return (
         <>
-            {/* Filter Bar */}
-            <div className="flex gap-3 mb-4">
-                <div className="relative flex-1 max-w-sm">
+            {/* Filter Bar with Export */}
+            <div className="flex gap-3 mb-4 flex-wrap items-center">
+                <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         className="pl-9"
@@ -148,7 +151,8 @@ export function ContractsTable({ data, projects, contractors, companyId }: Contr
                         <SelectItem value="CANCELLED">Cancelado</SelectItem>
                     </SelectContent>
                 </Select>
-                <span className="text-sm text-muted-foreground self-center">
+                <ContractsExportCSV contracts={filtered} />
+                <span className="text-sm text-muted-foreground">
                     {filtered.length} contrato(s) •{' '}
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(totalValue)}
                 </span>
@@ -162,21 +166,29 @@ export function ContractsTable({ data, projects, contractors, companyId }: Contr
                             <TableHead>Projeto</TableHead>
                             <TableHead>Contratada</TableHead>
                             <TableHead>Valor</TableHead>
+                            <TableHead>Execução (%)</TableHead>
+                            <TableHead className="w-[140px]">Tendência</TableHead>
                             <TableHead>Vigência</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead>Itens</TableHead>
                             <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filtered.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                                     Nenhum contrato encontrado com os filtros aplicados.
                                 </TableCell>
                             </TableRow>
                         )}
-                        {filtered.map((contract) => (
+                        {filtered.map((contract) => {
+                            const contractValue = Number(contract.value || 0)
+                            const totalMeasured = contract.bulletins
+                                ?.filter((b: any) => ['APPROVED', 'BILLED'].includes(b.status))
+                                .reduce((sum: number, b: any) => sum + Number(b.totalValue || 0), 0) ?? 0
+                            const executionPercent = contractValue > 0 ? (totalMeasured / contractValue) * 100 : 0
+
+                            return (
                             <TableRow key={contract.id}>
                                 <TableCell className="font-medium">
                                     <Link
@@ -193,14 +205,30 @@ export function ContractsTable({ data, projects, contractors, companyId }: Contr
                                         style: 'currency',
                                         currency: 'BRL',
                                         minimumFractionDigits: 0,
-                                    }).format(Number(contract.value || 0))}
+                                    }).format(contractValue)}
                                 </TableCell>
                                 <TableCell>
-                                    <div className="text-sm">
+                                    <div className="space-y-1">
+                                        <Progress value={executionPercent} className="h-1.5" />
+                                        <span className={`text-xs font-medium ${executionPercent > 100 ? 'text-red-600' : executionPercent > 80 ? 'text-orange-600' : 'text-green-600'}`}>
+                                            {executionPercent.toFixed(0)}%
+                                        </span>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="h-10">
+                                        <ContractExecutionSparkline
+                                            bulletins={contract.bulletins || []}
+                                            height={40}
+                                        />
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="text-xs">
                                         {new Date(contract.startDate).toLocaleDateString('pt-BR')}
                                         {contract.endDate && (
                                             <>
-                                                {' → '}
+                                                <br />
                                                 {new Date(contract.endDate).toLocaleDateString('pt-BR')}
                                             </>
                                         )}
@@ -210,11 +238,6 @@ export function ContractsTable({ data, projects, contractors, companyId }: Contr
                                     <Badge variant={statusVariants[contract.status]}>
                                         {statusLabels[contract.status]}
                                     </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <span className="text-sm text-muted-foreground">
-                                        {contract._count?.items || 0}
-                                    </span>
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <DropdownMenu>
@@ -256,7 +279,8 @@ export function ContractsTable({ data, projects, contractors, companyId }: Contr
                                     </DropdownMenu>
                                 </TableCell>
                             </TableRow>
-                        ))}
+                        )
+                        })}
                     </TableBody>
                 </Table>
             </Card>

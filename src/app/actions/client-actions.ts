@@ -138,31 +138,34 @@ export async function updateClient(id: string, data: unknown) {
   try {
     const validated = clientSchema.partial().parse(data)
 
+    // Only include fields that were actually provided (not undefined)
+    const updateData: any = {
+      ...(validated.type !== undefined && { type: validated.type }),
+      ...(validated.companyName !== undefined && { companyName: validated.companyName }),
+      ...(validated.tradeName !== undefined && { tradeName: validated.tradeName }),
+      ...(validated.cnpj !== undefined && { cnpj: validated.cnpj }),
+      ...(validated.personName !== undefined && { personName: validated.personName }),
+      ...(validated.cpf !== undefined && { cpf: validated.cpf }),
+      ...(validated.displayName !== undefined && { displayName: validated.displayName }),
+      ...(validated.email !== undefined && { email: validated.email }),
+      ...(validated.phone !== undefined && { phone: validated.phone }),
+      ...(validated.mobile !== undefined && { mobile: validated.mobile }),
+      ...(validated.address !== undefined && { address: validated.address }),
+      ...(validated.number !== undefined && { number: validated.number }),
+      ...(validated.complement !== undefined && { complement: validated.complement }),
+      ...(validated.neighborhood !== undefined && { neighborhood: validated.neighborhood }),
+      ...(validated.city !== undefined && { city: validated.city }),
+      ...(validated.state !== undefined && { state: validated.state }),
+      ...(validated.zipCode !== undefined && { zipCode: validated.zipCode }),
+      ...(validated.contactPerson !== undefined && { contactPerson: validated.contactPerson }),
+      ...(validated.contactRole !== undefined && { contactRole: validated.contactRole }),
+      ...(validated.notes !== undefined && { notes: validated.notes }),
+      ...(validated.status !== undefined && { status: validated.status }),
+    }
+
     const client = await prisma.client.update({
       where: { id },
-      data: {
-        type: validated.type,
-        companyName: validated.companyName || null,
-        tradeName: validated.tradeName || null,
-        cnpj: validated.cnpj || null,
-        personName: validated.personName || null,
-        cpf: validated.cpf || null,
-        displayName: validated.displayName,
-        email: validated.email || null,
-        phone: validated.phone || null,
-        mobile: validated.mobile || null,
-        address: validated.address || null,
-        number: validated.number || null,
-        complement: validated.complement || null,
-        neighborhood: validated.neighborhood || null,
-        city: validated.city || null,
-        state: validated.state || null,
-        zipCode: validated.zipCode || null,
-        contactPerson: validated.contactPerson || null,
-        contactRole: validated.contactRole || null,
-        notes: validated.notes || null,
-        status: validated.status,
-      },
+      data: updateData,
     })
 
     revalidatePath('/clientes')

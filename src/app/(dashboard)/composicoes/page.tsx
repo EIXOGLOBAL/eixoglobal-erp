@@ -5,7 +5,7 @@ import { getProjects } from "@/app/actions/project-actions"
 import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { CompositionDialog } from "@/components/compositions/composition-dialog"
-import { CompositionsTable } from "@/components/compositions/compositions-table"
+import { CompositionsListClient } from "@/components/compositions/compositions-list-client"
 
 export const dynamic = 'force-dynamic'
 
@@ -26,9 +26,8 @@ export default async function ComposicoesPage() {
     const totalCompositions = compositions?.length || 0
     const globalCompositions = compositions?.filter(c => !c.projectId).length || 0
     const projectCompositions = compositions?.filter(c => c.projectId).length || 0
-    const averageCost = compositions && compositions.length > 0
-        ? compositions.reduce((acc, c) => acc + Number(c.salePrice || 0), 0) / compositions.length
-        : 0
+    const totalCost = compositions?.reduce((acc, c) => acc + Number(c.salePrice || 0), 0) || 0
+    const averageCost = compositions && compositions.length > 0 ? totalCost / compositions.length : 0
 
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -110,13 +109,16 @@ export default async function ComposicoesPage() {
                 </Card>
             </div>
 
-            {/* Tabela de Composições */}
+            {/* Biblioteca de Composições */}
             <Card>
-                <CardHeader>
-                    <CardTitle>Composições Cadastradas</CardTitle>
+                <CardHeader className="pb-4">
+                    <CardTitle>Biblioteca de Composições</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <CompositionsTable compositions={compositions || []} />
+                    <CompositionsListClient
+                        compositions={compositions || []}
+                        projects={projects}
+                    />
                 </CardContent>
             </Card>
         </div>

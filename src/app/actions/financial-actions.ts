@@ -3,6 +3,36 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { getSession } from "@/lib/auth"
+
+// ============================================================================
+// AUDIT LOGGING HELPER
+// ============================================================================
+
+async function logAuditAction(
+    userId: string,
+    companyId: string,
+    action: string,
+    resourceType: string,
+    resourceId: string,
+    details?: Record<string, any>
+) {
+    try {
+        await prisma.auditLog.create({
+            data: {
+                action,
+                entity: resourceType,
+                entityId: resourceId,
+                userId,
+                companyId,
+                newData: details ? JSON.stringify(details) : null,
+            }
+        })
+    } catch (error) {
+        console.error("Failed to log audit:", error)
+        // Don't throw - audit logging failure shouldn't break the operation
+    }
+}
 
 // ============================================================================
 // SCHEMAS
@@ -74,9 +104,21 @@ export async function createFinancialRecord(data: z.infer<typeof financialRecord
 
 export async function updateFinancialRecord(id: string, data: z.infer<typeof financialRecordSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify company access
+        const record = await prisma.financialRecord.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!record || record.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = financialRecordSchema.parse(data)
 
-        const record = await prisma.financialRecord.update({
+        const updated = await prisma.financialRecord.update({
             where: { id },
             data: {
                 description: validated.description,
@@ -93,11 +135,26 @@ export async function updateFinancialRecord(id: string, data: z.infer<typeof fin
             }
         })
 
+        // Log audit
+        await logAuditAction(
+            session.user.id,
+            validated.companyId,
+            'UPDATE',
+            'FinancialRecord',
+            id,
+            {
+                description: validated.description,
+                amount: validated.amount,
+                type: validated.type,
+                status: validated.status,
+            }
+        )
+
         revalidatePath('/financeiro')
         revalidatePath('/financeiro/faturamento')
         revalidatePath('/financeiro/recebiveis')
         revalidatePath('/financeiro/despesas')
-        return { success: true, data: record }
+        return { success: true, data: updated }
     } catch (error) {
         console.error("Erro ao atualizar lançamento:", error)
         return { success: false, error: "Erro ao atualizar lançamento" }
@@ -106,17 +163,58 @@ export async function updateFinancialRecord(id: string, data: z.infer<typeof fin
 
 export async function markAsPaid(id: string, paidAmount?: number) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
         const record = await prisma.financialRecord.findUnique({ where: { id } })
         if (!record) return { success: false, error: "Lançamento não encontrado" }
 
-        const updated = await prisma.financialRecord.update({
-            where: { id },
-            data: {
-                status: 'PAID',
-                paidDate: new Date(),
-                paidAmount: paidAmount || Number(record.amount),
+        // Verify company access
+        if (record.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
+        const finalPaidAmount = paidAmount || Number(record.amount)
+
+        // Update record and bank account balance atomically
+        const updated = await prisma.$transaction(async (tx) => {
+            const updated = await tx.financialRecord.update({
+                where: { id },
+                data: {
+                    status: 'PAID',
+                    paidDate: new Date(),
+                    paidAmount: finalPaidAmount,
+                }
+            })
+
+            // Update bank balance if bankAccountId is set
+            if (record.bankAccountId) {
+                await tx.bankAccount.update({
+                    where: { id: record.bankAccountId },
+                    data: {
+                        balance: {
+                            increment: finalPaidAmount
+                        }
+                    }
+                })
             }
+
+            return updated
         })
+
+        // Log audit
+        await logAuditAction(
+            session.user.id,
+            record.companyId,
+            'MARK_AS_PAID',
+            'FinancialRecord',
+            id,
+            {
+                paidAmount: finalPaidAmount,
+                paidDate: new Date(),
+                bankAccountId: record.bankAccountId,
+            }
+        )
 
         revalidatePath('/financeiro')
         revalidatePath('/financeiro/faturamento')
@@ -132,7 +230,42 @@ export async function markAsPaid(id: string, paidAmount?: number) {
 
 export async function deleteFinancialRecord(id: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir" }
+        }
+
+        const record = await prisma.financialRecord.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!record || record.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
+        // Get record details before deletion for audit logging
+        const recordDetails = await prisma.financialRecord.findUnique({ where: { id } })
+
         await prisma.financialRecord.delete({ where: { id } })
+
+        // Log audit
+        await logAuditAction(
+            session.user.id,
+            record.companyId,
+            'DELETE',
+            'FinancialRecord',
+            id,
+            recordDetails ? {
+                description: recordDetails.description,
+                amount: Number(recordDetails.amount),
+                type: recordDetails.type,
+                status: recordDetails.status,
+            } : {}
+        )
+
         revalidatePath('/financeiro')
         revalidatePath('/financeiro/faturamento')
         revalidatePath('/financeiro/recebiveis')
@@ -258,9 +391,21 @@ export async function createBankAccount(data: z.infer<typeof bankAccountSchema>)
 
 export async function updateBankAccount(id: string, data: z.infer<typeof bankAccountSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify company access
+        const account = await prisma.bankAccount.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!account || account.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = bankAccountSchema.parse(data)
 
-        const account = await prisma.bankAccount.update({
+        const updated = await prisma.bankAccount.update({
             where: { id },
             data: {
                 name: validated.name,
@@ -273,7 +418,7 @@ export async function updateBankAccount(id: string, data: z.infer<typeof bankAcc
         })
 
         revalidatePath('/financeiro')
-        return { success: true, data: account }
+        return { success: true, data: updated }
     } catch (error) {
         console.error("Erro ao atualizar conta bancária:", error)
         return { success: false, error: "Erro ao atualizar conta bancária" }
@@ -282,6 +427,22 @@ export async function updateBankAccount(id: string, data: z.infer<typeof bankAcc
 
 export async function deleteBankAccount(id: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir" }
+        }
+
+        const account = await prisma.bankAccount.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!account || account.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         await prisma.bankAccount.delete({ where: { id } })
         revalidatePath('/financeiro')
         return { success: true }
@@ -355,6 +516,9 @@ export async function getBankAccountById(id: string) {
 
 export async function registerPayment(recordId: string, amount: number, date: Date, bankAccountId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
         const record = await prisma.financialRecord.findUnique({
             where: { id: recordId }
         })
@@ -363,34 +527,56 @@ export async function registerPayment(recordId: string, amount: number, date: Da
             return { success: false, error: "Registro não encontrado." }
         }
 
+        // Verify company access
+        if (record.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const newPaidAmount = Number(record.paidAmount) + amount
         const isPaid = newPaidAmount >= Number(record.amount)
 
-        // Update record
-        const updatedRecord = await prisma.financialRecord.update({
-            where: { id: recordId },
-            data: {
-                paidAmount: newPaidAmount,
-                status: isPaid ? 'PAID' : 'PENDING',
-                paidDate: date,
-                bankAccountId: bankAccountId
-            }
-        })
-
-        // Ideally, create a separate transaction record for the bank account
-        // but for now, just update the bank balance directly?
-        // Or if bank account logic is handled elsewhere.
-        // Let's at least update bank balance if bankAccountId is provided.
-        if (bankAccountId) {
-            await prisma.bankAccount.update({
-                where: { id: bankAccountId },
+        // Update record and bank account balance atomically
+        const updatedRecord = await prisma.$transaction(async (tx) => {
+            const updated = await tx.financialRecord.update({
+                where: { id: recordId },
                 data: {
-                    balance: {
-                        increment: amount
-                    }
+                    paidAmount: newPaidAmount,
+                    status: isPaid ? 'PAID' : 'PENDING',
+                    paidDate: date,
+                    bankAccountId: bankAccountId
                 }
             })
-        }
+
+            // Update bank balance if bankAccountId is provided
+            if (bankAccountId) {
+                await tx.bankAccount.update({
+                    where: { id: bankAccountId },
+                    data: {
+                        balance: {
+                            increment: amount
+                        }
+                    }
+                })
+            }
+
+            return updated
+        })
+
+        // Log audit
+        await logAuditAction(
+            session.user.id,
+            record.companyId,
+            'REGISTER_PAYMENT',
+            'FinancialRecord',
+            recordId,
+            {
+                paymentAmount: amount,
+                totalPaidAmount: newPaidAmount,
+                status: isPaid ? 'PAID' : 'PENDING',
+                bankAccountId: bankAccountId,
+                paidDate: date,
+            }
+        )
 
         revalidatePath("/dashboard/financeiro/recebiveis")
         return { success: true, data: updatedRecord }

@@ -291,24 +291,28 @@ export async function createMovement(data: z.infer<typeof movementSchema>) {
                 break
         }
 
-        // Criar movimentação
-        const movement = await prisma.inventoryMovement.create({
-            data: {
-                materialId: validated.materialId,
-                type: validated.type,
-                quantity: validated.quantity,
-                unitCost: validated.unitCost || Number(material.unitCost),
-                projectId: validated.projectId,
-                notes: validated.notes,
-                documentNumber: validated.documentNumber,
-                userId,
-            }
-        })
+        // Criar movimentação e atualizar estoque de forma atômica
+        const movement = await prisma.$transaction(async (tx) => {
+            const mov = await tx.inventoryMovement.create({
+                data: {
+                    materialId: validated.materialId,
+                    type: validated.type,
+                    quantity: validated.quantity,
+                    unitCost: validated.unitCost || Number(material.unitCost),
+                    projectId: validated.projectId,
+                    notes: validated.notes,
+                    documentNumber: validated.documentNumber,
+                    userId,
+                }
+            })
 
-        // Atualizar estoque do material
-        await prisma.material.update({
-            where: { id: validated.materialId },
-            data: { currentStock: newStock }
+            // Atualizar estoque do material no mesmo transaction
+            await tx.material.update({
+                where: { id: validated.materialId },
+                data: { currentStock: newStock }
+            })
+
+            return mov
         })
 
         // Low stock alert

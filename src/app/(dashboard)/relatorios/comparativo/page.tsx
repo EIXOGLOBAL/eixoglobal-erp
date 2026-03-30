@@ -19,7 +19,7 @@ export default async function RelatorioComparativoPage() {
         where: { companyId, status: { in: ["IN_PROGRESS", "COMPLETED"] } },
         select: {
             id: true, name: true, status: true, budget: true, startDate: true, endDate: true,
-            bulletins: { where: { status: { in: ["APPROVED", "BILLED"] } }, select: { totalValue: true } },
+            bulletins: { where: { status: { in: ["APPROVED", "MANAGER_APPROVED"] } }, select: { totalValue: true } },
             tasks: { select: { status: true, percentDone: true } },
         },
         orderBy: { name: "asc" },

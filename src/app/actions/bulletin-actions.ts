@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createNotificationForMany, createNotification } from "./notification-actions"
 import { notifyUser, notifyUsers } from "@/lib/sse-notifications"
+import { getSession } from "@/lib/auth"
 
 // ========================================
 // SCHEMAS DE VALIDAÇÃO
@@ -23,6 +24,12 @@ const createBulletinSchema = z.object({
     periodStart: z.string(), // ISO date
     periodEnd: z.string(), // ISO date
     items: z.array(bulletinItemSchema),
+    // Additional fields from schema
+    weatherConditions: z.string().optional().nullable(),
+    workingDays: z.number().optional().nullable(),
+    totalDirectCost: z.number().min(0).optional().nullable(),
+    retentionAmount: z.number().min(0).optional().nullable(),
+    netAmount: z.number().min(0).optional().nullable(),
 })
 
 const approveBulletinSchema = z.object({
@@ -114,7 +121,7 @@ export async function createMeasurementBulletin(
                         contractItemId: item.contractItemId,
                         bulletin: {
                             contractId: validated.contractId,
-                            status: { not: 'REJECTED' }
+                            status: { not: 'REJECTED' } // Use enum values in schema
                         }
                     }
                 })
@@ -168,13 +175,19 @@ export async function createMeasurementBulletin(
                 periodStart: new Date(validated.periodStart),
                 periodEnd: new Date(validated.periodEnd),
                 totalValue,
-                status: 'DRAFT',
+                status: 'DRAFT', // BulletinStatus.DRAFT
                 projectId: validated.projectId,
                 contractId: validated.contractId,
                 createdById: userId,
                 items: {
                     create: bulletinItemsData,
-                }
+                },
+                // Additional fields
+                weatherConditions: validated.weatherConditions || null,
+                workingDays: validated.workingDays || null,
+                totalDirectCost: validated.totalDirectCost || null,
+                retentionAmount: validated.retentionAmount || null,
+                netAmount: validated.netAmount || null,
             },
             include: {
                 items: true,
@@ -203,7 +216,7 @@ export async function submitBulletinForApproval(bulletinId: string, userId: stri
         const bulletin = await prisma.measurementBulletin.update({
             where: { id: bulletinId },
             data: {
-                status: 'PENDING_APPROVAL',
+                status: 'SUBMITTED', // Changed from PENDING_APPROVAL to SUBMITTED
                 submittedAt: new Date(),
             },
             select: { id: true, number: true, project: { select: { companyId: true } } }
@@ -238,14 +251,31 @@ export async function submitBulletinForApproval(bulletinId: string, userId: stri
 
 export async function approveByEngineer(data: z.infer<typeof approveBulletinSchema>, userId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify role is ENGINEER or ADMIN
+        if (session.user.role !== "ENGINEER" && session.user.role !== "ADMIN") {
+            return { success: false, error: "Role necessária: ENGINEER ou ADMIN" }
+        }
+
         const validated = approveBulletinSchema.parse(data)
+
+        // Verify bulletin belongs to user's company
+        const existingBulletin = await prisma.measurementBulletin.findUnique({
+            where: { id: validated.bulletinId },
+            select: { project: { select: { companyId: true } } }
+        })
+        if (!existingBulletin || existingBulletin.project.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
 
         const bulletin = await prisma.measurementBulletin.update({
             where: { id: validated.bulletinId },
             data: {
                 approvedByEngineerAt: new Date(),
                 engineerId: userId,
-                status: 'APPROVED',
+                status: 'ENGINEER_APPROVED', // Changed from APPROVED to ENGINEER_APPROVED
             },
             select: { id: true, number: true, createdById: true, project: { select: { companyId: true } } }
         })
@@ -286,12 +316,29 @@ export async function approveByEngineer(data: z.infer<typeof approveBulletinSche
 
 export async function rejectBulletin(data: z.infer<typeof rejectBulletinSchema>, userId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify role is MANAGER or ADMIN
+        if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
+            return { success: false, error: "Role necessária: MANAGER ou ADMIN" }
+        }
+
         const validated = rejectBulletinSchema.parse(data)
+
+        // Verify bulletin belongs to user's company
+        const existingBulletin = await prisma.measurementBulletin.findUnique({
+            where: { id: validated.bulletinId },
+            select: { project: { select: { companyId: true } } }
+        })
+        if (!existingBulletin || existingBulletin.project.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
 
         const bulletin = await prisma.measurementBulletin.update({
             where: { id: validated.bulletinId },
             data: {
-                status: 'REJECTED',
+                status: 'REJECTED', // BulletinStatus.REJECTED
                 rejectedAt: new Date(),
                 rejectionReason: validated.reason,
             },
@@ -490,12 +537,26 @@ export async function getBulletinById(bulletinId: string) {
 
 export async function deleteBulletin(bulletinId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir" }
+        }
+
         const bulletin = await prisma.measurementBulletin.findUnique({
-            where: { id: bulletinId }
+            where: { id: bulletinId },
+            select: { status: true, project: { select: { companyId: true } } }
         })
 
         if (!bulletin) {
             return { success: false, error: 'Boletim não encontrado' }
+        }
+
+        // Verify company access
+        if (bulletin.project.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
         }
 
         if (bulletin.status !== 'DRAFT') {
@@ -538,28 +599,31 @@ export async function updateBulletinItem(itemId: string, currentMeasured: number
         const newAccumulated = previousMeasured + currentMeasured
         const contracted = Number(item.contractedQuantity)
 
-        const updatedItem = await prisma.measurementBulletinItem.update({
-            where: { id: itemId },
-            data: {
-                currentMeasured: currentMeasured,
-                accumulatedMeasured: newAccumulated,
-                balanceQuantity: contracted - newAccumulated,
-                currentValue: currentMeasured * unitPrice,
-                accumulatedValue: newAccumulated * unitPrice,
-                percentageExecuted: contracted > 0 ? (newAccumulated / contracted) * 100 : 0
-            }
-        })
+        // Update item and recalculate bulletin total atomically
+        await prisma.$transaction(async (tx) => {
+            await tx.measurementBulletinItem.update({
+                where: { id: itemId },
+                data: {
+                    currentMeasured: currentMeasured,
+                    accumulatedMeasured: newAccumulated,
+                    balanceQuantity: contracted - newAccumulated,
+                    currentValue: currentMeasured * unitPrice,
+                    accumulatedValue: newAccumulated * unitPrice,
+                    percentageExecuted: contracted > 0 ? (newAccumulated / contracted) * 100 : 0
+                }
+            })
 
-        // Atualizar total do boletim
-        const allItems = await prisma.measurementBulletinItem.findMany({
-            where: { bulletinId: item.bulletinId }
-        })
+            // Atualizar total do boletim
+            const allItems = await tx.measurementBulletinItem.findMany({
+                where: { bulletinId: item.bulletinId }
+            })
 
-        const newTotalValue = allItems.reduce((sum, i) => sum + Number(i.currentValue), 0)
+            const newTotalValue = allItems.reduce((sum, i) => sum + Number(i.currentValue), 0)
 
-        await prisma.measurementBulletin.update({
-            where: { id: item.bulletinId },
-            data: { totalValue: newTotalValue }
+            await tx.measurementBulletin.update({
+                where: { id: item.bulletinId },
+                data: { totalValue: newTotalValue }
+            })
         })
 
         revalidatePath(`/measurements/${item.bulletinId}`)
@@ -696,5 +760,160 @@ export async function updateBulletin(
     } catch (error) {
         console.error("Erro ao atualizar boletim:", error)
         return { success: false, error: "Erro ao atualizar boletim" }
+    }
+}
+
+// ========================================
+// D4SIGN - ASSINATURA DIGITAL
+// ========================================
+
+/**
+ * Prepare and initialize D4Sign digital signature process for a fully approved bulletin
+ * This function sets up the document for D4Sign API integration (future implementation)
+ */
+export async function initD4SignProcess(bulletinId: string) {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify bulletin exists and is in appropriate status for signing
+        const bulletin = await prisma.measurementBulletin.findUnique({
+            where: { id: bulletinId },
+            select: {
+                id: true,
+                number: true,
+                status: true,
+                d4signDocumentUuid: true,
+                d4signStatus: true,
+                project: { select: { companyId: true } },
+            }
+        })
+
+        if (!bulletin) {
+            return { success: false, error: 'Boletim não encontrado' }
+        }
+
+        // Verify company access
+        if (bulletin.project.companyId !== session.user.companyId) {
+            return { success: false, error: 'Acesso negado' }
+        }
+
+        // Only allow if bulletin is fully approved (MANAGER_APPROVED)
+        if (bulletin.status !== 'MANAGER_APPROVED' && bulletin.status !== 'APPROVED') {
+            return {
+                success: false,
+                error: 'Boletim deve estar totalmente aprovado para iniciar assinatura digital'
+            }
+        }
+
+        // Check if already has a D4Sign document
+        if (bulletin.d4signDocumentUuid && bulletin.d4signStatus !== 'CANCELED') {
+            return {
+                success: false,
+                error: 'Este boletim já possui um processo de assinatura em andamento'
+            }
+        }
+
+        // Prepare D4Sign data structure (stub for future API integration)
+        const d4signData = {
+            documentName: `Boletim-${bulletin.number.replace(/\//g, '-')}`,
+            documentType: 'PDF',
+            signers: [
+                {
+                    email: session.user.email || 'system@example.com',
+                    name: session.user.name || 'System',
+                    role: 'APPROVER'
+                }
+            ],
+            metadata: {
+                bulletinId: bulletin.id,
+                bulletinNumber: bulletin.number,
+                preparedAt: new Date().toISOString(),
+            }
+        }
+
+        // Update bulletin to mark that D4Sign process has been initiated
+        const updated = await prisma.measurementBulletin.update({
+            where: { id: bulletinId },
+            data: {
+                d4signStatus: 'DRAFT', // Document drafted, ready for signing
+                // documentUuid will be set when actual API call is made
+            }
+        })
+
+        revalidatePath(`/medicoes/boletins/${bulletinId}`)
+
+        return {
+            success: true,
+            data: {
+                bulletin: updated,
+                d4signData: d4signData, // Return structure for API integration
+                message: 'D4Sign process prepared. Next: integrate with D4Sign API to upload document'
+            }
+        }
+
+    } catch (error: any) {
+        console.error('Error initializing D4Sign:', error)
+        return { success: false, error: error.message || 'Erro ao inicializar assinatura digital' }
+    }
+}
+
+/**
+ * Check and update the D4Sign signature status for a bulletin
+ * This function polls the D4Sign API for signature status (future implementation)
+ */
+export async function checkD4SignStatus(bulletinId: string) {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        const bulletin = await prisma.measurementBulletin.findUnique({
+            where: { id: bulletinId },
+            select: {
+                id: true,
+                number: true,
+                d4signDocumentUuid: true,
+                d4signStatus: true,
+                d4signSignedAt: true,
+                d4signSignedFileUrl: true,
+                project: { select: { companyId: true } },
+            }
+        })
+
+        if (!bulletin) {
+            return { success: false, error: 'Boletim não encontrado' }
+        }
+
+        // Verify company access
+        if (bulletin.project.companyId !== session.user.companyId) {
+            return { success: false, error: 'Acesso negado' }
+        }
+
+        if (!bulletin.d4signDocumentUuid) {
+            return {
+                success: false,
+                error: 'Este boletim não possui um processo D4Sign ativo'
+            }
+        }
+
+        // Stub: In production, this would call D4Sign API to check signature status
+        // Example response structure for future integration:
+        const statusCheckResponse = {
+            documentUuid: bulletin.d4signDocumentUuid,
+            currentStatus: bulletin.d4signStatus, // DRAFT, PROCESSING, SIGNED, CANCELED
+            signingProgress: 0, // 0-100%
+            signedAt: bulletin.d4signSignedAt,
+            signedFileUrl: bulletin.d4signSignedFileUrl,
+            message: 'D4Sign status check prepared. Next: integrate with D4Sign API to fetch current status'
+        }
+
+        return {
+            success: true,
+            data: statusCheckResponse
+        }
+
+    } catch (error: any) {
+        console.error('Error checking D4Sign status:', error)
+        return { success: false, error: error.message || 'Erro ao verificar status de assinatura' }
     }
 }

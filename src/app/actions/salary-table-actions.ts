@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
+import { getSession } from "@/lib/auth"
 
 // ============================================================================
 // SCHEMAS
@@ -50,6 +51,14 @@ export async function getSalaryTables(companyId: string) {
 
 export async function createSalaryTable(data: z.infer<typeof salaryTableSchema>) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+    // Verify company access
+    if (data.companyId !== session.user.companyId) {
+      return { success: false, error: "Acesso negado" }
+    }
+
     const validated = salaryTableSchema.parse(data)
 
     const table = await prisma.salaryTable.create({
@@ -75,9 +84,21 @@ export async function createSalaryTable(data: z.infer<typeof salaryTableSchema>)
 
 export async function updateSalaryTable(id: string, data: z.infer<typeof salaryTableSchema>) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+    // Verify table belongs to user's company
+    const table = await prisma.salaryTable.findUnique({
+      where: { id },
+      select: { companyId: true }
+    })
+    if (!table || table.companyId !== session.user.companyId) {
+      return { success: false, error: "Acesso negado" }
+    }
+
     const validated = salaryTableSchema.parse(data)
 
-    const table = await prisma.salaryTable.update({
+    const updated = await prisma.salaryTable.update({
       where: { id },
       data: {
         name: validated.name,
@@ -88,7 +109,7 @@ export async function updateSalaryTable(id: string, data: z.infer<typeof salaryT
     })
 
     revalidatePath('/rh/tabela-salarial')
-    return { success: true, data: table }
+    return { success: true, data: updated }
   } catch (error) {
     console.error("Erro ao atualizar tabela salarial:", error)
     return {
@@ -100,6 +121,23 @@ export async function updateSalaryTable(id: string, data: z.infer<typeof salaryT
 
 export async function deleteSalaryTable(id: string) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+    // Check delete permission
+    if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+      return { success: false, error: "Sem permissão para excluir" }
+    }
+
+    // Verify table belongs to user's company
+    const table = await prisma.salaryTable.findUnique({
+      where: { id },
+      select: { companyId: true }
+    })
+    if (!table || table.companyId !== session.user.companyId) {
+      return { success: false, error: "Acesso negado" }
+    }
+
     await prisma.salaryTable.delete({ where: { id } })
     revalidatePath('/rh/tabela-salarial')
     return { success: true }
@@ -123,6 +161,18 @@ function calcCostPerHour(baseSalary: number, benefits: number, taxRate: number, 
 
 export async function createSalaryGrade(data: z.infer<typeof salaryGradeSchema>) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+    // Verify salary table belongs to user's company
+    const table = await prisma.salaryTable.findUnique({
+      where: { id: data.tableId },
+      select: { companyId: true }
+    })
+    if (!table || table.companyId !== session.user.companyId) {
+      return { success: false, error: "Acesso negado" }
+    }
+
     const validated = salaryGradeSchema.parse(data)
     const costPerHour = calcCostPerHour(
       validated.baseSalary,
@@ -157,6 +207,27 @@ export async function createSalaryGrade(data: z.infer<typeof salaryGradeSchema>)
 
 export async function updateSalaryGrade(id: string, data: z.infer<typeof salaryGradeSchema>) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+    // Verify grade belongs to user's company
+    const existingGrade = await prisma.salaryGrade.findUnique({
+      where: { id },
+      select: { table: { select: { companyId: true } } }
+    })
+    if (!existingGrade || existingGrade.table.companyId !== session.user.companyId) {
+      return { success: false, error: "Acesso negado" }
+    }
+
+    // Verify new table belongs to user's company
+    const table = await prisma.salaryTable.findUnique({
+      where: { id: data.tableId },
+      select: { companyId: true }
+    })
+    if (!table || table.companyId !== session.user.companyId) {
+      return { success: false, error: "Acesso negado" }
+    }
+
     const validated = salaryGradeSchema.parse(data)
     const costPerHour = calcCostPerHour(
       validated.baseSalary,
@@ -191,6 +262,23 @@ export async function updateSalaryGrade(id: string, data: z.infer<typeof salaryG
 
 export async function deleteSalaryGrade(id: string) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+    // Check delete permission
+    if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+      return { success: false, error: "Sem permissão para excluir" }
+    }
+
+    // Verify grade belongs to user's company
+    const grade = await prisma.salaryGrade.findUnique({
+      where: { id },
+      select: { table: { select: { companyId: true } } }
+    })
+    if (!grade || grade.table.companyId !== session.user.companyId) {
+      return { success: false, error: "Acesso negado" }
+    }
+
     await prisma.salaryGrade.delete({ where: { id } })
     revalidatePath('/rh/tabela-salarial')
     return { success: true }

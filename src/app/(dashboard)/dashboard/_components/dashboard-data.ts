@@ -112,7 +112,7 @@ export async function getDashboardKPIs(companyId: string, period: string) {
     prisma.measurementBulletin.findMany({
       where: {
         project: { companyId },
-        status: { in: ['PENDING_APPROVAL', 'DRAFT'] },
+        status: { in: ['SUBMITTED', 'DRAFT'] },
       },
       select: { id: true },
     }),
@@ -270,7 +270,7 @@ export async function getTopProjectsData(companyId: string, limit: number) {
         select: { value: true },
       },
       bulletins: {
-        where: { status: { in: ['APPROVED', 'BILLED'] } },
+        where: { status: { in: ['APPROVED', 'MANAGER_APPROVED'] } },
         select: { totalValue: true },
       },
     },
@@ -379,7 +379,7 @@ export async function getRecentProjects(companyId: string, limit: number) {
       endDate: true,
       contracts: { select: { value: true } },
       bulletins: {
-        where: { status: { in: ['APPROVED', 'BILLED'] } },
+        where: { status: { in: ['APPROVED', 'MANAGER_APPROVED'] } },
         select: { totalValue: true },
       },
     },

@@ -30,7 +30,7 @@ export default async function RelatorioExecutivoPage() {
             where: { companyId },
             select: {
                 id: true, name: true, status: true, budget: true,
-                bulletins: { where: { status: { in: ["APPROVED", "BILLED"] } }, select: { totalValue: true } },
+                bulletins: { where: { status: { in: ["APPROVED", "MANAGER_APPROVED"] } }, select: { totalValue: true } },
             },
         }),
         prisma.employee.findMany({ where: { companyId }, select: { id: true, status: true } }),

@@ -47,47 +47,65 @@ const benefitSchema = z.object({
 
 export async function createEmployee(data: z.infer<typeof employeeSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check HR management permission
+        if (session.user.role !== "ADMIN" && !session.user.canManageHR) {
+            return { success: false, error: "Sem permissão para gerenciar RH" }
+        }
+
+        // Verify company access
+        if (data.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = employeeSchema.parse(data)
 
         const matricula = await getNextCode('employee', validated.companyId)
 
-        const employee = await prisma.employee.create({
-            data: {
-                matricula,
-                name: validated.name,
-                jobTitle: validated.jobTitle,
-                document: validated.document || null,
-                skills: validated.skills || "[]",
-                costPerHour: validated.costPerHour ?? null,
-                status: validated.status || 'ACTIVE',
-                companyId: validated.companyId,
-                salaryGradeId: validated.salaryGradeId || null,
-                admissionDate: validated.admissionDate ? new Date(validated.admissionDate) : null,
-                leaveDate: validated.leaveDate ? new Date(validated.leaveDate) : null,
-                terminationDate: validated.terminationDate ? new Date(validated.terminationDate) : null,
-                monthlySalary: validated.monthlySalary ?? null,
-                hoursPerMonth: validated.hoursPerMonth ?? 220,
-                overtimeRates: validated.overtimeRates ?? "[]",
-                housed: validated.housed ?? false,
-                valeTransporte: validated.valeTransporte ?? false,
-                vtDailyValue: validated.vtDailyValue ?? null,
-                valeAlimentacao: validated.valeAlimentacao ?? null,
-                planoSaude: validated.planoSaude ?? null,
-                outrosBeneficios: validated.outrosBeneficios ?? null,
-            }
-        })
-
-        // Record initial salary if costPerHour is set
-        if (validated.costPerHour != null && validated.costPerHour > 0) {
-            await prisma.salaryHistory.create({
+        // Wrap both operations in a transaction for data consistency
+        const employee = await prisma.$transaction(async (tx) => {
+            const emp = await tx.employee.create({
                 data: {
-                    employeeId: employee.id,
-                    previousCost: null,
-                    newCost: validated.costPerHour,
-                    reason: "Cadastro inicial",
+                    matricula,
+                    name: validated.name,
+                    jobTitle: validated.jobTitle,
+                    document: validated.document || null,
+                    skills: validated.skills || "[]",
+                    costPerHour: validated.costPerHour ?? null,
+                    status: validated.status || 'ACTIVE',
+                    companyId: validated.companyId,
+                    salaryGradeId: validated.salaryGradeId || null,
+                    admissionDate: validated.admissionDate ? new Date(validated.admissionDate) : null,
+                    leaveDate: validated.leaveDate ? new Date(validated.leaveDate) : null,
+                    terminationDate: validated.terminationDate ? new Date(validated.terminationDate) : null,
+                    monthlySalary: validated.monthlySalary ?? null,
+                    hoursPerMonth: validated.hoursPerMonth ?? 220,
+                    overtimeRates: validated.overtimeRates ?? "[]",
+                    housed: validated.housed ?? false,
+                    valeTransporte: validated.valeTransporte ?? false,
+                    vtDailyValue: validated.vtDailyValue ?? null,
+                    valeAlimentacao: validated.valeAlimentacao ?? null,
+                    planoSaude: validated.planoSaude ?? null,
+                    outrosBeneficios: validated.outrosBeneficios ?? null,
                 }
             })
-        }
+
+            // Record initial salary if costPerHour is set
+            if (validated.costPerHour != null && validated.costPerHour > 0) {
+                await tx.salaryHistory.create({
+                    data: {
+                        employeeId: emp.id,
+                        previousCost: null,
+                        newCost: validated.costPerHour,
+                        reason: "Cadastro inicial",
+                    }
+                })
+            }
+
+            return emp
+        })
 
         revalidatePath('/rh/funcionarios')
         return { success: true, data: employee }
@@ -102,10 +120,24 @@ export async function createEmployee(data: z.infer<typeof employeeSchema>) {
 
 export async function updateEmployee(id: string, data: z.infer<typeof employeeSchema>) {
     try {
-        const validated = employeeSchema.parse(data)
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
 
-        // Fetch current employee to compare costPerHour
-        const current = await prisma.employee.findUnique({ where: { id } })
+        // Check HR management permission
+        if (session.user.role !== "ADMIN" && !session.user.canManageHR) {
+            return { success: false, error: "Sem permissão para gerenciar RH" }
+        }
+
+        // Fetch current employee to compare costPerHour and verify company access
+        const current = await prisma.employee.findUnique({
+            where: { id },
+            select: { id: true, companyId: true, costPerHour: true }
+        })
+        if (!current || current.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
+        const validated = employeeSchema.parse(data)
 
         const employee = await prisma.employee.update({
             where: { id },
@@ -162,6 +194,23 @@ export async function updateEmployee(id: string, data: z.infer<typeof employeeSc
 
 export async function inactivateEmployee(id: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check HR management permission
+        if (session.user.role !== "ADMIN" && !session.user.canManageHR) {
+            return { success: false, error: "Sem permissão para gerenciar RH" }
+        }
+
+        // Verify employee belongs to user's company
+        const existing = await prisma.employee.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!existing || existing.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const employee = await prisma.employee.update({
             where: { id },
             data: {
@@ -182,6 +231,23 @@ export async function inactivateEmployee(id: string) {
 
 export async function changeEmployeeStatus(id: string, status: 'ACTIVE' | 'INACTIVE' | 'BLOCKED' | 'ON_LEAVE') {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check HR management permission
+        if (session.user.role !== "ADMIN" && !session.user.canManageHR) {
+            return { success: false, error: "Sem permissão para gerenciar RH" }
+        }
+
+        // Verify employee belongs to user's company
+        const existing = await prisma.employee.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!existing || existing.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const employee = await prisma.employee.update({
             where: { id },
             data: { status },
@@ -197,6 +263,23 @@ export async function changeEmployeeStatus(id: string, status: 'ACTIVE' | 'INACT
 
 export async function updateMatricula(employeeId: string, matricula: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check HR management permission
+        if (session.user.role !== "ADMIN" && !session.user.canManageHR) {
+            return { success: false, error: "Sem permissão para gerenciar RH" }
+        }
+
+        // Verify employee belongs to user's company
+        const existing = await prisma.employee.findUnique({
+            where: { id: employeeId },
+            select: { companyId: true }
+        })
+        if (!existing || existing.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const employee = await prisma.employee.update({
             where: { id: employeeId },
             data: { matricula },
@@ -212,12 +295,14 @@ export async function updateMatricula(employeeId: string, matricula: string) {
 
 export async function deleteEmployee(id: string) {
     const session = await getSession()
-    if (!session) return { success: false, error: 'Não autenticado' }
+    if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
 
-    try {
-        assertCanDelete(session.user)
-    } catch (e) {
-        return { success: false, error: (e as Error).message }
+    // Check HR management and delete permissions
+    if (session.user.role !== "ADMIN" && !session.user.canManageHR) {
+        return { success: false, error: "Sem permissão para gerenciar RH" }
+    }
+    if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+        return { success: false, error: "Sem permissão para excluir" }
     }
 
     try {
@@ -235,6 +320,11 @@ export async function deleteEmployee(id: string) {
 
         if (!employee) {
             return { success: false, error: "Funcionário não encontrado" }
+        }
+
+        // Verify company access
+        if (employee.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
         }
 
         if (employee._count.allocations > 0 || employee._count.measurements > 0) {
@@ -291,6 +381,9 @@ export async function getEmployees(companyId: string, status?: 'ACTIVE' | 'INACT
 
 export async function getEmployeeById(id: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
         const employee = await prisma.employee.findUnique({
             where: { id },
             include: {
@@ -323,6 +416,11 @@ export async function getEmployeeById(id: string) {
         })
 
         if (!employee) {
+            return null
+        }
+
+        // Verify company access
+        if (employee.companyId !== session.user.companyId) {
             return null
         }
 
@@ -363,6 +461,23 @@ export async function getEmployeeById(id: string) {
 
 export async function addEmployeeBenefit(employeeId: string, data: z.infer<typeof benefitSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check HR management permission
+        if (session.user.role !== "ADMIN" && !session.user.canManageHR) {
+            return { success: false, error: "Sem permissão para gerenciar RH" }
+        }
+
+        // Verify employee belongs to user's company
+        const employee = await prisma.employee.findUnique({
+            where: { id: employeeId },
+            select: { companyId: true }
+        })
+        if (!employee || employee.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = benefitSchema.parse(data)
         const benefit = await prisma.employeeBenefit.create({
             data: { ...validated, employeeId }
@@ -376,6 +491,23 @@ export async function addEmployeeBenefit(employeeId: string, data: z.infer<typeo
 
 export async function updateEmployeeBenefit(benefitId: string, employeeId: string, data: z.infer<typeof benefitSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check HR management permission
+        if (session.user.role !== "ADMIN" && !session.user.canManageHR) {
+            return { success: false, error: "Sem permissão para gerenciar RH" }
+        }
+
+        // Verify employee belongs to user's company
+        const employee = await prisma.employee.findUnique({
+            where: { id: employeeId },
+            select: { companyId: true }
+        })
+        if (!employee || employee.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = benefitSchema.parse(data)
         const benefit = await prisma.employeeBenefit.update({
             where: { id: benefitId },
@@ -390,6 +522,26 @@ export async function updateEmployeeBenefit(benefitId: string, employeeId: strin
 
 export async function deleteEmployeeBenefit(benefitId: string, employeeId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check HR management and delete permissions
+        if (session.user.role !== "ADMIN" && !session.user.canManageHR) {
+            return { success: false, error: "Sem permissão para gerenciar RH" }
+        }
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir" }
+        }
+
+        // Verify employee belongs to user's company
+        const employee = await prisma.employee.findUnique({
+            where: { id: employeeId },
+            select: { companyId: true }
+        })
+        if (!employee || employee.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         await prisma.employeeBenefit.delete({ where: { id: benefitId } })
         revalidatePath(`/rh/funcionarios/${employeeId}`)
         return { success: true }

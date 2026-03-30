@@ -7,6 +7,7 @@ import { PurchaseOrderStatus } from "@/lib/generated/prisma/client"
 import { createNotificationForMany } from "./notification-actions"
 import { notifyUsers } from "@/lib/sse-notifications"
 import { toNumber } from "@/lib/formatters"
+import { getSession } from "@/lib/auth"
 
 // ============================================================================
 // SCHEMAS
@@ -68,9 +69,21 @@ export async function createPurchaseOrder(
 
 export async function updatePurchaseOrder(id: string, data: z.infer<typeof orderSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify order belongs to user's company
+        const order = await prisma.purchaseOrder.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!order || order.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = orderSchema.parse(data)
 
-        const order = await prisma.purchaseOrder.update({
+        const updated = await prisma.purchaseOrder.update({
             where: { id },
             data: {
                 supplierId: validated.supplierId || null,
@@ -83,7 +96,7 @@ export async function updatePurchaseOrder(id: string, data: z.infer<typeof order
 
         revalidatePath('/compras')
         revalidatePath(`/compras/${id}`)
-        return { success: true, data: order }
+        return { success: true, data: updated }
     } catch (error) {
         console.error("Erro ao atualizar pedido de compra:", error)
         return {
@@ -95,10 +108,23 @@ export async function updatePurchaseOrder(id: string, data: z.infer<typeof order
 
 export async function deletePurchaseOrder(id: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir" }
+        }
+
         const order = await prisma.purchaseOrder.findUnique({ where: { id } })
 
         if (!order) {
             return { success: false, error: "Pedido não encontrado" }
+        }
+
+        // Verify company access
+        if (order.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
         }
 
         if (order.status !== 'DRAFT') {
@@ -148,6 +174,9 @@ export async function getPurchaseOrders(companyId: string) {
 
 export async function getPurchaseOrderById(id: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return null
+
         const order = await prisma.purchaseOrder.findUnique({
             where: { id },
             include: {
@@ -165,6 +194,11 @@ export async function getPurchaseOrderById(id: string) {
                 }
             }
         })
+
+        // Verify company access
+        if (!order || order.companyId !== session.user.companyId) {
+            return null
+        }
 
         return order
     } catch (error) {
@@ -192,6 +226,18 @@ async function recalculateTotalValue(purchaseOrderId: string) {
 
 export async function addOrderItem(orderId: string, data: z.infer<typeof itemSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify order belongs to user's company
+        const order = await prisma.purchaseOrder.findUnique({
+            where: { id: orderId },
+            select: { companyId: true }
+        })
+        if (!order || order.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = itemSchema.parse(data)
         const totalPrice = validated.quantity * validated.unitPrice
 
@@ -223,6 +269,18 @@ export async function addOrderItem(orderId: string, data: z.infer<typeof itemSch
 
 export async function updateOrderItem(itemId: string, data: z.infer<typeof itemSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify item belongs to user's company
+        const existing = await prisma.purchaseOrderItem.findUnique({
+            where: { id: itemId },
+            select: { purchaseOrder: { select: { companyId: true } } }
+        })
+        if (!existing || existing.purchaseOrder.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = itemSchema.parse(data)
         const totalPrice = validated.quantity * validated.unitPrice
 
@@ -254,19 +312,33 @@ export async function updateOrderItem(itemId: string, data: z.infer<typeof itemS
 
 export async function deleteOrderItem(itemId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir" }
+        }
+
         const item = await prisma.purchaseOrderItem.findUnique({
-            where: { id: itemId }
+            where: { id: itemId },
+            select: { purchaseOrderId: true, purchaseOrder: { select: { companyId: true } } }
         })
 
         if (!item) {
             return { success: false, error: "Item não encontrado" }
         }
 
+        // Verify company access
+        if (item.purchaseOrder.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const orderId = item.purchaseOrderId
 
         await prisma.purchaseOrderItem.delete({ where: { id: itemId } })
 
-        await recalculateTotalValue(orderId)
+        await recalculateTotalValue(orderId as string)
 
         revalidatePath('/compras')
         revalidatePath(`/compras/${orderId}`)
@@ -282,7 +354,19 @@ export async function deleteOrderItem(itemId: string) {
 
 export async function updateOrderStatus(id: string, status: PurchaseOrderStatus) {
     try {
-        const order = await prisma.purchaseOrder.update({
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify order belongs to user's company
+        const order = await prisma.purchaseOrder.findUnique({
+            where: { id },
+            select: { companyId: true }
+        })
+        if (!order || order.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
+        const updated = await prisma.purchaseOrder.update({
             where: { id },
             data: {
                 status,
@@ -294,23 +378,23 @@ export async function updateOrderStatus(id: string, status: PurchaseOrderStatus)
         // Notify on approval
         if (status === 'APPROVED') {
             const managers = await prisma.user.findMany({
-                where: { companyId: order.companyId, role: { in: ['ADMIN', 'MANAGER'] } },
+                where: { companyId: updated.companyId, role: { in: ['ADMIN', 'MANAGER'] } },
                 select: { id: true },
             })
             const managerIds = managers.map(m => m.id)
             const notifData = {
                 type: 'PURCHASE_APPROVED',
                 title: 'Pedido de compra aprovado',
-                message: `Pedido ${order.number} foi aprovado.`,
-                link: `/compras/${order.id}`,
+                message: `Pedido ${updated.number} foi aprovado.`,
+                link: `/compras/${updated.id}`,
             }
-            await createNotificationForMany({ userIds: managerIds, companyId: order.companyId, ...notifData })
+            await createNotificationForMany({ userIds: managerIds, companyId: updated.companyId, ...notifData })
             notifyUsers(managerIds, notifData)
         }
 
         revalidatePath('/compras')
         revalidatePath(`/compras/${id}`)
-        return { success: true, data: order }
+        return { success: true, data: updated }
     } catch (error) {
         console.error("Erro ao atualizar status:", error)
         return {

@@ -248,7 +248,7 @@ export function ReconciliationClient({
       startTransition(async () => {
         const result = await getStatementTransactions(stmt.id, statusFilter)
         if (result.success && result.data) {
-          setTransactions(result.data as Transaction[])
+          setTransactions(result.data as unknown as Transaction[])
         }
       })
     },
@@ -262,7 +262,7 @@ export function ReconciliationClient({
         startTransition(async () => {
           const result = await getStatementTransactions(selectedStatement.id, filter)
           if (result.success && result.data) {
-            setTransactions(result.data as Transaction[])
+            setTransactions(result.data as unknown as Transaction[])
           }
         })
       }
@@ -389,7 +389,7 @@ export function ReconciliationClient({
           if (selectedStatement) {
             const txnResult = await getStatementTransactions(selectedStatement.id, statusFilter)
             if (txnResult.success && txnResult.data) {
-              setTransactions(txnResult.data as Transaction[])
+              setTransactions(txnResult.data as unknown as Transaction[])
             }
           }
           refreshStatements()
@@ -419,7 +419,7 @@ export function ReconciliationClient({
         if (selectedStatement) {
           const txnResult = await getStatementTransactions(selectedStatement.id, statusFilter)
           if (txnResult.success && txnResult.data) {
-            setTransactions(txnResult.data as Transaction[])
+            setTransactions(txnResult.data as unknown as Transaction[])
           }
         }
         refreshStatements()
@@ -448,7 +448,7 @@ export function ReconciliationClient({
         if (selectedStatement) {
           const txnResult = await getStatementTransactions(selectedStatement.id, statusFilter)
           if (txnResult.success && txnResult.data) {
-            setTransactions(txnResult.data as Transaction[])
+            setTransactions(txnResult.data as unknown as Transaction[])
           }
         }
         refreshStatements()
