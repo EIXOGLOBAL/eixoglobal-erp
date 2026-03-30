@@ -16,7 +16,7 @@ export default async function EquipamentosPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
-    const result = await getEquipment(companyId)
+    const result = await getEquipment({ companyId })
     const equipment = result.data ?? []
 
     const available = equipment.filter(e => e.status === 'AVAILABLE').length

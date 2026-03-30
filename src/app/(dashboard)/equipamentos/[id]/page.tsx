@@ -45,7 +45,7 @@ export default async function EquipamentoDetailPage({ params }: PageProps) {
     if (!companyId) redirect("/login")
     const { id } = await params
     const [equipResult, projectsResult] = await Promise.all([
-        getEquipmentById(id), getProjects(companyId),
+        getEquipmentById(id), getProjects({ companyId }),
     ])
     if (!equipResult.success || !equipResult.data) notFound()
     const equipment = equipResult.data

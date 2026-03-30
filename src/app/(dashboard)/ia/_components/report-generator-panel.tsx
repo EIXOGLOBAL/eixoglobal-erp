@@ -37,7 +37,7 @@ export function ReportGeneratorPanel({ companyId }: ReportGeneratorPanelProps) {
 
   useEffect(() => {
     const loadProjects = async () => {
-      const result = await getProjects(companyId)
+      const result = await getProjects({ companyId })
       if (result.success && result.data) {
         setProjects(
           result.data.map((p) => ({

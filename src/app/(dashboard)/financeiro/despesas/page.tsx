@@ -14,7 +14,8 @@ export default async function DespesasPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
-    const records = await getFinancialRecords(companyId, 'EXPENSE')
+    const recordsResult = await getFinancialRecords({ companyId, type: 'EXPENSE' })
+    const records = recordsResult.data || []
 
     const totalPayable = records
         .filter(r => r.status === 'PENDING' || r.status === 'SCHEDULED')

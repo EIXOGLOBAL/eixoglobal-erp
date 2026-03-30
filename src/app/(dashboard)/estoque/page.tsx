@@ -16,14 +16,18 @@ export default async function EstoquePage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
-    const [materials, inventoryValueResult, lowStockMaterials, recentMovements] = await Promise.all([
-        getMaterials(companyId),
+    const [materialsResult, inventoryValueResult, lowStockMaterialsResult, recentMovementsResult] = await Promise.all([
+        getMaterials({ companyId }),
         getInventoryValue(companyId),
         getLowStockMaterials(companyId),
         getMovements(companyId),
     ])
 
+    const materials = materialsResult.data || []
     const totalValue = inventoryValueResult.success ? inventoryValueResult.data?.totalValue || 0 : 0
+    const lowStockMaterials = lowStockMaterialsResult || []
+    const recentMovements = recentMovementsResult || []
+
     const totalItems = materials.length
     const lowStockCount = lowStockMaterials.length
     const zeroStockCount = materials.filter(m => m.currentStock === 0).length

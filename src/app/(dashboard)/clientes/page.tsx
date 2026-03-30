@@ -16,7 +16,7 @@ export default async function ClientesPage() {
   const companyId = session.user?.companyId
   if (!companyId) redirect('/login')
 
-  const clientsResult = await getClients(companyId)
+  const clientsResult = await getClients({ companyId })
   const clients = clientsResult.success ? (clientsResult.data ?? []) : []
 
   // KPIs

@@ -15,7 +15,7 @@ export default async function FornecedoresPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
-    const result = await getSuppliersEnhanced(companyId)
+    const result = await getSuppliersEnhanced({ companyId })
     const suppliers = result.success ? (result.data ?? []) : []
     const kpis = result.kpis
 

@@ -20,10 +20,12 @@ export default async function FuncionariosPage() {
         redirect("/login")
     }
 
-    const [employees, salaryTables] = await Promise.all([
-        getEmployees(companyId),
+    const [employeesResult, salaryTables] = await Promise.all([
+        getEmployees({ companyId }),
         getSalaryTables(companyId),
     ])
+
+    const employees = employeesResult.data || []
 
     const allGrades = salaryTables.flatMap(t => t.grades.map(g => ({
         id: g.id,

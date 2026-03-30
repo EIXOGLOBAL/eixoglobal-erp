@@ -22,7 +22,7 @@ export default async function ProjectsPage() {
 
     const companyId = session.user?.companyId
 
-    const projectsRes = await getProjects(companyId)
+    const projectsRes = await getProjects({ companyId })
     const projects = projectsRes.success ? projectsRes.data : []
 
     const [companies, clientsResult] = await Promise.all([
@@ -30,7 +30,7 @@ export default async function ProjectsPage() {
             select: { id: true, name: true },
             orderBy: { name: 'asc' }
         }),
-        getClients(companyId),
+        getClients({ companyId }),
     ])
 
     const clients = clientsResult.success

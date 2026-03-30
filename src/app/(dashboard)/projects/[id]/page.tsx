@@ -101,7 +101,7 @@ const session = await getSession()
             where: { projectId: id },
             orderBy: { createdAt: 'desc' },
         }),
-        getClients(companyId),
+        getClients({ companyId }),
     ])
 
     const clients = clientsResult.success

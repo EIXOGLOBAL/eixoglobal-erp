@@ -60,7 +60,7 @@ export function useNotifications(): UseNotificationsReturn {
         getUnreadCount(),
       ])
       if (notifResult.success) setNotifications(notifResult.data as Notification[])
-      if (countResult.success) setUnreadCount(countResult.data)
+      if (countResult.success) setUnreadCount(countResult.count)
     }
     loadInitial()
   }, [])

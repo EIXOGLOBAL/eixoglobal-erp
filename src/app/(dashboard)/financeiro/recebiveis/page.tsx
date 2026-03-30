@@ -14,7 +14,8 @@ export default async function ReceiveisPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
-    const records = await getFinancialRecords(companyId, 'INCOME')
+    const recordsResult = await getFinancialRecords({ companyId, type: 'INCOME' })
+    const records = recordsResult.data || []
 
     const totalReceivable = records
         .filter(r => r.status === 'PENDING' || r.status === 'SCHEDULED')

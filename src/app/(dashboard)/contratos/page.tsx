@@ -22,7 +22,7 @@ export default async function ContractsPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
-    const contractsRes = await getContracts(undefined, companyId)
+    const contractsRes = await getContracts({ companyId })
     const contracts = contractsRes.success ? contractsRes.data : []
 
     // Buscar projects e contractors para o dialog (filtrados por empresa)

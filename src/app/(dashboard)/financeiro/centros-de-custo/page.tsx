@@ -25,7 +25,7 @@ export default async function CentrosDeCustoPage() {
 
     const [costCenters, projectsResult, hierarchyResult, reportResult] = await Promise.all([
         getCostCenters(companyId),
-        getProjects(companyId),
+        getProjects({ companyId }),
         getCostCenterHierarchy(companyId, currentYear),
         getCostCenterBudgetReport(companyId, currentYear),
     ])

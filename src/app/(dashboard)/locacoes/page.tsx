@@ -28,7 +28,7 @@ export default async function LocacoesPage() {
     getRentals({ companyId }),
     getRentalItems(companyId),
     getRentalKPIs(companyId),
-    getProjects(companyId),
+    getProjects({ companyId }),
   ])
 
   const rentals = rentalsResult.data ?? []

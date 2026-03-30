@@ -16,12 +16,13 @@ export default async function FaturamentoPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
-    const [records, summaryResult, bankAccounts] = await Promise.all([
-        getFinancialRecords(companyId),
+    const [recordsResult, summaryResult, bankAccounts] = await Promise.all([
+        getFinancialRecords({ companyId }),
         getFinancialSummary(companyId),
         getBankAccounts(companyId),
     ])
 
+    const records = recordsResult.data || []
     const summary = summaryResult.success ? summaryResult.data : null
 
     return (

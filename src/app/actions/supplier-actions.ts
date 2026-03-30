@@ -662,8 +662,15 @@ export async function getSuppliersWithExpiringDocuments(companyId: string, days:
 // SRM Lite — Enhanced List Data
 // ============================================================
 
-export async function getSuppliersEnhanced(companyId: string) {
+export async function getSuppliersEnhanced(params?: { companyId?: string }) {
     try {
+        const session = await getSession()
+        if (!session?.user?.companyId) {
+            return { success: false, data: [], kpis: null, error: "Não autenticado" }
+        }
+
+        const companyId = params?.companyId || session.user.companyId
+
         const suppliers = await prisma.supplier.findMany({
             where: { companyId },
             include: {

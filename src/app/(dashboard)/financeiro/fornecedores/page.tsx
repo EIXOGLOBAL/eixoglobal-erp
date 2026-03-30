@@ -14,7 +14,7 @@ export default async function FornecedoresPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
-    const suppliersResult = await getSuppliers(companyId)
+    const suppliersResult = await getSuppliers({ companyId })
     const suppliers = suppliersResult.data ?? []
 
     const total = suppliers.length

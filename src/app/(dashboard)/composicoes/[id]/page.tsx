@@ -30,7 +30,7 @@ export default async function ComposicaoDetailsPage({
     if (!companyId) redirect("/login")
 
     const composition = await getCostCompositionById(id)
-    const projectsResult = await getProjects(companyId)
+    const projectsResult = await getProjects({ companyId })
     const projects = projectsResult.success ? (projectsResult.data || []) : []
 
     // Get all compositions for comparison

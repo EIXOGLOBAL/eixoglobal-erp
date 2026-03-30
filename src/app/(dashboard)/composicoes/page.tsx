@@ -19,7 +19,7 @@ export default async function ComposicoesPage() {
     if (!companyId) redirect("/login")
 
     const compositions = await getCostCompositions(companyId)
-    const projectsResult = await getProjects(companyId)
+    const projectsResult = await getProjects({ companyId })
     const projects = projectsResult.success ? (projectsResult.data || []) : []
 
     // KPIs

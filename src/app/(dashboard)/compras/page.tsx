@@ -17,8 +17,8 @@ export default async function ComprasPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
-    const [orders, suppliers, projects] = await Promise.all([
-        getPurchaseOrders(companyId),
+    const [ordersResponse, suppliers, projects] = await Promise.all([
+        getPurchaseOrders({ companyId }),
         prisma.supplier.findMany({
             where: { companyId, isActive: true },
             select: { id: true, name: true },
@@ -31,6 +31,7 @@ export default async function ComprasPage() {
         }),
     ])
 
+    const orders = ordersResponse.data || []
     const activeOrders = orders.filter(o => o.status !== 'DRAFT' && o.status !== 'CANCELLED')
     const totalActiveValue = activeOrders.reduce((sum, o) => sum + toNumber(o.totalValue), 0)
     const awaitingReceival = orders.filter(o => o.status === 'ORDERED' || o.status === 'PARTIALLY_RECEIVED')
