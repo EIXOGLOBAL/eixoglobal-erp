@@ -31,3 +31,11 @@ jobs:
           tags: |
             ghcr.io/eixoglobal/eixoglobal-erp:latest
             ghcr.io/eixoglobal/eixoglobal-erp:${{ github.sha }}
+
+      - name: Deploy no Dokploy
+        run: |
+          curl -X POST "${{ secrets.DOKPLOY_URL }}/api/compose.deploy" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
+            -d '{"composeId": "${{ secrets.DOKPLOY_COMPOSE_ID }}"}'
