@@ -38,7 +38,7 @@ const formSchema = z.object({
     name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
     email: z.string().email("Email inválido"),
     password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-    role: z.enum(["ADMIN", "MANAGER", "USER", "ENGINEER"]),
+    role: z.enum(["ADMIN", "MANAGER", "USER", "ENGINEER", "SUPERVISOR", "SAFETY_OFFICER", "ACCOUNTANT", "HR_ANALYST"]),
     companyId: z.string().optional(),
 })
 

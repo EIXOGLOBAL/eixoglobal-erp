@@ -234,7 +234,7 @@ export async function submitBulletinForApproval(bulletinId: string, userId: stri
             message: `Boletim ${bulletin.number} aguarda aprovação.`,
             link: `/measurements/${bulletin.id}`,
         }
-        await createNotificationForMany({ userIds: managerIds, companyId: bulletin.project.companyId, ...notifData })
+        await createNotificationForMany(managerIds, notifData)
         notifyUsers(managerIds, notifData)
 
         revalidatePath('/measurements')
@@ -299,7 +299,7 @@ export async function approveByEngineer(data: z.infer<typeof approveBulletinSche
             message: `Boletim ${bulletin.number} foi aprovado.`,
             link: `/measurements/${bulletin.id}`,
         }
-        await createNotification({ userId: bulletin.createdById, companyId: bulletin.project.companyId, ...notifData })
+        await createNotification({ userId: bulletin.createdById, ...notifData })
         notifyUser(bulletin.createdById, notifData)
 
         revalidatePath('/measurements')
@@ -362,7 +362,7 @@ export async function rejectBulletin(data: z.infer<typeof rejectBulletinSchema>,
             message: `Boletim ${bulletin.number} foi rejeitado: ${validated.reason}`,
             link: `/measurements/${bulletin.id}`,
         }
-        await createNotification({ userId: bulletin.createdById, companyId: bulletin.project.companyId, ...notifData })
+        await createNotification({ userId: bulletin.createdById, ...notifData })
         notifyUser(bulletin.createdById, notifData)
 
         revalidatePath('/measurements')

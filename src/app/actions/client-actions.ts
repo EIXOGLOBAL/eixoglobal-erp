@@ -6,6 +6,8 @@ import { z } from 'zod'
 import { getNextCode } from '@/lib/sequence'
 import { getSession } from '@/lib/auth'
 import { assertCanDelete } from '@/lib/permissions'
+import { getPaginationArgs, paginatedResponse, type PaginationParams } from '@/lib/pagination'
+import { buildWhereClause, type FilterParams } from '@/lib/filters'
 
 const clientSchema = z.object({
   type: z.enum(['COMPANY', 'INDIVIDUAL']).default('COMPANY'),
@@ -34,22 +36,42 @@ const clientSchema = z.object({
 
 export type ClientFormData = z.infer<typeof clientSchema>
 
-export async function getClients(companyId?: string) {
+export async function getClients(params?: {
+  companyId?: string
+  pagination?: PaginationParams
+  filters?: FilterParams
+}) {
   try {
-    const clients = await prisma.client.findMany({
-      where: companyId ? { companyId } : undefined,
-      include: {
-        _count: {
-          select: {
-            projects: true,
+    const session = await getSession()
+    if (!session?.user) return { success: true, data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
+
+    const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
+    const filterWhere = buildWhereClause(params?.filters || {}, ['displayName', 'cnpj', 'cpf'])
+    const where = {
+      companyId: params?.companyId || (session.user as any).companyId,
+      ...filterWhere
+    }
+
+    const [clients, total] = await Promise.all([
+      prisma.client.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          _count: {
+            select: {
+              projects: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-    return { success: true, data: clients }
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.client.count({ where })
+    ])
+
+    return { success: true, data: clients, pagination: paginatedResponse(clients, total, page, pageSize).pagination }
   } catch (error: any) {
-    return { success: false, error: error.message || 'Erro ao buscar clientes' }
+    return { success: false, error: error.message || 'Erro ao buscar clientes', data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
   }
 }
 

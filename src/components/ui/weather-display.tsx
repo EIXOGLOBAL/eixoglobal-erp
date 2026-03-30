@@ -2,17 +2,17 @@
 import { useState, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { fetchWeatherForDate, WeatherData } from '@/lib/weather'
+import { fetchWeatherForDate, HistoricalWeatherData } from '@/lib/weather'
 
 interface WeatherDisplayProps {
   date: string       // YYYY-MM-DD
   latitude: number
   longitude: number
-  onWeatherLoaded?: (weather: WeatherData) => void
+  onWeatherLoaded?: (weather: HistoricalWeatherData) => void
 }
 
 export function WeatherDisplay({ date, latitude, longitude, onWeatherLoaded }: WeatherDisplayProps) {
-  const [weather, setWeather] = useState<WeatherData | null>(null)
+  const [weather, setWeather] = useState<HistoricalWeatherData | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {

@@ -68,7 +68,7 @@ export async function createAnnouncement(data: z.infer<typeof schema>) {
       message: v.title,
       link: '/comunicados',
     }
-    await createNotificationForMany({ userIds, companyId: user.companyId, ...notifData })
+    await createNotificationForMany(userIds, notifData)
     notifyUsers(userIds, notifData)
 
     revalidatePath("/comunicados")

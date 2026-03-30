@@ -39,7 +39,7 @@ const formSchema = z.object({
     name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
     email: z.string().email("Email inválido"),
     password: z.string().optional(),
-    role: z.enum(["ADMIN", "MANAGER", "USER", "ENGINEER"]),
+    role: z.enum(["ADMIN", "MANAGER", "USER", "ENGINEER", "SUPERVISOR", "SAFETY_OFFICER", "ACCOUNTANT", "HR_ANALYST"]),
     companyId: z.string().optional(),
 })
 
@@ -48,7 +48,7 @@ interface EditUserDialogProps {
         id: string;
         name: string | null;
         email: string;
-        role: "ADMIN" | "MANAGER" | "USER" | "ENGINEER";
+        role: "ADMIN" | "MANAGER" | "USER" | "ENGINEER" | "SUPERVISOR" | "SAFETY_OFFICER" | "ACCOUNTANT" | "HR_ANALYST";
         companyId: string | null;
     };
     companies: { id: string; name: string }[];

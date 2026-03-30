@@ -11,7 +11,6 @@ import {
   markAsRead,
   markAllAsRead,
   deleteNotification,
-  deleteNotifications,
   markNotificationsAsRead,
 } from "@/app/actions/notification-actions"
 
@@ -192,7 +191,8 @@ export function NotificationsClient({ initialNotifications }: NotificationsClien
 
   async function handleBulkDelete() {
     const ids = Array.from(selectedIds)
-    await deleteNotifications(ids)
+    // Delete each notification
+    await Promise.all(ids.map(id => deleteNotification(id)))
     setNotifications(prev => prev.filter(n => !selectedIds.has(n.id)))
     setSelectedIds(new Set())
   }

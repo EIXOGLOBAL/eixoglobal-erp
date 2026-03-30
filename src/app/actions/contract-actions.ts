@@ -3,6 +3,9 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
+import { getSession } from "@/lib/auth"
+import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
+import { buildWhereClause, type FilterParams } from "@/lib/filters"
 
 // ========================================
 // SCHEMAS ZOD
@@ -205,31 +208,49 @@ export async function deleteContract(id: string) {
   }
 }
 
-export async function getContracts(projectId?: string, companyId?: string) {
+export async function getContracts(params?: {
+  projectId?: string
+  companyId?: string
+  pagination?: PaginationParams
+  filters?: FilterParams
+}) {
   try {
-    const contracts = await prisma.contract.findMany({
-      where: {
-        ...(projectId && { projectId }),
-        ...(companyId && { companyId }),
-      },
-      include: {
-        project: {
-          select: { id: true, name: true }
-        },
-        contractor: {
-          select: { id: true, name: true }
-        },
-        _count: {
-          select: {
-            items: true,
-            amendments: true,
-            adjustments: true,
-            bulletins: true
+    const session = await getSession()
+    if (!session?.user) return { success: true, data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
+
+    const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
+    const filterWhere = buildWhereClause(params?.filters || {}, ['identifier', 'description'])
+    const where = {
+      ...(params?.projectId && { projectId: params.projectId }),
+      ...(params?.companyId ? { companyId: params.companyId } : { companyId: (session.user as any).companyId }),
+      ...filterWhere
+    }
+
+    const [contracts, total] = await Promise.all([
+      prisma.contract.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          project: {
+            select: { id: true, name: true }
+          },
+          contractor: {
+            select: { id: true, name: true }
+          },
+          _count: {
+            select: {
+              items: true,
+              amendments: true,
+              adjustments: true,
+              bulletins: true
+            }
           }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.contract.count({ where })
+    ])
 
     // Converter Decimals para numbers
     const serialized = contracts.map(c => ({
@@ -237,10 +258,10 @@ export async function getContracts(projectId?: string, companyId?: string) {
       value: Number(c.value)
     }))
 
-    return { success: true, data: serialized }
+    return { success: true, data: serialized, pagination: paginatedResponse(serialized, total, page, pageSize).pagination }
   } catch (error: any) {
     console.error("Error fetching contracts:", error)
-    return { success: false, error: error.message || "Erro ao buscar contratos" }
+    return { success: false, error: error.message || "Erro ao buscar contratos", data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
   }
 }
 

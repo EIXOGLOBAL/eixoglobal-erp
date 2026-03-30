@@ -53,7 +53,7 @@ import { HolidayDatePicker } from "@/components/ui/holiday-date-picker"
 // Types
 // ---------------------------------------------------------------------------
 
-type TaskStatus = "TODO" | "IN_PROGRESS" | "COMPLETED" | "ON_HOLD" | "CANCELLED"
+type TaskStatus = "TODO" | "IN_PROGRESS" | "COMPLETED" | "ON_HOLD" | "CANCELLED" | "BLOCKED" | "WAITING_APPROVAL"
 type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
 
 type Task = {
@@ -97,6 +97,8 @@ const statusLabels: Record<TaskStatus, string> = {
     COMPLETED: "Concluido",
     ON_HOLD: "Em Espera",
     CANCELLED: "Cancelado",
+    BLOCKED: "Bloqueado",
+    WAITING_APPROVAL: "Aguardando Aprovação",
 }
 
 const priorityLabels: Record<TaskPriority, string> = {
@@ -155,7 +157,7 @@ const taskFormSchema = z.object({
     description: z.string().optional(),
     phase: z.string().optional(),
     projectId: z.string().min(1, "Projeto e obrigatorio"),
-    status: z.enum(["TODO", "IN_PROGRESS", "COMPLETED", "ON_HOLD", "CANCELLED"]),
+    status: z.enum(["TODO", "IN_PROGRESS", "COMPLETED", "ON_HOLD", "CANCELLED", "BLOCKED", "WAITING_APPROVAL"]),
     priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
     startDate: z.string().min(1, "Data de inicio e obrigatoria"),
     endDate: z.string().min(1, "Data de fim e obrigatoria"),

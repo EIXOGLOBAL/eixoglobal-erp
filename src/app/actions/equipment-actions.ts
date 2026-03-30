@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import { assertCanDelete } from "@/lib/permissions"
 import { toNumber } from "@/lib/formatters"
+import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
+import { buildWhereClause, type FilterParams } from "@/lib/filters"
 
 // ============================================================================
 // SCHEMAS
@@ -173,25 +175,44 @@ export async function deleteEquipment(id: string) {
     }
 }
 
-export async function getEquipment(companyId: string) {
+export async function getEquipment(params?: {
+    companyId?: string
+    pagination?: PaginationParams
+    filters?: FilterParams
+}) {
     try {
-        const equipment = await prisma.equipment.findMany({
-            where: { companyId },
-            include: {
-                _count: {
-                    select: {
-                        usages: true,
-                        maintenances: true,
+        const session = await getSession()
+        if (!session?.user) return { success: true, data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
+
+        const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
+        const filterWhere = buildWhereClause(params?.filters || {}, ['name', 'code'])
+        const where = {
+            companyId: params?.companyId || (session.user as any).companyId,
+            ...filterWhere
+        }
+
+        const [equipment, total] = await Promise.all([
+            prisma.equipment.findMany({
+                where,
+                skip,
+                take,
+                include: {
+                    _count: {
+                        select: {
+                            usages: true,
+                            maintenances: true,
+                        },
                     },
                 },
-            },
-            orderBy: { name: 'asc' },
-        })
+                orderBy: { name: 'asc' },
+            }),
+            prisma.equipment.count({ where })
+        ])
 
-        return { success: true, data: equipment }
+        return { success: true, data: equipment, pagination: paginatedResponse(equipment, total, page, pageSize).pagination }
     } catch (error) {
         console.error("Erro ao buscar equipamentos:", error)
-        return { success: false, error: "Erro ao buscar equipamentos", data: [] }
+        return { success: false, error: "Erro ao buscar equipamentos", data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
 

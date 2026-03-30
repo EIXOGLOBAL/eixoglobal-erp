@@ -42,6 +42,9 @@ import {
     Handshake,
     ArrowLeftRight,
     PieChart,
+    Clock,
+    CheckCircle,
+    Shield,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -118,6 +121,7 @@ const administracaoSection = {
                 { title: "Tabela Salarial", href: "/rh/tabela-salarial", icon: LayoutList },
             ]
         },
+        { title: "Controle de Ponto", href: "/ponto", icon: Clock },
         { title: "Fornecedores", href: "/fornecedores", icon: Truck },
         { title: "Estoque", href: "/estoque", icon: Package },
         { title: "Compras", href: "/compras", icon: ShoppingCart },
@@ -140,6 +144,16 @@ const engenhariaSection = {
         { title: "Empreiteiras", href: "/empreiteiras", icon: HardHat },
         { title: "Equipamentos", href: "/equipamentos", icon: Truck },
         { title: "Locações", href: "/locacoes", icon: KeyRound },
+        { title: "Gestão de Qualidade", href: "/qualidade", icon: CheckCircle },
+    ]
+}
+
+const segurancaSection = {
+    section: "Segurança",
+    adminOnly: false,
+    items: [
+        { title: "Segurança do Trabalho", href: "/seguranca-trabalho", icon: Shield },
+        { title: "Gestão de Documentos", href: "/documentos", icon: FileText },
     ]
 }
 
@@ -154,7 +168,7 @@ const sistemaSection = {
     ]
 }
 
-const allSidebarSections = [topLevelSection, administracaoSection, engenhariaSection, sistemaSection]
+const allSidebarSections = [topLevelSection, administracaoSection, engenhariaSection, segurancaSection, sistemaSection]
 
 type NavItem = {
     title: string

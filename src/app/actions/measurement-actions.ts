@@ -4,6 +4,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSession } from '@/lib/auth';
+import { getPaginationArgs, paginatedResponse, type PaginationParams } from '@/lib/pagination';
+import { buildWhereClause, type FilterParams } from '@/lib/filters';
 
 // Schemas
 const CreateSchema = z.object({
@@ -61,31 +63,43 @@ export async function createMeasurementAction(data: z.infer<typeof CreateSchema>
     }
 }
 
-export async function getMeasurements(status?: 'PENDING' | 'ALL') {
+export async function getMeasurements(params?: {
+    status?: 'PENDING' | 'ALL'
+    pagination?: PaginationParams
+    filters?: FilterParams
+}) {
     const session = await getSession()
-    if (!session?.user) return { success: false, error: 'Não autenticado' }
+    if (!session?.user) return { success: false, error: 'Não autenticado', data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     const user = session.user as { id: string; role: string; companyId: string }
 
     try {
+        const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
+        const filterWhere = buildWhereClause(params?.filters || {}, ['description'])
+
         const where: any = {
             project: {
                 companyId: user.companyId
-            }
-        };
-        if (status === 'PENDING') {
-            where.status = 'PENDING';
+            },
+            ...filterWhere
         }
-        // status 'ALL' implies no filter or filtered by user. keeping it open for now.
+        if (params?.status === 'PENDING') {
+            where.status = 'PENDING'
+        }
 
-        const measurements = await prisma.measurement.findMany({
-            where,
-            orderBy: { date: 'desc' },
-            include: {
-                project: true,
-                employee: true,
-                contractItem: true
-            }
-        });
+        const [measurements, total] = await Promise.all([
+            prisma.measurement.findMany({
+                where,
+                skip,
+                take,
+                orderBy: { date: 'desc' },
+                include: {
+                    project: true,
+                    employee: true,
+                    contractItem: true
+                }
+            }),
+            prisma.measurement.count({ where })
+        ])
 
         // Serialize Decimals for client components
         const serialized = measurements.map(m => ({
@@ -95,11 +109,11 @@ export async function getMeasurements(status?: 'PENDING' | 'ALL') {
                 ...m.contractItem,
                 unitPrice: Number(m.contractItem.unitPrice)
             }
-        }));
+        }))
 
-        return { success: true, data: serialized };
+        return { success: true, data: serialized, pagination: paginatedResponse(serialized, total, page, pageSize).pagination }
     } catch (error: any) {
-        return { success: false, error: error.message };
+        return { success: false, error: error.message, data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
 

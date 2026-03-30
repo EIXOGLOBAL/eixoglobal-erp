@@ -8,6 +8,8 @@ import { createNotificationForMany } from "./notification-actions"
 import { notifyUsers } from "@/lib/sse-notifications"
 import { toNumber } from "@/lib/formatters"
 import { getSession } from "@/lib/auth"
+import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
+import { buildWhereClause, type FilterParams } from "@/lib/filters"
 
 // ============================================================================
 // SCHEMAS
@@ -147,28 +149,47 @@ export async function deletePurchaseOrder(id: string) {
     }
 }
 
-export async function getPurchaseOrders(companyId: string) {
+export async function getPurchaseOrders(params?: {
+    companyId?: string
+    pagination?: PaginationParams
+    filters?: FilterParams
+}) {
     try {
-        const orders = await prisma.purchaseOrder.findMany({
-            where: { companyId },
-            include: {
-                supplier: {
-                    select: { id: true, name: true }
-                },
-                project: {
-                    select: { id: true, name: true }
-                },
-                _count: {
-                    select: { items: true }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        })
+        const session = await getSession()
+        if (!session?.user) return { success: true, data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
 
-        return orders
+        const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
+        const filterWhere = buildWhereClause(params?.filters || {}, ['number', 'notes'])
+        const where = {
+            companyId: params?.companyId || (session.user as any).companyId,
+            ...filterWhere
+        }
+
+        const [orders, total] = await Promise.all([
+            prisma.purchaseOrder.findMany({
+                where,
+                skip,
+                take,
+                include: {
+                    supplier: {
+                        select: { id: true, name: true }
+                    },
+                    project: {
+                        select: { id: true, name: true }
+                    },
+                    _count: {
+                        select: { items: true }
+                    }
+                },
+                orderBy: { createdAt: 'desc' }
+            }),
+            prisma.purchaseOrder.count({ where })
+        ])
+
+        return { success: true, data: orders, pagination: paginatedResponse(orders, total, page, pageSize).pagination }
     } catch (error) {
         console.error("Erro ao buscar pedidos de compra:", error)
-        return []
+        return { success: false, error: "Erro ao buscar pedidos de compra", data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
 
@@ -388,7 +409,7 @@ export async function updateOrderStatus(id: string, status: PurchaseOrderStatus)
                 message: `Pedido ${updated.number} foi aprovado.`,
                 link: `/compras/${updated.id}`,
             }
-            await createNotificationForMany({ userIds: managerIds, companyId: updated.companyId, ...notifData })
+            await createNotificationForMany(managerIds, notifData)
             notifyUsers(managerIds, notifData)
         }
 

@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { getSession } from "@/lib/auth"
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -17,7 +18,7 @@ const taskSchema = z.object({
     plannedStart: z.string().optional().nullable(),
     plannedEnd: z.string().optional().nullable(),
     percentDone: z.number().min(0).max(100).optional().default(0),
-    status: z.enum(["TODO", "IN_PROGRESS", "COMPLETED", "ON_HOLD", "CANCELLED"]).default("TODO"),
+    status: z.enum(["TODO", "IN_PROGRESS", "COMPLETED", "ON_HOLD", "CANCELLED", "BLOCKED", "WAITING_APPROVAL"]).default("TODO"),
     priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).default("MEDIUM"),
     projectId: z.string().uuid("Projeto inválido"),
     parentId: z.string().uuid().optional().nullable(),
@@ -31,6 +32,18 @@ type TaskInput = z.infer<typeof taskSchema>
 
 export async function createTask(data: TaskInput) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify project belongs to user's company
+        const project = await prisma.project.findUnique({
+            where: { id: data.projectId },
+            select: { companyId: true }
+        })
+        if (!project || project.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = taskSchema.parse(data)
 
         const task = await prisma.projectTask.create({
@@ -67,6 +80,27 @@ export async function createTask(data: TaskInput) {
 
 export async function updateTask(id: string, data: TaskInput) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify task's project belongs to user's company
+        const existingTask = await prisma.projectTask.findUnique({
+            where: { id },
+            select: { project: { select: { companyId: true } } }
+        })
+        if (!existingTask || existingTask.project.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
+        // Verify new project belongs to user's company
+        const project = await prisma.project.findUnique({
+            where: { id: data.projectId },
+            select: { companyId: true }
+        })
+        if (!project || project.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const validated = taskSchema.parse(data)
 
         const task = await prisma.projectTask.update({
@@ -104,6 +138,18 @@ export async function updateTask(id: string, data: TaskInput) {
 
 export async function deleteTask(id: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify task's project belongs to user's company
+        const task = await prisma.projectTask.findUnique({
+            where: { id },
+            select: { project: { select: { companyId: true } } }
+        })
+        if (!task || task.project.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         // Check if task has children
         const childCount = await prisma.projectTask.count({
             where: { parentId: id },
@@ -134,6 +180,18 @@ export async function deleteTask(id: string) {
 
 export async function getTasks(projectId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return []
+
+        // Verify project belongs to user's company
+        const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            select: { companyId: true }
+        })
+        if (!project || project.companyId !== session.user.companyId) {
+            return []
+        }
+
         const tasks = await prisma.projectTask.findMany({
             where: { projectId },
             orderBy: { startDate: "asc" },
@@ -156,6 +214,14 @@ export async function getTasks(projectId: string) {
 
 export async function getTasksByCompany(companyId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return []
+
+        // Verify company access
+        if (companyId !== session.user.companyId) {
+            return []
+        }
+
         const tasks = await prisma.projectTask.findMany({
             where: {
                 project: { companyId },
@@ -183,6 +249,18 @@ export async function getTasksByCompany(companyId: string) {
 
 export async function updateTaskProgress(id: string, percentDone: number) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verify task's project belongs to user's company
+        const existingTask = await prisma.projectTask.findUnique({
+            where: { id },
+            select: { project: { select: { companyId: true } } }
+        })
+        if (!existingTask || existingTask.project.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         const clampedPercent = Math.min(Math.max(percentDone, 0), 100)
 
         let status: "TODO" | "IN_PROGRESS" | "COMPLETED"
@@ -215,10 +293,13 @@ export async function updateTaskProgress(id: string, percentDone: number) {
 
 export async function getTaskById(id: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
         const task = await prisma.projectTask.findUnique({
             where: { id },
             include: {
-                project: { select: { id: true, name: true } },
+                project: { select: { id: true, name: true, companyId: true } },
                 parent: { select: { id: true, name: true } },
                 children: { select: { id: true, name: true, percentDone: true, status: true }, orderBy: { startDate: 'asc' } },
                 dependenciesAsPredecessor: { include: { successor: { select: { id: true, name: true } } } },
@@ -226,6 +307,12 @@ export async function getTaskById(id: string) {
             },
         })
         if (!task) return { success: false, error: "Tarefa não encontrada" }
+
+        // Verify company access
+        if (task.project.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         return { success: true, data: task }
     } catch (error) {
         console.error("Erro ao buscar tarefa:", error)

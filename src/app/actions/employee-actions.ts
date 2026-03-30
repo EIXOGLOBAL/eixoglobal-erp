@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache"
 import { getNextCode } from "@/lib/sequence"
 import { getSession } from "@/lib/auth"
 import { assertCanDelete } from "@/lib/permissions"
+import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
+import { buildWhereClause, type FilterParams } from "@/lib/filters"
 
 // ============================================================================
 // SCHEMAS DE VALIDAÇÃO
@@ -349,33 +351,53 @@ export async function deleteEmployee(id: string) {
     }
 }
 
-export async function getEmployees(companyId: string, status?: 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE') {
+export async function getEmployees(params?: {
+    companyId?: string
+    status?: 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE'
+    pagination?: PaginationParams
+    filters?: FilterParams
+}) {
     try {
-        const employees = await prisma.employee.findMany({
-            where: {
-                companyId,
-                ...(status && { status }),
-            },
-            include: {
-                _count: {
-                    select: {
-                        allocations: true,
-                        measurements: true,
-                    }
-                }
-            },
-            orderBy: {
-                name: 'asc'
-            }
-        })
+        const session = await getSession()
+        if (!session?.user) return { success: true, data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
 
-        return employees.map(emp => ({
+        const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
+        const filterWhere = buildWhereClause(params?.filters || {}, ['name', 'matricula'])
+        const where = {
+            companyId: params?.companyId || (session.user as any).companyId,
+            ...(params?.status && { status: params.status }),
+            ...filterWhere
+        }
+
+        const [employees, total] = await Promise.all([
+            prisma.employee.findMany({
+                where,
+                skip,
+                take,
+                include: {
+                    _count: {
+                        select: {
+                            allocations: true,
+                            measurements: true,
+                        }
+                    }
+                },
+                orderBy: {
+                    name: 'asc'
+                }
+            }),
+            prisma.employee.count({ where })
+        ])
+
+        const mapped = employees.map(emp => ({
             ...emp,
             costPerHour: emp.costPerHour ? Number(emp.costPerHour) : null,
         }))
+
+        return { success: true, data: mapped, pagination: paginatedResponse(mapped, total, page, pageSize).pagination }
     } catch (error) {
         console.error("Erro ao buscar funcionários:", error)
-        return []
+        return { success: false, error: error instanceof Error ? error.message : "Erro ao buscar funcionários", data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
 

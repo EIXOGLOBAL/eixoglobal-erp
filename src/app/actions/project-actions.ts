@@ -6,6 +6,8 @@ import { z } from "zod"
 import { getNextCode } from "@/lib/sequence"
 import { getSession } from "@/lib/auth"
 import { assertCanDelete } from "@/lib/permissions"
+import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
+import { buildWhereClause, type FilterParams } from "@/lib/filters"
 
 const projectSchema = z.object({
     name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres"),
@@ -171,29 +173,48 @@ export async function deleteProject(id: string) {
     }
 }
 
-export async function getProjects(companyId?: string) {
+export async function getProjects(params?: {
+    companyId?: string
+    pagination?: PaginationParams
+    filters?: FilterParams
+}) {
     try {
-        const projects = await prisma.project.findMany({
-            where: companyId ? { companyId } : undefined,
-            include: {
-                company: {
-                    select: {
-                        id: true,
-                        name: true,
-                        cnpj: true,
+        const session = await getSession()
+        if (!session?.user) return { success: true, data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
+
+        const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
+        const filterWhere = buildWhereClause(params?.filters || {}, ['name', 'code'])
+        const where = {
+            ...(params?.companyId ? { companyId: params.companyId } : { companyId: (session.user as any).companyId }),
+            ...filterWhere
+        }
+
+        const [projects, total] = await Promise.all([
+            prisma.project.findMany({
+                where,
+                skip,
+                take,
+                include: {
+                    company: {
+                        select: {
+                            id: true,
+                            name: true,
+                            cnpj: true,
+                        }
+                    },
+                    _count: {
+                        select: {
+                            measurements: true,
+                            contracts: true,
+                        }
                     }
                 },
-                _count: {
-                    select: {
-                        measurements: true,
-                        contracts: true,
-                    }
+                orderBy: {
+                    createdAt: 'desc'
                 }
-            },
-            orderBy: {
-                createdAt: 'desc'
-            }
-        })
+            }),
+            prisma.project.count({ where })
+        ])
 
         // Convert Decimal to Number for client components
         const serializedProjects = projects.map(project => ({
@@ -201,9 +222,9 @@ export async function getProjects(companyId?: string) {
             budget: Number(project.budget || 0)
         }))
 
-        return { success: true, data: serializedProjects }
+        return { success: true, data: serializedProjects, pagination: paginatedResponse(serializedProjects, total, page, pageSize).pagination }
     } catch (error: any) {
-        return { success: false, error: error.message || 'Erro ao buscar projetos' }
+        return { success: false, error: error.message || 'Erro ao buscar projetos', data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
 

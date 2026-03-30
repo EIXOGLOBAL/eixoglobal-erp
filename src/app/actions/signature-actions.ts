@@ -350,7 +350,6 @@ export async function initiateContractSignature(contractId: string) {
     // Notification
     await createNotification({
       userId: user.id,
-      companyId: user.companyId,
       type: 'SIGNATURE_INITIATED',
       title: 'Assinatura Digital Enviada',
       message: `O contrato ${contract.identifier} foi enviado para assinatura digital.`,
@@ -720,7 +719,6 @@ export async function cancelSignature(
     // Notification
     await createNotification({
       userId: user.id,
-      companyId,
       type: 'SIGNATURE_CANCELED',
       title: 'Assinatura Cancelada',
       message: `A assinatura digital de ${entityName} foi cancelada. Motivo: ${reason}`,

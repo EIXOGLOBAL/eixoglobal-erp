@@ -4,6 +4,8 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
+import { buildWhereClause, type FilterParams } from "@/lib/filters"
 
 // ============================================================================
 // AUDIT LOGGING HELPER
@@ -277,37 +279,57 @@ export async function deleteFinancialRecord(id: string) {
     }
 }
 
-export async function getFinancialRecords(companyId: string, type?: 'INCOME' | 'EXPENSE', status?: string) {
+export async function getFinancialRecords(params?: {
+    companyId?: string
+    type?: 'INCOME' | 'EXPENSE'
+    status?: string
+    pagination?: PaginationParams
+    filters?: FilterParams
+}) {
     try {
-        const records = await prisma.financialRecord.findMany({
-            where: {
-                companyId,
-                ...(type && { type }),
-                ...(status && { status: status as any }),
-            },
-            include: {
-                bankAccount: {
-                    select: { id: true, name: true }
-                },
-                costCenter: {
-                    select: { id: true, code: true, name: true }
-                },
-                project: {
-                    select: { id: true, name: true }
-                }
-            },
-            orderBy: { dueDate: 'desc' },
-            take: 200,
-        })
+        const session = await getSession()
+        if (!session?.user) return { success: true, data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
 
-        return records.map(r => ({
+        const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
+        const filterWhere = buildWhereClause(params?.filters || {}, ['description'])
+        const where = {
+            companyId: params?.companyId || (session.user as any).companyId,
+            ...(params?.type && { type: params.type }),
+            ...(params?.status && { status: params.status as any }),
+            ...filterWhere
+        }
+
+        const [records, total] = await Promise.all([
+            prisma.financialRecord.findMany({
+                where,
+                skip,
+                take,
+                include: {
+                    bankAccount: {
+                        select: { id: true, name: true }
+                    },
+                    costCenter: {
+                        select: { id: true, code: true, name: true }
+                    },
+                    project: {
+                        select: { id: true, name: true }
+                    }
+                },
+                orderBy: { dueDate: 'desc' },
+            }),
+            prisma.financialRecord.count({ where })
+        ])
+
+        const mapped = records.map(r => ({
             ...r,
             amount: Number(r.amount),
             paidAmount: Number(r.paidAmount),
         }))
+
+        return { success: true, data: mapped, pagination: paginatedResponse(mapped, total, page, pageSize).pagination }
     } catch (error) {
         console.error("Erro ao buscar lançamentos:", error)
-        return []
+        return { success: false, error: "Erro ao buscar lançamentos", data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
 

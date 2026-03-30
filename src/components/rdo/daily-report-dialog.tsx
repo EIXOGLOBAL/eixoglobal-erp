@@ -130,15 +130,16 @@ export function DailyReportDialog({ companyId, projects, report, trigger }: Dail
     const selectedProject = projects.find(p => p.id === watchedProjectId)
     const hasCoordinates = !!(selectedProject?.latitude && selectedProject?.longitude)
 
-    const handleWeatherLoaded = useCallback((weather: WeatherData) => {
-        // Auto-populate temperature (average of min/max) if not already set by user
+    const handleWeatherLoaded = useCallback((weather: any) => {
+        // Auto-populate temperature if not already set by user
         const currentTemp = form.getValues("temperature")
         if (currentTemp === "" || currentTemp === undefined) {
-            const avgTemp = Math.round((weather.tempMax + weather.tempMin) / 2)
-            form.setValue("temperature", avgTemp)
+            // Handle both WeatherData (temperature) and HistoricalWeatherData (tempMin/tempMax)
+            const temp = weather.temperature || Math.round((weather.tempMax + weather.tempMin) / 2)
+            form.setValue("temperature", temp)
         }
-        // Auto-populate weather condition from WMO code
-        const condition = wmoCodeToWeatherCondition(weather.conditionCode) as WeatherCondition
+        // Auto-populate weather condition
+        const condition = (weather.condition || 'CLOUDY') as WeatherCondition
         form.setValue("weather", condition)
     }, [form])
 

@@ -7,6 +7,8 @@ import { getSession } from "@/lib/auth"
 import { assertCanDelete } from "@/lib/permissions"
 import { createNotificationForMany } from "./notification-actions"
 import { notifyUsers } from "@/lib/sse-notifications"
+import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
+import { buildWhereClause, type FilterParams } from "@/lib/filters"
 
 // ============================================================================
 // SCHEMAS
@@ -161,30 +163,51 @@ export async function deleteMaterial(id: string) {
     }
 }
 
-export async function getMaterials(companyId: string) {
+export async function getMaterials(params?: {
+    companyId?: string
+    pagination?: PaginationParams
+    filters?: FilterParams
+}) {
     try {
-        const materials = await prisma.material.findMany({
-            where: { companyId },
-            include: {
-                _count: {
-                    select: {
-                        movements: true,
+        const session = await getSession()
+        if (!session?.user) return { success: true, data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
+
+        const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
+        const filterWhere = buildWhereClause(params?.filters || {}, ['name', 'code', 'category'])
+        const where = {
+            companyId: params?.companyId || (session.user as any).companyId,
+            ...filterWhere
+        }
+
+        const [materials, total] = await Promise.all([
+            prisma.material.findMany({
+                where,
+                skip,
+                take,
+                include: {
+                    _count: {
+                        select: {
+                            movements: true,
+                        }
                     }
-                }
-            },
-            orderBy: { name: 'asc' }
-        })
+                },
+                orderBy: { name: 'asc' }
+            }),
+            prisma.material.count({ where })
+        ])
 
         // Converter Decimal para Number
-        return materials.map(m => ({
+        const mapped = materials.map(m => ({
             ...m,
             minStock: Number(m.minStock),
             currentStock: Number(m.currentStock),
             unitCost: Number(m.unitCost),
         }))
+
+        return { success: true, data: mapped, pagination: paginatedResponse(mapped, total, page, pageSize).pagination }
     } catch (error) {
         console.error("Erro ao buscar materiais:", error)
-        return []
+        return { success: false, error: "Erro ao buscar materiais", data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
 
@@ -329,7 +352,7 @@ export async function createMovement(data: z.infer<typeof movementSchema>) {
                 message: `"${material.name}" está com ${newStock} ${material.unit} (mínimo: ${minStock}).`,
                 link: `/estoque`,
             }
-            await createNotificationForMany({ userIds: adminIds, companyId: material.companyId, ...notifData })
+            await createNotificationForMany(adminIds, notifData)
             notifyUsers(adminIds, notifData)
         }
 

@@ -8,6 +8,8 @@ import { logAudit } from "@/lib/audit"
 import { toNumber } from "@/lib/formatters"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
+import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
+import { buildWhereClause, type FilterParams } from "@/lib/filters"
 
 const supplierSchema = z.object({
     name: z.string().min(2, "Razão social é obrigatória"),
@@ -148,19 +150,39 @@ export async function deleteSupplier(id: string) {
     }
 }
 
-export async function getSuppliers(companyId: string) {
+export async function getSuppliers(params?: {
+    companyId?: string
+    pagination?: PaginationParams
+    filters?: FilterParams
+}) {
     try {
-        const suppliers = await prisma.supplier.findMany({
-            where: { companyId },
-            include: {
-                _count: { select: { fiscalNotes: true } }
-            },
-            orderBy: { name: 'asc' }
-        })
-        return { success: true, data: suppliers }
+        const session = await getSession()
+        if (!session?.user) return { success: true, data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
+
+        const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
+        const filterWhere = buildWhereClause(params?.filters || {}, ['name', 'tradeName', 'cnpj'])
+        const where = {
+            companyId: params?.companyId || (session.user as any).companyId,
+            ...filterWhere
+        }
+
+        const [suppliers, total] = await Promise.all([
+            prisma.supplier.findMany({
+                where,
+                skip,
+                take,
+                include: {
+                    _count: { select: { fiscalNotes: true } }
+                },
+                orderBy: { name: 'asc' }
+            }),
+            prisma.supplier.count({ where })
+        ])
+
+        return { success: true, data: suppliers, pagination: paginatedResponse(suppliers, total, page, pageSize).pagination }
     } catch (error) {
         console.error("Erro ao buscar fornecedores:", error)
-        return { success: false, data: [], error: "Erro ao buscar fornecedores" }
+        return { success: false, data: [], error: "Erro ao buscar fornecedores", pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
 

@@ -191,7 +191,7 @@ export async function approveVacationRequest(id: string, approvedBy: string) {
             message: `Férias de ${request.employee.name} foram aprovadas.`,
             link: '/dep-pessoal/ferias',
         }
-        await createNotificationForMany({ userIds: managerIds, companyId: request.employee.companyId, ...notifData })
+        await createNotificationForMany(managerIds, notifData)
         notifyUsers(managerIds, notifData)
 
         revalidatePath('/dep-pessoal/ferias')
@@ -240,7 +240,7 @@ export async function rejectVacationRequest(id: string, reason: string) {
             message: `Férias de ${request.employee.name} foram rejeitadas.`,
             link: '/dep-pessoal/ferias',
         }
-        await createNotificationForMany({ userIds: managerIds, companyId: request.employee.companyId, ...notifData })
+        await createNotificationForMany(managerIds, notifData)
         notifyUsers(managerIds, notifData)
 
         revalidatePath('/dep-pessoal/ferias')
@@ -256,6 +256,14 @@ export async function rejectVacationRequest(id: string, reason: string) {
 
 export async function getVacationRequests(companyId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return []
+
+        // Verify company access
+        if (companyId !== session.user.companyId) {
+            return []
+        }
+
         const requests = await prisma.vacationRequest.findMany({
             where: { employee: { companyId } },
             include: {
