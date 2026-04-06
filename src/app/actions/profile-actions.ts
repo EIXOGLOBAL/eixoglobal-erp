@@ -44,10 +44,11 @@ export async function updateProfile(data: { userId: string; name: string; email:
         revalidatePath('/configuracoes/perfil')
         return { success: true }
     } catch (error: any) {
+        console.error("[updateProfile] error:", error)
         if (error instanceof z.ZodError) {
             return { success: false, error: error.issues[0]?.message }
         }
-        return { success: false, error: "Erro ao atualizar perfil" }
+        return { success: false, error: `Erro ao atualizar perfil: ${error?.message ?? "desconhecido"}` }
     }
 }
 
@@ -83,9 +84,10 @@ export async function changePassword(data: {
 
         return { success: true }
     } catch (error: any) {
+        console.error("[changePassword] error:", error)
         if (error instanceof z.ZodError) {
             return { success: false, error: error.issues[0]?.message }
         }
-        return { success: false, error: "Erro ao alterar senha" }
+        return { success: false, error: `Erro ao alterar senha: ${error?.message ?? "desconhecido"}` }
     }
 }
