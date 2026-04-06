@@ -34,6 +34,19 @@ jobs:
             ghcr.io/eixoglobal/eixoglobal-erp:latest
             ghcr.io/eixoglobal/eixoglobal-erp:${{ github.sha }}
 
+      - name: Atualizar IMAGE_TAG no Dokploy
+        env:
+          DOKPLOY_COMPOSE_ENV: ${{ secrets.DOKPLOY_COMPOSE_ENV }}
+        run: |
+          ENV_BLOCK="${DOKPLOY_COMPOSE_ENV}
+          IMAGE_TAG=${{ github.sha }}"
+          jq -n --arg id "${{ secrets.DOKPLOY_COMPOSE_ID }}" --arg env "$ENV_BLOCK" \
+            '{composeId:$id, env:$env}' > payload.json
+          curl -sX POST "${{ secrets.DOKPLOY_URL }}/api/compose.update" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
+            --data @payload.json
+
       - name: Deploy no Dokploy
         run: |
           curl -X POST "${{ secrets.DOKPLOY_URL }}/api/compose.deploy" \

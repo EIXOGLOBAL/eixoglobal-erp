@@ -18,7 +18,7 @@ services:
       retries: 5
 
   erp:
-    image: ghcr.io/eixoglobal/eixoglobal-erp:latest
+    image: ghcr.io/eixoglobal/eixoglobal-erp:${IMAGE_TAG:-latest}
     pull_policy: always
     container_name: eixo_erp_app
     restart: unless-stopped
