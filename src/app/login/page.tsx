@@ -5,6 +5,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 // import { buttonVariants } from "@/components/ui/button"
 import { LoginForm } from "@/components/auth/login-form"
+import { VersionBadge } from "@/components/version-badge"
 
 export const metadata: Metadata = {
     title: "Login - Eixo Global",
@@ -68,6 +69,9 @@ export default function LoginPage() {
                         </Link>
                         .
                     </p>
+                    <div className="pt-2 flex justify-center">
+                        <VersionBadge variant="compact" />
+                    </div>
                 </div>
             </div>
         </div>

@@ -52,6 +52,7 @@ import { useState } from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { useCommandPalette } from "@/components/layout/command-palette-provider"
+import { VersionBadge } from "@/components/version-badge"
 
 // Sidebar structure organized by department sections
 // Order: top-level → Administração → Engenharia → Sistema (ADMIN only)
@@ -327,6 +328,11 @@ export function Sidebar({ className, userRole = 'USER' }: SidebarProps) {
             {/* Theme toggle */}
             <div className="shrink-0 border-t px-3 py-3">
                 <ThemeToggle />
+            </div>
+
+            {/* Version badge */}
+            <div className="shrink-0 border-t px-3 py-2 flex justify-center">
+                <VersionBadge variant="compact" />
             </div>
         </div>
     )
