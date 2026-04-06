@@ -19,6 +19,7 @@ services:
 
   erp:
     image: ghcr.io/eixoglobal/eixoglobal-erp:latest
+    pull_policy: always
     container_name: eixo_erp_app
     restart: unless-stopped
     depends_on:
