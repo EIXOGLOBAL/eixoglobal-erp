@@ -30,26 +30,35 @@ export default async function DashboardPage() {
 
   const isManager = user.role === 'ADMIN' || user.role === 'MANAGER'
 
-  // Parallel data fetching
-  const [
-    kpis,
-    cashflow,
-    projectsChart,
-    topProjects,
-    hrChart,
-    recentProjects,
-    recentTx,
-    alerts,
-  ] = await Promise.all([
-    getDashboardKPIs(companyId, 'month'),
-    getCashflowChartData(companyId, 12),
-    getProjectsChartData(companyId),
-    getTopProjectsData(companyId, 5),
-    getHRChartData(companyId, 6),
-    getRecentProjects(companyId, 5),
-    getRecentTransactions(companyId, 5),
-    getOperationalAlerts(companyId),
-  ])
+  // Parallel data fetching — allSettled para não derrubar a página inteira
+  const fetchers = [
+    ['kpis', () => getDashboardKPIs(companyId, 'month')],
+    ['cashflow', () => getCashflowChartData(companyId, 12)],
+    ['projectsChart', () => getProjectsChartData(companyId)],
+    ['topProjects', () => getTopProjectsData(companyId, 5)],
+    ['hrChart', () => getHRChartData(companyId, 6)],
+    ['recentProjects', () => getRecentProjects(companyId, 5)],
+    ['recentTx', () => getRecentTransactions(companyId, 5)],
+    ['alerts', () => getOperationalAlerts(companyId)],
+  ] as const
+
+  const settled = await Promise.allSettled(fetchers.map(([, fn]) => fn()))
+  settled.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      console.error(`[dashboard] fetcher=${fetchers[i][0]} FAILED:`, r.reason?.message, r.reason?.stack)
+    }
+  })
+  const val = <T,>(i: number, fallback: T): T =>
+    settled[i].status === 'fulfilled' ? (settled[i] as PromiseFulfilledResult<T>).value : fallback
+
+  const kpis = val(0, null as any)
+  const cashflow = val(1, [] as any)
+  const projectsChart = val(2, [] as any)
+  const topProjects = val(3, [] as any)
+  const hrChart = val(4, [] as any)
+  const recentProjects = val(5, [] as any)
+  const recentTx = val(6, [] as any)
+  const alerts = val(7, [] as any)
 
   return (
     <PageTransition>
