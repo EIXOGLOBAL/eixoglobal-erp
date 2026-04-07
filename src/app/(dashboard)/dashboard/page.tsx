@@ -51,7 +51,18 @@ export default async function DashboardPage() {
   const val = <T,>(i: number, fallback: T): T =>
     settled[i].status === 'fulfilled' ? (settled[i] as PromiseFulfilledResult<T>).value : fallback
 
-  const kpis = val(0, null as any)
+  const kpis = val(0, {
+    activeProjects: 0,
+    totalProjects: 0,
+    periodRevenue: 0,
+    periodExpenses: 0,
+    currentBalance: 0,
+    allocatedEmployees: 0,
+    totalActiveEmployees: 0,
+    pendingBulletins: 0,
+    pendingBudgets: 0,
+    expiringContracts30d: 0,
+  } as any)
   const cashflow = val(1, [] as any)
   const projectsChart = val(2, [] as any)
   const topProjects = val(3, [] as any)
