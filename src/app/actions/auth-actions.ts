@@ -22,10 +22,13 @@ export type LoginState = {
     success?: boolean;
 }
 
-export async function login(prevState: LoginState, formData: FormData) {
+export async function login(prevState: LoginState, formData: FormData): Promise<LoginState> {
+  try {
+    console.log("[login] step=start")
     const headersList = await headers()
     const ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || '127.0.0.1'
     const ipKey = `login:${ip}`
+    console.log("[login] step=headers ip=", ip)
 
     // Check rate limit
     const rateLimit = loginRateLimiter.check(ipKey)
@@ -104,14 +107,19 @@ export async function login(prevState: LoginState, formData: FormData) {
 
         return { success: true }
 
-    } catch (error) {
-        console.error("Login error:", error)
-        // Log system error
-        await logFailedLoginAttempt(ip, 'system_error', null)
+    } catch (error: any) {
+        console.error("Login inner error:", error)
+        console.error("Login inner stack:", error?.stack)
+        try { await logFailedLoginAttempt(ip, 'system_error', null) } catch {}
         return {
-            message: "Erro ao tentar realizar login.",
+            message: `Erro no login: ${error?.message ?? "desconhecido"} [${error?.name ?? "Error"}]`,
         }
     }
+  } catch (outer: any) {
+    console.error("[login] outer error:", outer)
+    console.error("[login] outer stack:", outer?.stack)
+    return { message: `Erro fatal no login: ${outer?.message ?? "desconhecido"} [${outer?.name ?? "Error"}]` }
+  }
 }
 
 /**
