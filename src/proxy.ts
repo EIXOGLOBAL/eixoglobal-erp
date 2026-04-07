@@ -4,7 +4,7 @@ import { securityHeaders } from '@/lib/security-headers'
 import { decrypt } from '@/lib/session'
 
 // Routes that don't require authentication
-const publicRoutes = ['/login', '/api/webhooks', '/api/version', '/api/admin/reset-password', '/setup', '/register-setup']
+const publicRoutes = ['/login', '/api/webhooks', '/api/version', '/api/admin/reset-password', '/api/admin/debug-errors', '/setup', '/register-setup']
 
 export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl

@@ -1,4 +1,12 @@
 import { prisma } from '@/lib/prisma'
+import { recordDebugError } from '@/lib/debug-errors'
+
+async function safeQ<T>(name: string, fn: () => Promise<T>, fallback: T): Promise<T> {
+  try { return await fn() } catch (e: any) {
+    recordDebugError(`getDashboardKPIs.${name}`, e)
+    return fallback
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Period helpers
@@ -55,81 +63,15 @@ export async function getDashboardKPIs(companyId: string, period: string) {
     pendingBudgets,
     expiringContracts,
   ] = await Promise.all([
-    // All projects for the company
-    prisma.project.findMany({
-      where: { companyId },
-      select: { status: true },
-    }),
-
-    // Period income
-    prisma.financialRecord.findMany({
-      where: {
-        companyId,
-        type: 'INCOME',
-        status: { in: ['PAID', 'PENDING', 'SCHEDULED'] },
-        dueDate: { gte: start, lte: end },
-      },
-      select: { amount: true, status: true },
-    }),
-
-    // Period expenses
-    prisma.financialRecord.findMany({
-      where: {
-        companyId,
-        type: 'EXPENSE',
-        status: { in: ['PAID', 'PENDING', 'SCHEDULED'] },
-        dueDate: { gte: start, lte: end },
-      },
-      select: { amount: true, status: true },
-    }),
-
-    // Bank accounts balance
-    prisma.bankAccount.findMany({
-      where: { companyId },
-      select: { balance: true },
-    }),
-
-    // Total active employees
-    prisma.employee.count({
-      where: { companyId, status: 'ACTIVE' },
-    }),
-
-    // Allocated employees (allocations active now: startDate <= now && (endDate is null OR endDate >= now))
-    prisma.allocation.findMany({
-      where: {
-        employee: { companyId },
-        startDate: { lte: now },
-        OR: [
-          { endDate: null },
-          { endDate: { gte: now } },
-        ],
-      },
-      select: { employeeId: true },
-      distinct: ['employeeId'],
-    }),
-
-    // Pending bulletins
-    prisma.measurementBulletin.findMany({
-      where: {
-        project: { companyId },
-        status: { in: ['SUBMITTED', 'DRAFT'] },
-      },
-      select: { id: true },
-    }),
-
-    // Pending budgets (DRAFT is the closest to "pending")
-    prisma.budget.count({
-      where: { companyId, status: 'DRAFT' },
-    }),
-
-    // Expiring contracts within 30 days
-    prisma.contract.count({
-      where: {
-        companyId,
-        status: 'ACTIVE',
-        endDate: { lte: in30Days, gte: now },
-      },
-    }),
+    safeQ('projects', () => prisma.project.findMany({ where: { companyId }, select: { status: true } }), [] as { status: string }[]),
+    safeQ('periodIncomes', () => prisma.financialRecord.findMany({ where: { companyId, type: 'INCOME', status: { in: ['PAID', 'PENDING', 'SCHEDULED'] }, dueDate: { gte: start, lte: end } }, select: { amount: true, status: true } }), [] as any[]),
+    safeQ('periodExpenses', () => prisma.financialRecord.findMany({ where: { companyId, type: 'EXPENSE', status: { in: ['PAID', 'PENDING', 'SCHEDULED'] }, dueDate: { gte: start, lte: end } }, select: { amount: true, status: true } }), [] as any[]),
+    safeQ('bankAccounts', () => prisma.bankAccount.findMany({ where: { companyId }, select: { balance: true } }), [] as any[]),
+    safeQ('activeEmployees', () => prisma.employee.count({ where: { companyId, status: 'ACTIVE' } }), 0),
+    safeQ('allocations', () => prisma.allocation.findMany({ where: { employee: { companyId }, startDate: { lte: now }, OR: [{ endDate: null }, { endDate: { gte: now } }] }, select: { employeeId: true }, distinct: ['employeeId'] }), [] as { employeeId: string }[]),
+    safeQ('pendingBulletins', () => prisma.measurementBulletin.findMany({ where: { project: { companyId }, status: { in: ['SUBMITTED', 'DRAFT'] } }, select: { id: true } }), [] as any[]),
+    safeQ('pendingBudgets', () => prisma.budget.count({ where: { companyId, status: 'DRAFT' } }), 0),
+    safeQ('expiringContracts', () => prisma.contract.count({ where: { companyId, status: 'ACTIVE', endDate: { lte: in30Days, gte: now } } }), 0),
   ])
 
   const activeProjects = projects.filter(p => p.status === 'IN_PROGRESS').length
