@@ -40,6 +40,8 @@ services:
       D4SIGN_WEBHOOK_SECRET: ${D4SIGN_WEBHOOK_SECRET}
       D4SIGN_BASE_URL: https://secure.d4sign.com.br/api/v1
       UPLOAD_MAX_SIZE: 10485760
+      ADMIN_RESET_TOKEN: ${ADMIN_RESET_TOKEN:-}
+      RESET_ADMIN_PASSWORD: ${RESET_ADMIN_PASSWORD:-}
     ports:
       - "3001:3001"
     volumes:
