@@ -104,11 +104,13 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Nenhuma mensagem com conteudo valido' }, { status: 400 })
     }
 
-    // Stream
+    // Stream — o modelo ja foi verificado por getAIModel() (cache 5 min)
     const { stream, provider, model } = await aiChat(messages, {
       systemPrompt: enhancedPrompt,
       maxOutputTokens: 1024,
     })
+
+    console.log(`[AI Chat] Streaming com ${provider}/${model} para usuario ${user.id}`)
 
     // Audit log (fire-and-forget)
     logAudit({
@@ -122,8 +124,31 @@ export async function POST(request: NextRequest) {
     // Retornar como stream padrao do AI SDK v6
     return stream.toUIMessageStreamResponse()
   } catch (error) {
-    console.error('[AI Chat] Error:', error)
-    const message = error instanceof Error ? error.message : 'Erro interno ao processar mensagem'
+    console.error('[AI Chat] Erro completo:', error)
+
+    let message: string
+    if (error instanceof Error) {
+      // Incluir info util sobre o erro
+      const cause = (error as Error & { cause?: unknown }).cause
+      if (cause instanceof Error) {
+        message = `${error.message} — ${cause.message}`
+      } else {
+        message = error.message
+      }
+    } else {
+      message = 'Erro interno ao processar mensagem'
+    }
+
+    // Se o erro indica falha de provider, dar dica ao usuario
+    if (
+      message.includes('provedor') ||
+      message.includes('provider') ||
+      message.includes('modelo') ||
+      message.includes('Timeout')
+    ) {
+      message += '. Verifique as configuracoes de IA em Configuracoes > IA.'
+    }
+
     return Response.json({ error: message }, { status: 500 })
   }
 }

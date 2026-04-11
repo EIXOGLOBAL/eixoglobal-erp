@@ -10,7 +10,7 @@
 
 import { generateText, streamText, generateObject } from 'ai'
 import { z } from 'zod'
-import { getAIModel, type AIProviderName } from './config'
+import { getAIModel, invalidateModelCache, type AIProviderName } from './config'
 
 // ============================================================================
 // Types
@@ -58,12 +58,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ])
 }
 
-function logDev(provider: string, model: string, tokens?: number) {
-  if (process.env.NODE_ENV === 'development') {
-    const parts = [`[AI] ${provider} / ${model}`]
-    if (tokens !== undefined) parts.push(`tokens: ${tokens}`)
-    console.log(parts.join(' | '))
-  }
+function logUsage(provider: string, model: string, tokens?: number) {
+  const parts = [`[AI] ${provider} / ${model}`]
+  if (tokens !== undefined) parts.push(`tokens: ${tokens}`)
+  console.log(parts.join(' | '))
 }
 
 // ============================================================================
@@ -73,6 +71,9 @@ function logDev(provider: string, model: string, tokens?: number) {
 /**
  * Conversa multi-turn com streaming SSE.
  * Retorna o objeto stream do AI SDK.
+ *
+ * O modelo ja foi verificado por getAIModel() (cache de 5 min),
+ * entao usamos maxRetries: 1 para falhas transientes.
  */
 export async function aiChat(
   messages: Array<{ role: 'user' | 'assistant'; content: string }>,
@@ -80,16 +81,24 @@ export async function aiChat(
 ): Promise<AIStreamResult> {
   const { model, provider, modelId } = await getAIModel()
 
+  console.log(`[AI Chat] Iniciando stream com ${provider}/${modelId}`)
+
   const result = streamText({
     model,
     messages: messages as Parameters<typeof generateText>[0]['messages'],
     ...(options?.systemPrompt ? { system: options.systemPrompt } : {}),
     maxOutputTokens: options?.maxOutputTokens ?? 1024,
     temperature: options?.temperature ?? 0.4,
+    maxRetries: 1,
     abortSignal: AbortSignal.timeout(options?.timeout ?? DEFAULT_TIMEOUT),
+    onError: ({ error }) => {
+      console.error(`[AI Chat] Erro no stream ${provider}/${modelId}:`, error)
+      // Invalida cache para forcar re-verificacao na proxima chamada
+      invalidateModelCache()
+    },
   })
 
-  logDev(provider, modelId)
+  logUsage(provider, modelId)
 
   return { stream: result, provider, model: modelId }
 }
@@ -110,12 +119,13 @@ export async function aiChatComplete(
       ...(options?.systemPrompt ? { system: options.systemPrompt } : {}),
       maxOutputTokens: options?.maxOutputTokens ?? 1024,
       temperature: options?.temperature ?? 0.4,
+      maxRetries: 1,
     }),
     options?.timeout ?? DEFAULT_TIMEOUT
   )
 
   const tokens = result.usage?.totalTokens
-  logDev(provider, modelId, tokens)
+  logUsage(provider, modelId, tokens)
 
   return {
     content: result.text,
@@ -145,12 +155,13 @@ export async function aiComplete(
       ...(options?.systemPrompt ? { system: options.systemPrompt } : {}),
       maxOutputTokens: options?.maxOutputTokens ?? 2000,
       temperature: options?.temperature ?? 0.3,
+      maxRetries: 1,
     }),
     options?.timeout ?? DEFAULT_TIMEOUT
   )
 
   const tokens = result.usage?.totalTokens
-  logDev(provider, modelId, tokens)
+  logUsage(provider, modelId, tokens)
 
   return {
     content: result.text,
@@ -183,12 +194,13 @@ export async function aiStructured<T extends z.ZodType>(
       ...(options?.systemPrompt ? { system: options.systemPrompt } : {}),
       maxOutputTokens: options?.maxOutputTokens ?? 2000,
       temperature: options?.temperature ?? 0.2,
+      maxRetries: 1,
     } as Parameters<typeof generateObject>[0]),
     options?.timeout ?? DEFAULT_TIMEOUT
   )
 
   const tokens = (result as { usage?: { totalTokens?: number } }).usage?.totalTokens
-  logDev(provider, modelId, tokens)
+  logUsage(provider, modelId, tokens)
 
   return {
     data: (result as { object: z.infer<T> }).object,
