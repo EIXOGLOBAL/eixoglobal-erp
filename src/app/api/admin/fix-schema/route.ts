@@ -208,7 +208,295 @@ export async function POST() {
     }
 
     // =========================================================================
-    // 6. Resultado
+    // 6. Novos ENUMs — segunda onda (11042026-02)
+    // =========================================================================
+
+    const newEnums: Array<{ name: string; values: string[] }> = [
+      { name: 'HolidayType', values: ['NACIONAL', 'ESTADUAL', 'MUNICIPAL', 'PONTE'] },
+      { name: 'BillingStatus', values: ['DRAFT', 'ISSUED', 'PAID', 'OVERDUE', 'CANCELLED'] },
+      { name: 'ApprovalRequestStatus', values: ['PENDING', 'IN_REVIEW', 'APPROVED', 'REJECTED', 'CANCELLED'] },
+      { name: 'DocumentFileCategory', values: ['DRAWING', 'SPECIFICATION', 'MEMORIAL', 'ART_RRT', 'PERMIT', 'CONTRACT', 'REPORT', 'PHOTO', 'INVOICE', 'CERTIFICATE', 'MANUAL', 'OTHER'] },
+    ]
+
+    for (const en of newEnums) {
+      const vals = en.values.map(v => `'${v}'`).join(', ')
+      log.push(await exec(
+        `DO $$ BEGIN CREATE TYPE "public"."${en.name}" AS ENUM (${vals}); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`,
+        `ENUM ${en.name}`
+      ))
+    }
+
+    // =========================================================================
+    // 7. Novas colunas em tabelas existentes — segunda onda
+    // =========================================================================
+
+    // User: email notification preferences
+    log.push(await addColumn('users', 'emailNotifications', 'BOOLEAN', 'true'))
+    log.push(await addColumn('users', 'emailDigest', 'BOOLEAN', 'false'))
+
+    // Notification: emailSent flag
+    log.push(await addColumn('notifications', 'emailSent', 'BOOLEAN', 'false'))
+
+    // =========================================================================
+    // 8. Novas tabelas — segunda onda (11042026-02)
+    // =========================================================================
+
+    // work_calendar_holidays
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "work_calendar_holidays" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "name" TEXT NOT NULL,
+        "date" TIMESTAMP(3) NOT NULL,
+        "type" TEXT NOT NULL DEFAULT 'NACIONAL',
+        "recurring" BOOLEAN NOT NULL DEFAULT false,
+        "calendarId" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "work_calendar_holidays_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE work_calendar_holidays'))
+
+    // bdi_configs
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "bdi_configs" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "name" TEXT NOT NULL,
+        "companyId" TEXT NOT NULL,
+        "percentage" DECIMAL(5,2) NOT NULL DEFAULT 0,
+        "administracaoCentral" DECIMAL(5,2) NOT NULL DEFAULT 0,
+        "seguroGarantia" DECIMAL(5,2) NOT NULL DEFAULT 0,
+        "risco" DECIMAL(5,2) NOT NULL DEFAULT 0,
+        "despesasFinanceiras" DECIMAL(5,2) NOT NULL DEFAULT 0,
+        "lucro" DECIMAL(5,2) NOT NULL DEFAULT 0,
+        "iss" DECIMAL(5,2) NOT NULL DEFAULT 0,
+        "pis" DECIMAL(5,2) NOT NULL DEFAULT 0,
+        "cofins" DECIMAL(5,2) NOT NULL DEFAULT 0,
+        "irpj" DECIMAL(5,2) NOT NULL DEFAULT 0,
+        "csll" DECIMAL(5,2) NOT NULL DEFAULT 0,
+        "isDefault" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "bdi_configs_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE bdi_configs'))
+
+    // financial_schedule_items
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "financial_schedule_items" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "contractId" TEXT NOT NULL,
+        "month" INTEGER NOT NULL,
+        "percentage" DECIMAL(5,2) NOT NULL,
+        "value" DECIMAL(18,4) NOT NULL,
+        "dueDate" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "financial_schedule_items_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE financial_schedule_items'))
+
+    // composition_versions
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "composition_versions" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "compositionId" TEXT NOT NULL,
+        "version" INTEGER NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        "createdBy" TEXT NOT NULL,
+        CONSTRAINT "composition_versions_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE composition_versions'))
+    log.push(await exec(`CREATE UNIQUE INDEX IF NOT EXISTS "composition_versions_compositionId_version_key" ON "composition_versions"("compositionId", "version")`, 'UNIQUE composition_versions'))
+
+    // task_dependencies
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "task_dependencies" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "predecessorId" TEXT NOT NULL,
+        "successorId" TEXT NOT NULL,
+        "type" TEXT NOT NULL DEFAULT 'FS',
+        "lag" INTEGER NOT NULL DEFAULT 0,
+        CONSTRAINT "task_dependencies_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE task_dependencies'))
+    log.push(await exec(`CREATE UNIQUE INDEX IF NOT EXISTS "task_dependencies_predecessorId_successorId_key" ON "task_dependencies"("predecessorId", "successorId")`, 'UNIQUE task_dependencies'))
+
+    // approval_workflows
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "approval_workflows" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "companyId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "entityType" TEXT NOT NULL,
+        "isActive" BOOLEAN NOT NULL DEFAULT true,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "approval_workflows_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE approval_workflows'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "approval_workflows_companyId_entityType_idx" ON "approval_workflows"("companyId", "entityType")`, 'INDEX approval_workflows'))
+
+    // approval_levels
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "approval_levels" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "workflowId" TEXT NOT NULL,
+        "level" INTEGER NOT NULL,
+        "roleRequired" TEXT,
+        "specificUserId" TEXT,
+        "minAmount" DOUBLE PRECISION,
+        "maxAmount" DOUBLE PRECISION,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "approval_levels_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE approval_levels'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "approval_levels_workflowId_level_idx" ON "approval_levels"("workflowId", "level")`, 'INDEX approval_levels'))
+
+    // approval_requests
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "approval_requests" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "companyId" TEXT NOT NULL,
+        "entityType" TEXT NOT NULL,
+        "entityId" TEXT NOT NULL,
+        "currentLevel" INTEGER NOT NULL DEFAULT 1,
+        "status" TEXT NOT NULL DEFAULT 'PENDING',
+        "requestedById" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "approval_requests_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE approval_requests'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "approval_requests_companyId_entityType_status_idx" ON "approval_requests"("companyId", "entityType", "status")`, 'INDEX approval_requests_company'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "approval_requests_entityType_entityId_idx" ON "approval_requests"("entityType", "entityId")`, 'INDEX approval_requests_entity'))
+
+    // approval_histories
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "approval_histories" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "requestId" TEXT NOT NULL,
+        "level" INTEGER NOT NULL,
+        "action" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "comments" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "approval_histories_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE approval_histories'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "approval_histories_requestId_idx" ON "approval_histories"("requestId")`, 'INDEX approval_histories'))
+
+    // document_folders
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "document_folders" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "companyId" TEXT NOT NULL,
+        "projectId" TEXT,
+        "name" TEXT NOT NULL,
+        "parentId" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "document_folders_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE document_folders'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "document_folders_companyId_projectId_idx" ON "document_folders"("companyId", "projectId")`, 'INDEX document_folders_company'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "document_folders_parentId_idx" ON "document_folders"("parentId")`, 'INDEX document_folders_parent'))
+
+    // document_files
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "document_files" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "companyId" TEXT NOT NULL,
+        "folderId" TEXT,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "category" TEXT NOT NULL DEFAULT 'OTHER',
+        "filePath" TEXT NOT NULL,
+        "fileSize" INTEGER NOT NULL,
+        "mimeType" TEXT NOT NULL,
+        "version" INTEGER NOT NULL DEFAULT 1,
+        "uploadedById" TEXT NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'DRAFT',
+        "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "document_files_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE document_files'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "document_files_companyId_category_idx" ON "document_files"("companyId", "category")`, 'INDEX document_files_company'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "document_files_folderId_idx" ON "document_files"("folderId")`, 'INDEX document_files_folder'))
+
+    // document_versions
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "document_versions" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "documentId" TEXT NOT NULL,
+        "version" INTEGER NOT NULL,
+        "filePath" TEXT NOT NULL,
+        "fileSize" INTEGER NOT NULL,
+        "uploadedById" TEXT NOT NULL,
+        "changeNotes" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "document_versions_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE document_versions'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "document_versions_documentId_version_idx" ON "document_versions"("documentId", "version")`, 'INDEX document_versions'))
+
+    // billings
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "billings" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "number" TEXT NOT NULL,
+        "description" TEXT,
+        "value" DECIMAL(18,4) NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'DRAFT',
+        "dueDate" TIMESTAMP(3) NOT NULL,
+        "issuedDate" TIMESTAMP(3),
+        "paidDate" TIMESTAMP(3),
+        "paidAmount" DECIMAL(18,4),
+        "companyId" TEXT NOT NULL,
+        "projectId" TEXT,
+        "contractId" TEXT,
+        "clientId" TEXT,
+        "measurementBulletinId" TEXT,
+        "createdById" TEXT NOT NULL,
+        "notes" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "billings_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE billings'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "billings_companyId_status_idx" ON "billings"("companyId", "status")`, 'INDEX billings_status'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "billings_companyId_dueDate_idx" ON "billings"("companyId", "dueDate")`, 'INDEX billings_dueDate'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "billings_projectId_idx" ON "billings"("projectId")`, 'INDEX billings_project'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "billings_contractId_idx" ON "billings"("contractId")`, 'INDEX billings_contract'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "billings_measurementBulletinId_idx" ON "billings"("measurementBulletinId")`, 'INDEX billings_bulletin'))
+
+    // scheduled_reports
+    log.push(await exec(`
+      CREATE TABLE IF NOT EXISTS "scheduled_reports" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+        "name" TEXT NOT NULL,
+        "type" TEXT NOT NULL,
+        "frequency" TEXT NOT NULL,
+        "dayOfWeek" INTEGER,
+        "dayOfMonth" INTEGER,
+        "hour" INTEGER NOT NULL DEFAULT 8,
+        "recipients" TEXT NOT NULL,
+        "filters" TEXT,
+        "isActive" BOOLEAN NOT NULL DEFAULT true,
+        "lastRun" TIMESTAMP(3),
+        "nextRun" TIMESTAMP(3),
+        "companyId" TEXT NOT NULL,
+        "createdById" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "scheduled_reports_pkey" PRIMARY KEY ("id")
+      )
+    `, 'TABLE scheduled_reports'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "scheduled_reports_companyId_idx" ON "scheduled_reports"("companyId")`, 'INDEX scheduled_reports_company'))
+    log.push(await exec(`CREATE INDEX IF NOT EXISTS "scheduled_reports_isActive_nextRun_idx" ON "scheduled_reports"("isActive", "nextRun")`, 'INDEX scheduled_reports_active'))
+
+    // =========================================================================
+    // 9. Resultado
     // =========================================================================
 
     const cols = await prisma.$queryRaw<{column_name: string}[]>`
