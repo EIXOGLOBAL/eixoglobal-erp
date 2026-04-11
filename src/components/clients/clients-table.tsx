@@ -149,10 +149,10 @@ export function ClientsTable({ clients, companyId }: ClientsTableProps) {
                   <TableCell className="font-mono text-sm text-muted-foreground">
                     {client.code ? `#${client.code}` : '—'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="max-w-[220px]">
                     <div>
                       <span
-                        className="font-medium text-blue-600 hover:underline"
+                        className="font-medium text-blue-600 hover:underline block truncate"
                       >
                         {client.displayName}
                       </span>

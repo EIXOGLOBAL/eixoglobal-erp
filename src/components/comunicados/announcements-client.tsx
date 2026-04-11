@@ -84,7 +84,7 @@ export function AnnouncementsClient({ initialAnnouncements, canCreate }: Announc
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" />Novo Comunicado</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="sm:max-w-lg">
               <DialogHeader><DialogTitle>Criar Comunicado</DialogTitle></DialogHeader>
               <div className="space-y-4">
                 <div>

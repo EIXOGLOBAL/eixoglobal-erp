@@ -31,6 +31,12 @@ import {
 } from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
+import {
   importBankStatement,
   getStatements,
   getStatementTransactions,
@@ -39,6 +45,8 @@ import {
   ignoreTransaction,
   createFinancialRecordFromTransaction,
   parseStatementPreview,
+  getUnreconciledRecords,
+  reconcileRecord,
 } from '@/app/actions/bank-reconciliation-actions'
 import {
   Upload,
@@ -56,6 +64,8 @@ import {
   Ban,
   Link2,
   PlusCircle,
+  ArrowLeftRight,
+  LayoutPanelLeft,
 } from 'lucide-react'
 
 // ============================================================================
@@ -211,6 +221,19 @@ export function ReconciliationClient({
 
   // Search in suggestions panel
   const [suggestionSearch, setSuggestionSearch] = useState('')
+
+  // Side-by-side reconciliation panel
+  const [sideBySideMode, setSideBySideMode] = useState(false)
+  const [erpRecords, setErpRecords] = useState<{
+    id: string; description: string; amount: number; type: string;
+    status: string; dueDate: string | Date; paidDate: string | Date | null;
+    category: string | null;
+  }[]>([])
+  const [erpSearch, setErpSearch] = useState('')
+  const [erpLoading, setErpLoading] = useState(false)
+  const [selectedBankTxn, setSelectedBankTxn] = useState<Transaction | null>(null)
+  const [selectedErpRecord, setSelectedErpRecord] = useState<string | null>(null)
+  const [matchingInProgress, setMatchingInProgress] = useState(false)
 
   // ============================================================================
   // COMPUTED STATS
@@ -458,6 +481,62 @@ export function ReconciliationClient({
     })
   }, [createRecordTxnId, createRecordDescription, createRecordCategory, selectedStatement, statusFilter, toast, refreshStatements])
 
+  // Load ERP records for side-by-side panel
+  const loadErpRecords = useCallback(async (search?: string) => {
+    setErpLoading(true)
+    try {
+      const result = await getUnreconciledRecords(search)
+      if (result.success && result.data) {
+        setErpRecords(result.data as typeof erpRecords)
+      }
+    } finally {
+      setErpLoading(false)
+    }
+  }, [])
+
+  const handleEnterSideBySide = useCallback(() => {
+    setSideBySideMode(true)
+    setSelectedBankTxn(null)
+    setSelectedErpRecord(null)
+    loadErpRecords()
+  }, [loadErpRecords])
+
+  const handleErpSearch = useCallback((search: string) => {
+    setErpSearch(search)
+    loadErpRecords(search || undefined)
+  }, [loadErpRecords])
+
+  const handleSideBySideMatch = useCallback(async () => {
+    if (!selectedBankTxn || !selectedErpRecord) return
+
+    setMatchingInProgress(true)
+    try {
+      const result = await reconcileRecord(selectedBankTxn.id, selectedErpRecord)
+      if (result.success) {
+        toast({
+          title: 'Conciliado!',
+          description: 'Transacao bancaria conciliada com lancamento financeiro.',
+        })
+        setSelectedBankTxn(null)
+        setSelectedErpRecord(null)
+
+        // Refresh both sides
+        if (selectedStatement) {
+          const txnResult = await getStatementTransactions(selectedStatement.id, 'ALL')
+          if (txnResult.success && txnResult.data) {
+            setTransactions(txnResult.data as unknown as Transaction[])
+          }
+        }
+        loadErpRecords(erpSearch || undefined)
+        refreshStatements()
+      } else {
+        toast({ variant: 'destructive', title: 'Erro', description: result.error })
+      }
+    } finally {
+      setMatchingInProgress(false)
+    }
+  }, [selectedBankTxn, selectedErpRecord, selectedStatement, erpSearch, toast, loadErpRecords, refreshStatements])
+
   // ============================================================================
   // STATUS BADGE
   // ============================================================================
@@ -568,7 +647,213 @@ export function ReconciliationClient({
         </Card>
       </div>
 
+      {/* View Mode Toggle */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant={!sideBySideMode ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setSideBySideMode(false)}
+        >
+          <LayoutPanelLeft className="h-4 w-4 mr-2" />
+          Painel Extratos
+        </Button>
+        <Button
+          variant={sideBySideMode ? 'default' : 'outline'}
+          size="sm"
+          onClick={handleEnterSideBySide}
+        >
+          <ArrowLeftRight className="h-4 w-4 mr-2" />
+          Conciliacao Lado a Lado
+        </Button>
+      </div>
+
+      {/* ================================================================== */}
+      {/* SIDE-BY-SIDE RECONCILIATION PANEL                                  */}
+      {/* ================================================================== */}
+      {sideBySideMode && selectedStatement && (
+        <div className="space-y-4">
+          {/* Match action bar */}
+          {selectedBankTxn && selectedErpRecord && (
+            <Card className="border-primary bg-primary/5">
+              <CardContent className="py-3 px-4 flex items-center justify-between">
+                <div className="flex items-center gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Banco:</span>{' '}
+                    <span className="font-medium">{selectedBankTxn.description.substring(0, 40)}</span>{' '}
+                    <span className={`font-bold ${selectedBankTxn.type === 'CREDIT' ? 'text-green-700' : 'text-red-700'}`}>
+                      {fmt(selectedBankTxn.amount)}
+                    </span>
+                  </div>
+                  <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <span className="text-muted-foreground">ERP:</span>{' '}
+                    <span className="font-medium">
+                      {erpRecords.find(r => r.id === selectedErpRecord)?.description.substring(0, 40)}
+                    </span>{' '}
+                    <span className="font-bold">
+                      {fmt(erpRecords.find(r => r.id === selectedErpRecord)?.amount ?? 0)}
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleSideBySideMatch}
+                  disabled={matchingInProgress}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {matchingInProgress ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Link2 className="h-4 w-4 mr-2" />
+                  )}
+                  Conciliar
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="grid grid-cols-2 gap-4 min-h-[500px]">
+            {/* Left: Bank Transactions */}
+            <Card className="flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ArrowDownCircle className="h-5 w-5 text-blue-600" />
+                  Extrato Bancario
+                  <Badge variant="outline" className="ml-auto">
+                    {transactions.filter(t => t.reconciliationStatus === 'PENDING' || t.reconciliationStatus === 'DIVERGENT').length} pendente(s)
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-auto p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Data</TableHead>
+                      <TableHead className="text-xs">Descricao</TableHead>
+                      <TableHead className="text-xs text-right">Valor</TableHead>
+                      <TableHead className="text-xs">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {transactions
+                      .filter(t => t.reconciliationStatus === 'PENDING' || t.reconciliationStatus === 'DIVERGENT')
+                      .map(txn => (
+                        <TableRow
+                          key={txn.id}
+                          className={`cursor-pointer transition-colors ${
+                            selectedBankTxn?.id === txn.id
+                              ? 'bg-blue-50 border-l-2 border-l-blue-500'
+                              : 'hover:bg-muted/50'
+                          }`}
+                          onClick={() => setSelectedBankTxn(prev => prev?.id === txn.id ? null : txn)}
+                        >
+                          <TableCell className="text-xs">{fmtDate(txn.date)}</TableCell>
+                          <TableCell className="text-xs max-w-[200px] truncate" title={txn.description}>
+                            {txn.description}
+                          </TableCell>
+                          <TableCell className={`text-xs text-right font-medium ${
+                            txn.type === 'CREDIT' ? 'text-green-700' : 'text-red-700'
+                          }`}>
+                            {txn.type === 'DEBIT' ? '- ' : ''}{fmt(txn.amount)}
+                          </TableCell>
+                          <TableCell>{renderStatusBadge(txn.reconciliationStatus)}</TableCell>
+                        </TableRow>
+                      ))}
+                    {transactions.filter(t => t.reconciliationStatus === 'PENDING' || t.reconciliationStatus === 'DIVERGENT').length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground text-sm py-8">
+                          Todas as transacoes ja foram conciliadas
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Right: ERP Records */}
+            <Card className="flex flex-col">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-purple-600" />
+                    Lancamentos ERP
+                    <Badge variant="outline" className="ml-2">
+                      {erpRecords.length} registro(s)
+                    </Badge>
+                  </CardTitle>
+                </div>
+                <div className="relative mt-2">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar lancamento..."
+                    className="pl-8 h-9 text-sm"
+                    value={erpSearch}
+                    onChange={e => handleErpSearch(e.target.value)}
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-auto p-0">
+                {erpLoading ? (
+                  <div className="flex items-center justify-center h-40">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Vencimento</TableHead>
+                        <TableHead className="text-xs">Descricao</TableHead>
+                        <TableHead className="text-xs">Tipo</TableHead>
+                        <TableHead className="text-xs text-right">Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {erpRecords.map(rec => (
+                        <TableRow
+                          key={rec.id}
+                          className={`cursor-pointer transition-colors ${
+                            selectedErpRecord === rec.id
+                              ? 'bg-purple-50 border-l-2 border-l-purple-500'
+                              : 'hover:bg-muted/50'
+                          }`}
+                          onClick={() => setSelectedErpRecord(prev => prev === rec.id ? null : rec.id)}
+                        >
+                          <TableCell className="text-xs">{fmtDate(rec.dueDate)}</TableCell>
+                          <TableCell className="text-xs max-w-[200px] truncate" title={rec.description}>
+                            {rec.description}
+                          </TableCell>
+                          <TableCell>
+                            {rec.type === 'INCOME' ? (
+                              <Badge className="bg-green-50 text-green-700 border-green-200 text-xs">Receita</Badge>
+                            ) : (
+                              <Badge className="bg-red-50 text-red-700 border-red-200 text-xs">Despesa</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className={`text-xs text-right font-medium ${
+                            rec.type === 'INCOME' ? 'text-green-700' : 'text-red-700'
+                          }`}>
+                            {fmt(rec.amount)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {erpRecords.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center text-muted-foreground text-sm py-8">
+                            Nenhum lancamento nao conciliado encontrado
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
       {/* Main 3-panel layout */}
+      {!sideBySideMode && (
       <div className="flex gap-4 min-h-[600px]">
         {/* Left Panel — Statements list */}
         <div className="w-80 flex-shrink-0 space-y-3">
@@ -908,12 +1193,40 @@ export function ReconciliationClient({
           )}
         </div>
       </div>
+      )}
+
+      {/* Side-by-side requires a statement selected but none chosen */}
+      {sideBySideMode && !selectedStatement && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <ArrowLeftRight className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground mb-3">
+              Selecione um extrato para iniciar a conciliacao lado a lado.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {statements.map(stmt => (
+                <Button
+                  key={stmt.id}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    selectStatement(stmt)
+                    loadErpRecords()
+                  }}
+                >
+                  {stmt.bankAccount.name} - {stmt.period} ({stmt.stats.pending} pendente{stmt.stats.pending !== 1 ? 's' : ''})
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ================================================================== */}
       {/* IMPORT DIALOG                                                      */}
       {/* ================================================================== */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Importar Extrato Bancário</DialogTitle>
             <DialogDescription>

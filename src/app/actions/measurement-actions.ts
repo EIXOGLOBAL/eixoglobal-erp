@@ -93,9 +93,15 @@ export async function getMeasurements(params?: {
                 take,
                 orderBy: { date: 'desc' },
                 include: {
-                    project: true,
-                    employee: true,
-                    contractItem: true
+                    project: {
+                        select: { id: true, name: true, code: true, companyId: true, status: true },
+                    },
+                    employee: {
+                        select: { id: true, name: true, jobTitle: true },
+                    },
+                    contractItem: {
+                        select: { id: true, description: true, unit: true, quantity: true, unitPrice: true, contractId: true },
+                    },
                 }
             }),
             prisma.measurement.count({ where })

@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs"
 import { loginRateLimiter } from "@/lib/rate-limit"
 import { BCRYPT_ROUNDS, validatePassword } from "@/lib/password-policy"
 import { logAudit } from "@/lib/audit-logger"
+import { getClientIP } from "@/lib/get-client-ip"
 
 const loginSchema = z.object({
     username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres"),
@@ -29,10 +30,7 @@ const SESSION_DURATION_MS = 24 * 60 * 60 * 1000
 export async function login(prevState: LoginState, formData: FormData): Promise<LoginState> {
     try {
         const headersList = await headers()
-        const ip =
-            headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-            headersList.get('x-real-ip') ||
-            '127.0.0.1'
+        const ip = getClientIP(headersList)
         const userAgent = headersList.get('user-agent') || 'unknown'
         const ipKey = `login:${ip}`
 
@@ -128,10 +126,7 @@ export async function login(prevState: LoginState, formData: FormData): Promise<
 export async function logout() {
     try {
         const headersList = await headers()
-        const ip =
-            headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-            headersList.get('x-real-ip') ||
-            '127.0.0.1'
+        const ip = getClientIP(headersList)
         await logAudit({ action: 'LOGOUT', ipAddress: ip })
     } catch {
         // ignore audit failure on logout
@@ -141,11 +136,9 @@ export async function logout() {
     redirect("/login")
 }
 
-// Login automatico para desenvolvimento (ativo enquanto DEV_LOGIN_ENABLED=true ou NODE_ENV=development)
+// Login automatico para desenvolvimento (ativo SOMENTE quando NODE_ENV=development)
 export async function devLogin(): Promise<{ success: boolean; error?: string }> {
-    const isDev = process.env.NODE_ENV === 'development'
-    const isEnabled = process.env.DEV_LOGIN_ENABLED === 'true'
-    if (!isDev && !isEnabled) {
+    if (process.env.NODE_ENV !== 'development') {
         return { success: false, error: 'Dev login desabilitado' }
     }
 

@@ -114,6 +114,8 @@ export function LoginForm() {
                 </div>
             </form>
 
+            {process.env.NODE_ENV === 'development' && (
+            <>
             <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t" />
@@ -139,6 +141,8 @@ export function LoginForm() {
                 )}
                 Entrar como Admin (DEV)
             </Button>
+            </>
+            )}
         </div>
     )
 }

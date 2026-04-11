@@ -158,7 +158,7 @@ export function RentalDialog({ companyId, items, projects, costCenters = [], tri
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Nova Locação</DialogTitle>
           <DialogDescription>

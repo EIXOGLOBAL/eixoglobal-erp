@@ -305,7 +305,7 @@ const [result, session] = await Promise.all([
                             </div>
 
                             {/* Linha 3: Datas */}
-                            <div className="grid grid-cols-3 gap-4 pb-4 border-b">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 border-b">
                                 <div className="space-y-1">
                                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                         Data de Início
@@ -367,7 +367,7 @@ const [result, session] = await Promise.all([
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {/* Cards de Valores */}
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
                                     <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">
                                         Valor Contratado

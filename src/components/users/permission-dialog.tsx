@@ -132,7 +132,7 @@ export function PermissionDialog({ user, trigger }: PermissionDialogProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-purple-600" />

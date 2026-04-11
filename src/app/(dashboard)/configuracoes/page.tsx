@@ -12,6 +12,14 @@ export default async function ConfiguracoesPage() {
 
     const configSections = [
         {
+            title: "Dados da Empresa",
+            description: "Editar razao social, CNPJ, endereco, contato e logo da empresa",
+            icon: Building2,
+            href: "/configuracoes/empresa",
+            color: "text-indigo-600",
+            adminOnly: true,
+        },
+        {
             title: "Meu Perfil",
             description: "Editar nome, email e informações pessoais da conta",
             icon: UserCircle,

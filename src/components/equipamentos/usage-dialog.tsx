@@ -119,7 +119,7 @@ export function UsageDialog({ equipmentId, projects, trigger }: UsageDialogProps
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Registrar Uso de Equipamento</DialogTitle>
                     <DialogDescription>

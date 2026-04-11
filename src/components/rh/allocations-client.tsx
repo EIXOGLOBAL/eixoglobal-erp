@@ -280,7 +280,7 @@ export function AllocationsClient({ allocations: initial, employees, projects }:
 
             {/* Create / Edit Dialog */}
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>{editing ? 'Editar Alocação' : 'Nova Alocação'}</DialogTitle>
                     </DialogHeader>

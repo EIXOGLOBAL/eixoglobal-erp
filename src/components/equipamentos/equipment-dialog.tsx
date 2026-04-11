@@ -169,7 +169,7 @@ export function EquipmentDialog({ companyId, equipment, trigger, open: controlle
                     )}
                 </DialogTrigger>
             )}
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>
                         {isEditing ? "Editar Equipamento" : "Novo Equipamento"}

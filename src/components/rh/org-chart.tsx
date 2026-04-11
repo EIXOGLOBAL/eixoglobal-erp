@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { Pencil } from 'lucide-react'
 
 interface OrgNode {
   id: string
@@ -25,7 +26,15 @@ function buildTree(employees: OrgNode[]): OrgNode[] {
   return roots
 }
 
-function OrgNodeCard({ node, level = 0 }: { node: OrgNode; level?: number }) {
+function OrgNodeCard({
+  node,
+  level = 0,
+  onEdit,
+}: {
+  node: OrgNode
+  level?: number
+  onEdit?: (id: string) => void
+}) {
   const [expanded, setExpanded] = useState(true)
   const hasChildren = node.children && node.children.length > 0
 
@@ -33,34 +42,52 @@ function OrgNodeCard({ node, level = 0 }: { node: OrgNode; level?: number }) {
     <div className="flex flex-col items-center">
       {/* Card */}
       <div
-        onClick={() => hasChildren && setExpanded(!expanded)}
         className={[
-          'bg-card border rounded-lg p-3 text-center w-40 shadow-xs',
+          'bg-card border rounded-lg p-3 text-center w-40 shadow-xs relative group',
           hasChildren ? 'cursor-pointer hover:border-primary' : '',
           level === 0 ? 'border-primary border-2' : '',
         ].join(' ')}
       >
-        {/* Avatar/Initials */}
-        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-bold mx-auto mb-2 overflow-hidden">
-          {node.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={node.avatarUrl} alt={node.name} className="w-full h-full object-cover" />
-          ) : (
-            node.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+        {/* Edit button */}
+        {onEdit && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit(node.id)
+            }}
+            className="absolute top-1.5 right-1.5 p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-muted transition-opacity"
+            title="Editar hierarquia"
+          >
+            <Pencil className="h-3 w-3 text-muted-foreground" />
+          </button>
+        )}
+
+        <div
+          onClick={() => hasChildren && setExpanded(!expanded)}
+        >
+          {/* Avatar/Initials */}
+          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-bold mx-auto mb-2 overflow-hidden">
+            {node.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={node.avatarUrl} alt={node.name} className="w-full h-full object-cover" />
+            ) : (
+              node.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+            )}
+          </div>
+          <p className="text-xs font-semibold leading-tight line-clamp-2">{node.name}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{node.role}</p>
+          {node.department && (
+            <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full mt-1 inline-block">
+              {node.department}
+            </span>
+          )}
+          {hasChildren && (
+            <p className="text-[9px] text-muted-foreground mt-1">
+              {expanded ? '\u25B2' : '\u25BC'} {node.children!.length}
+            </p>
           )}
         </div>
-        <p className="text-xs font-semibold leading-tight line-clamp-2">{node.name}</p>
-        <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{node.role}</p>
-        {node.department && (
-          <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full mt-1 inline-block">
-            {node.department}
-          </span>
-        )}
-        {hasChildren && (
-          <p className="text-[9px] text-muted-foreground mt-1">
-            {expanded ? '▲' : '▼'} {node.children!.length}
-          </p>
-        )}
       </div>
 
       {/* Children */}
@@ -78,7 +105,7 @@ function OrgNodeCard({ node, level = 0 }: { node: OrgNode; level?: number }) {
                 {node.children!.length > 1 && (
                   <div className="absolute left-1/2 top-0 -translate-x-0.5 w-0.5 h-4 bg-border" />
                 )}
-                <OrgNodeCard node={child} level={level + 1} />
+                <OrgNodeCard node={child} level={level + 1} onEdit={onEdit} />
               </div>
             ))}
           </div>
@@ -88,14 +115,20 @@ function OrgNodeCard({ node, level = 0 }: { node: OrgNode; level?: number }) {
   )
 }
 
-export function OrgChart({ employees }: { employees: OrgNode[] }) {
+export function OrgChart({
+  employees,
+  onEditNode,
+}: {
+  employees: OrgNode[]
+  onEditNode?: (id: string) => void
+}) {
   const tree = buildTree(employees)
 
   if (tree.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <p>Nenhum colaborador ativo para exibir.</p>
-        <p className="text-sm mt-1">Cadastre colaboradores no módulo RH.</p>
+        <p className="text-sm mt-1">Cadastre colaboradores no modulo RH.</p>
       </div>
     )
   }
@@ -104,7 +137,7 @@ export function OrgChart({ employees }: { employees: OrgNode[] }) {
     <div className="overflow-auto">
       <div className="flex gap-8 justify-center min-w-max p-8">
         {tree.map(root => (
-          <OrgNodeCard key={root.id} node={root} level={0} />
+          <OrgNodeCard key={root.id} node={root} level={0} onEdit={onEditNode} />
         ))}
       </div>
     </div>

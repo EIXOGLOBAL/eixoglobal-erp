@@ -100,7 +100,7 @@ export function PaymentDialog({ rentalId, trigger }: PaymentDialogProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Registrar Pagamento</DialogTitle>
           <DialogDescription>

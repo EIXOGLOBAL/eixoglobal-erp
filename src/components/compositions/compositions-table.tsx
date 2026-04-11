@@ -90,8 +90,8 @@ export function CompositionsTable({ compositions }: CompositionsTableProps) {
     return (
         <div className="space-y-4">
             {/* Filter Bar */}
-            <div className="flex gap-3">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-wrap gap-3">
+                <div className="relative flex-1 min-w-[180px] max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         className="pl-9"

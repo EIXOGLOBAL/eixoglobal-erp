@@ -767,7 +767,7 @@ export function ScheduleClient({ tasks, projects }: ScheduleClientProps) {
             {/* Dialog: Create / Edit Task                                         */}
             {/* ================================================================= */}
             <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>
                             {editingTask ? "Editar Tarefa" : "Nova Tarefa"}
@@ -1052,7 +1052,7 @@ export function ScheduleClient({ tasks, projects }: ScheduleClientProps) {
             {/* Dialog: Update Progress                                            */}
             {/* ================================================================= */}
             <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
-                <DialogContent className="max-w-sm">
+                <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle>Atualizar Progresso</DialogTitle>
                     </DialogHeader>

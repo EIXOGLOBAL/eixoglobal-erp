@@ -270,7 +270,7 @@ export function RentalsTable({ rentals }: RentalsTableProps) {
 
       {/* Payment Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Registrar Pagamento</DialogTitle>
             <DialogDescription>

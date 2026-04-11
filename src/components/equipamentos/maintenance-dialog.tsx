@@ -116,7 +116,7 @@ export function MaintenanceDialog({ equipmentId, trigger }: MaintenanceDialogPro
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Agendar Manutenção</DialogTitle>
                     <DialogDescription>

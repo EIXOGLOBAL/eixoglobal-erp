@@ -103,8 +103,8 @@ export function ProjectsTable({ data, companies, clients = [] }: ProjectsTablePr
     return (
         <>
             {/* Filter Bar */}
-            <div className="flex gap-3 mb-4">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-wrap gap-3 mb-4">
+                <div className="relative flex-1 min-w-[180px] max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         className="pl-9"
@@ -159,15 +159,15 @@ export function ProjectsTable({ data, companies, clients = [] }: ProjectsTablePr
                                 <TableCell className="font-mono text-sm text-muted-foreground">
                                     {project.code || '—'}
                                 </TableCell>
-                                <TableCell className="font-medium">
+                                <TableCell className="font-medium max-w-[200px]">
                                     <Link
                                         href={`/projects/${project.id}`}
-                                        className="hover:underline"
+                                        className="hover:underline block truncate"
                                     >
                                         {project.name}
                                     </Link>
                                 </TableCell>
-                                <TableCell>{project.company?.name || 'N/A'}</TableCell>
+                                <TableCell><span className="block max-w-[160px] truncate">{project.company?.name || 'N/A'}</span></TableCell>
                                 <TableCell>
                                     {formatDate(project.startDate)}
                                 </TableCell>

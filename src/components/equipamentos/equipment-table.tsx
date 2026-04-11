@@ -114,7 +114,7 @@ export function EquipmentTable({ equipment, companyId }: EquipmentTableProps) {
     return (
         <div className="space-y-4">
             {/* Filters */}
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
                     <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="Filtrar por tipo" />

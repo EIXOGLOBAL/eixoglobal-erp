@@ -4,38 +4,8 @@
 // EXTRAÇÃO DE IP DO CLIENT
 // ============================================================================
 
-/**
- * Extrai o IP real do cliente a partir dos headers da request.
- * Prioridade: x-forwarded-for > x-real-ip > cf-connecting-ip > fallback.
- *
- * @example
- * const ip = getClientIP(request) // "203.0.113.45"
- */
-export function getClientIP(request: Request): string {
-  const headers = request.headers
-
-  // x-forwarded-for: pode conter múltiplos IPs separados por vírgula
-  // O primeiro é o IP original do cliente
-  const forwarded = headers.get('x-forwarded-for')
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim()
-    if (first) return first
-  }
-
-  // x-real-ip: header padrão do Nginx
-  const realIp = headers.get('x-real-ip')
-  if (realIp) return realIp.trim()
-
-  // cf-connecting-ip: Cloudflare
-  const cfIp = headers.get('cf-connecting-ip')
-  if (cfIp) return cfIp.trim()
-
-  // fly-client-ip: Fly.io
-  const flyIp = headers.get('fly-client-ip')
-  if (flyIp) return flyIp.trim()
-
-  return '127.0.0.1'
-}
+// Re-export da função centralizada com prioridade Cloudflare
+export { getClientIP } from './get-client-ip'
 
 // ============================================================================
 // VALIDAÇÃO DE IP PRIVADO

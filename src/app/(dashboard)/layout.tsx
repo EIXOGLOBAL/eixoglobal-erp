@@ -71,7 +71,7 @@ export default async function DashboardLayout({
                 </div>
                 <div className="flex flex-col">
                     <Header user={session?.user || null} modulePermissions={modulePermissions} />
-                    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+                    <main className="flex flex-1 flex-col gap-4 p-3 sm:p-4 lg:gap-6 lg:p-6 overflow-x-hidden">
                         {children}
                     </main>
                 </div>

@@ -168,7 +168,7 @@ export function RentalItemDialog({
   }
 
   const dialogContent = (
-    <DialogContent className="max-w-lg">
+    <DialogContent className="sm:max-w-lg">
       <DialogHeader>
         <DialogTitle>{isEdit ? 'Editar Item de Locação' : 'Cadastrar Item de Locação'}</DialogTitle>
         <DialogDescription>

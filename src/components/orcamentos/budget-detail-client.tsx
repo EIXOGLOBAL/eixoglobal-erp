@@ -202,7 +202,7 @@ function BudgetItemDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>{isEdit ? "Editar Item" : "Adicionar Item"}</DialogTitle>
                     <DialogDescription>

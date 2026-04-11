@@ -423,21 +423,40 @@ export async function getEmployeeById(id: string) {
         const employee = await prisma.employee.findUnique({
             where: { id },
             include: {
-                company: true,
+                company: {
+                    select: { id: true, name: true, cnpj: true },
+                },
                 salaryGrade: {
-                    include: { table: true }
+                    include: {
+                        table: {
+                            select: { id: true, name: true, effectiveDate: true },
+                        },
+                    }
                 },
                 allocations: {
                     include: {
-                        project: true,
+                        project: {
+                            select: { id: true, name: true, code: true, status: true },
+                        },
                     }
                 },
                 measurements: {
+                    select: {
+                        id: true,
+                        date: true,
+                        quantity: true,
+                        description: true,
+                        status: true,
+                        projectId: true,
+                        contractItemId: true,
+                        createdAt: true,
+                    },
                     orderBy: { date: 'desc' },
                     take: 10,
                 },
                 salaryHistory: {
                     orderBy: { effectiveDate: 'desc' },
+                    take: 20,
                 },
                 variableBenefits: {
                     orderBy: { createdAt: 'asc' },
@@ -616,5 +635,105 @@ export async function getSalaryHistory(employeeId: string) {
     } catch (error) {
         console.error("Erro ao buscar histórico salarial:", error)
         return { success: false, error: "Erro ao buscar histórico salarial", data: [] }
+    }
+}
+
+// ============================================================================
+// ORGANOGRAMA – EDIÇÃO DE HIERARQUIA
+// ============================================================================
+
+export async function updateEmployeeDepartment(employeeId: string, department: string | null) {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        if (session.user.role !== "ADMIN" && !session.user.canManageHR) {
+            return { success: false, error: "Sem permissão para gerenciar RH" }
+        }
+
+        const existing = await prisma.employee.findUnique({
+            where: { id: employeeId },
+            select: { companyId: true, name: true, department: true }
+        })
+        if (!existing || existing.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
+        const employee = await prisma.employee.update({
+            where: { id: employeeId },
+            data: { department: department || null },
+        })
+
+        await logAction('UPDATE', 'Employee', employeeId, employee.name, `Departamento alterado de "${existing.department || 'Nenhum'}" para "${department || 'Nenhum'}"`)
+
+        revalidatePath('/rh/organograma')
+        revalidatePath('/rh/funcionarios')
+        return { success: true, data: employee }
+    } catch (error) {
+        console.error("Erro ao atualizar departamento:", error)
+        return { success: false, error: "Erro ao atualizar departamento" }
+    }
+}
+
+export async function updateEmployeeManager(employeeId: string, managerId: string | null) {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        if (session.user.role !== "ADMIN" && !session.user.canManageHR) {
+            return { success: false, error: "Sem permissão para gerenciar RH" }
+        }
+
+        const existing = await prisma.employee.findUnique({
+            where: { id: employeeId },
+            select: { companyId: true, name: true, managerId: true }
+        })
+        if (!existing || existing.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
+        // Prevent self-reference
+        if (managerId === employeeId) {
+            return { success: false, error: "Colaborador não pode ser gestor de si mesmo" }
+        }
+
+        // Prevent circular hierarchy: walk up from managerId to ensure employeeId is not an ancestor
+        if (managerId) {
+            let currentId: string | null = managerId
+            const visited = new Set<string>()
+            while (currentId) {
+                if (currentId === employeeId) {
+                    return { success: false, error: "Referência circular detectada na hierarquia" }
+                }
+                if (visited.has(currentId)) break
+                visited.add(currentId)
+                const parent = await prisma.employee.findUnique({
+                    where: { id: currentId },
+                    select: { managerId: true }
+                })
+                currentId = parent?.managerId ?? null
+            }
+        }
+
+        const employee = await prisma.employee.update({
+            where: { id: employeeId },
+            data: { managerId: managerId || null },
+        })
+
+        const oldManagerName = existing.managerId
+            ? (await prisma.employee.findUnique({ where: { id: existing.managerId }, select: { name: true } }))?.name || 'N/A'
+            : 'Nenhum'
+        const newManagerName = managerId
+            ? (await prisma.employee.findUnique({ where: { id: managerId }, select: { name: true } }))?.name || 'N/A'
+            : 'Nenhum'
+
+        await logAction('UPDATE', 'Employee', employeeId, employee.name, `Gestor alterado de "${oldManagerName}" para "${newManagerName}"`)
+
+        revalidatePath('/rh/organograma')
+        revalidatePath('/rh/funcionarios')
+        return { success: true, data: employee }
+    } catch (error) {
+        console.error("Erro ao atualizar gestor:", error)
+        return { success: false, error: "Erro ao atualizar gestor" }
     }
 }

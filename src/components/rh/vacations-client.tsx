@@ -541,7 +541,7 @@ export function VacationsClient({ requests, employees }: VacationsClientProps) {
 
             {/* Create / Edit Dialog */}
             <Dialog open={formOpen} onOpenChange={setFormOpen}>
-                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>
                             {editingRequest ? 'Editar Solicitação' : 'Nova Solicitação'}
@@ -678,7 +678,7 @@ export function VacationsClient({ requests, employees }: VacationsClientProps) {
 
             {/* Approve Dialog */}
             <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -729,7 +729,7 @@ export function VacationsClient({ requests, employees }: VacationsClientProps) {
 
             {/* Reject Dialog */}
             <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <XCircle className="h-5 w-5 text-red-600" />

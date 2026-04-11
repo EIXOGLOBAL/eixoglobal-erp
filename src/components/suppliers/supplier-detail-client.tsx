@@ -1091,7 +1091,7 @@ function TabEvaluations({ supplier }: { supplier: SupplierData }) {
 
             {/* New Evaluation Dialog */}
             <Dialog open={evalOpen} onOpenChange={setEvalOpen}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Nova Avaliacao</DialogTitle>
                         <DialogDescription>Avalie o desempenho de {supplier.name}</DialogDescription>

@@ -199,8 +199,8 @@ export function ContractsTable({ data, projects, contractors, companyId }: Contr
                                         {contract.identifier}
                                     </Link>
                                 </TableCell>
-                                <TableCell>{contract.project?.name || 'N/A'}</TableCell>
-                                <TableCell>{contract.contractor?.name || '-'}</TableCell>
+                                <TableCell><span className="block max-w-[200px] truncate">{contract.project?.name || 'N/A'}</span></TableCell>
+                                <TableCell><span className="block max-w-[200px] truncate">{contract.contractor?.name || '-'}</span></TableCell>
                                 <TableCell>
                                     {new Intl.NumberFormat('pt-BR', {
                                         style: 'currency',

@@ -634,3 +634,212 @@ async function updateStatementStatus(statementId: string) {
     data: { status },
   })
 }
+
+// ============================================================================
+// GET UNRECONCILED ERP RECORDS (for side-by-side panel)
+// ============================================================================
+
+export async function getUnreconciledRecords(search?: string) {
+  try {
+    const session = await getSession()
+    if (!session) return { success: false as const, error: 'Nao autenticado' }
+    const user = session.user as { id: string; companyId: string }
+    if (!user.companyId) return { success: false as const, error: 'Empresa nao encontrada' }
+
+    // Find all financial record IDs that are already reconciled
+    const reconciledIds = await prisma.bankStatementTransaction.findMany({
+      where: {
+        financialRecordId: { not: null },
+        statement: { companyId: user.companyId },
+      },
+      select: { financialRecordId: true },
+    })
+    const reconciledSet = new Set(reconciledIds.map(r => r.financialRecordId).filter(Boolean))
+
+    const where: Record<string, unknown> = {
+      companyId: user.companyId,
+      status: { in: ['PENDING', 'SCHEDULED', 'PAID'] },
+      isDeleted: false,
+    }
+
+    if (search && search.trim()) {
+      where.description = { contains: search.trim(), mode: 'insensitive' }
+    }
+
+    const records = await prisma.financialRecord.findMany({
+      where: where as any,
+      select: {
+        id: true,
+        description: true,
+        amount: true,
+        type: true,
+        status: true,
+        dueDate: true,
+        paidDate: true,
+        category: true,
+      },
+      orderBy: { dueDate: 'desc' },
+      take: 200,
+    })
+
+    // Filter out already-reconciled records
+    const unreconciled = records
+      .filter(r => !reconciledSet.has(r.id))
+      .map(r => ({
+        ...r,
+        amount: toNumber(r.amount),
+      }))
+
+    return { success: true as const, data: unreconciled }
+  } catch (error) {
+    console.error('Erro ao buscar registros nao conciliados:', error)
+    return { success: false as const, error: 'Erro ao buscar registros' }
+  }
+}
+
+// ============================================================================
+// GET BANK STATEMENTS LIST (enriched for conciliacao page)
+// ============================================================================
+
+export async function getBankStatementsOverview() {
+  try {
+    const session = await getSession()
+    if (!session) return { success: false as const, error: 'Nao autenticado' }
+    const user = session.user as { id: string; companyId: string }
+    if (!user.companyId) return { success: false as const, error: 'Empresa nao encontrada' }
+
+    const statements = await prisma.bankStatement.findMany({
+      where: { companyId: user.companyId },
+      include: {
+        bankAccount: { select: { id: true, name: true, bankName: true } },
+        _count: { select: { transactions: true } },
+      },
+      orderBy: { importedAt: 'desc' },
+    })
+
+    const enriched = await Promise.all(
+      statements.map(async (stmt) => {
+        const txns = await prisma.bankStatementTransaction.findMany({
+          where: { statementId: stmt.id },
+          select: { reconciliationStatus: true, amount: true, type: true },
+        })
+
+        const matched = txns.filter(
+          t => t.reconciliationStatus === 'MATCHED' || t.reconciliationStatus === 'AUTO_MATCHED'
+        ).length
+        const pending = txns.filter(t => t.reconciliationStatus === 'PENDING').length
+        const divergent = txns.filter(t => t.reconciliationStatus === 'DIVERGENT').length
+        const ignored = txns.filter(t => t.reconciliationStatus === 'IGNORED').length
+        const total = txns.length
+
+        const unreconciledAmount = txns
+          .filter(t => t.reconciliationStatus === 'PENDING' || t.reconciliationStatus === 'DIVERGENT')
+          .reduce((sum, t) => sum + Math.abs(toNumber(t.amount)), 0)
+
+        return {
+          id: stmt.id,
+          bankAccountId: stmt.bankAccountId,
+          bankAccountName: stmt.bankAccount.name,
+          bankName: stmt.bankAccount.bankName,
+          period: stmt.period,
+          status: stmt.status,
+          importedAt: stmt.importedAt,
+          totalCredits: toNumber(stmt.totalCredits),
+          totalDebits: toNumber(stmt.totalDebits),
+          transactionCount: total,
+          matched,
+          pending,
+          divergent,
+          ignored,
+          matchRate: total > 0 ? Math.round((matched / total) * 100) : 0,
+          unreconciledAmount,
+        }
+      })
+    )
+
+    return { success: true as const, data: enriched }
+  } catch (error) {
+    console.error('Erro ao buscar visao geral dos extratos:', error)
+    return { success: false as const, error: 'Erro ao buscar extratos' }
+  }
+}
+
+// ============================================================================
+// RECONCILE RECORD (direct match between bank txn and ERP record)
+// ============================================================================
+
+export async function reconcileRecord(
+  transactionId: string,
+  financialRecordId: string,
+  note?: string
+) {
+  try {
+    const session = await getSession()
+    if (!session) return { success: false, error: 'Nao autenticado' }
+    const user = session.user as { id: string; role: string; companyId: string; canManageFinancial?: boolean }
+    if (!user.companyId) return { success: false, error: 'Empresa nao encontrada' }
+
+    if (user.role !== 'ADMIN' && user.role !== 'MANAGER' && !user.canManageFinancial) {
+      return { success: false, error: 'Sem permissao' }
+    }
+
+    // Verify transaction belongs to company
+    const txn = await prisma.bankStatementTransaction.findFirst({
+      where: { id: transactionId },
+      include: { statement: { select: { companyId: true, id: true } } },
+    })
+    if (!txn || txn.statement.companyId !== user.companyId) {
+      return { success: false, error: 'Transacao nao encontrada' }
+    }
+
+    // Verify financial record belongs to company
+    const record = await prisma.financialRecord.findFirst({
+      where: { id: financialRecordId, companyId: user.companyId },
+    })
+    if (!record) return { success: false, error: 'Lancamento financeiro nao encontrado' }
+
+    // Check if financial record is already reconciled
+    const existingMatch = await prisma.bankStatementTransaction.findFirst({
+      where: { financialRecordId },
+    })
+    if (existingMatch) {
+      return { success: false, error: 'Este lancamento financeiro ja esta conciliado com outra transacao' }
+    }
+
+    // Check if transaction is already reconciled
+    if (txn.reconciliationStatus === 'MATCHED' || txn.reconciliationStatus === 'AUTO_MATCHED') {
+      return { success: false, error: 'Esta transacao ja esta conciliada' }
+    }
+
+    await prisma.bankStatementTransaction.update({
+      where: { id: transactionId },
+      data: {
+        financialRecordId,
+        reconciliationStatus: 'MATCHED',
+        reconciliationNote: note || 'Conciliacao manual via painel lado a lado',
+      },
+    })
+
+    // Update statement status
+    await updateStatementStatus(txn.statement.id)
+
+    await logAudit({
+      action: 'RECONCILE',
+      entity: 'BankStatementTransaction',
+      entityId: transactionId,
+      entityName: txn.description,
+      userId: user.id,
+      companyId: user.companyId,
+      newData: { financialRecordId, note },
+    })
+
+    revalidatePath('/financeiro/conciliacao')
+    return { success: true }
+  } catch (error) {
+    console.error('Erro na conciliacao:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro na conciliacao',
+    }
+  }
+}

@@ -81,22 +81,31 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 4. Parse body
+    // 4. Enforce companyId from session (ignore body-supplied companyId to prevent IDOR)
+    if (!sessionCompanyId) {
+      return NextResponse.json(
+        { error: 'Sem empresa vinculada a sessao' },
+        { status: 403 }
+      )
+    }
+    const companyId = sessionCompanyId
+
+    // 5. Parse body
     const body = await req.json()
-    const { type, companyId, projectId } = body as {
+    const { type, projectId } = body as {
       type: AnalysisType
-      companyId: string
+      companyId?: string
       projectId?: string
     }
 
-    if (!type || !companyId) {
+    if (!type) {
       return NextResponse.json(
-        { error: 'Parametros obrigatorios: type, companyId' },
+        { error: 'Parametro obrigatorio: type' },
         { status: 400 }
       )
     }
 
-    // 5. Execute analysis
+    // 6. Execute analysis
     let data: unknown
 
     switch (type) {
@@ -131,12 +140,12 @@ export async function POST(req: NextRequest) {
         )
     }
 
-    // 6. Audit log
+    // 7. Audit log
     await logAudit({
       action: 'AI_ANALYZE',
       entity: type,
       userId,
-      companyId: companyId || sessionCompanyId,
+      companyId,
     })
 
     return NextResponse.json({ success: true, data })

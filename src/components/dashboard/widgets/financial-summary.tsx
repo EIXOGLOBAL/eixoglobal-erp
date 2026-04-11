@@ -106,7 +106,7 @@ export function FinancialSummarySkeleton() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="space-y-2">
               <Skeleton className="h-3 w-16" />
@@ -146,7 +146,7 @@ export function FinancialSummaryWidget({ data, isLoading }: FinancialSummaryWidg
 
       <CardContent className="space-y-4">
         {/* KPI Row */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Receitas */}
           <div>
             <p className="text-xs text-muted-foreground mb-1">Receitas</p>

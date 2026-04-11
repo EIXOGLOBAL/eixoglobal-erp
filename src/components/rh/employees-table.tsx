@@ -89,8 +89,8 @@ export function EmployeesTable({ employees }: EmployeesTableProps) {
     return (
         <div className="space-y-4">
             {/* Filter Bar */}
-            <div className="flex gap-3">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-wrap gap-3">
+                <div className="relative flex-1 min-w-[180px] max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         className="pl-9"
@@ -151,12 +151,12 @@ export function EmployeesTable({ employees }: EmployeesTableProps) {
                             <TableCell className="font-mono text-sm text-muted-foreground">
                                 {employee.matricula || '—'}
                             </TableCell>
-                            <TableCell className="font-medium">
-                                <Link href={`/rh/funcionarios/${employee.id}`} className="text-blue-600 hover:underline">
+                            <TableCell className="font-medium max-w-[200px]">
+                                <Link href={`/rh/funcionarios/${employee.id}`} className="text-blue-600 hover:underline block truncate">
                                     {employee.name}
                                 </Link>
                             </TableCell>
-                            <TableCell>{employee.jobTitle}</TableCell>
+                            <TableCell><span className="block max-w-[160px] truncate">{employee.jobTitle}</span></TableCell>
                             <TableCell className="text-muted-foreground">{employee.document || '—'}</TableCell>
                             <TableCell>
                                 {skills.length > 0 ? (

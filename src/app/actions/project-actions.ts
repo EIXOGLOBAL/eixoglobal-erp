@@ -151,24 +151,31 @@ export async function deleteProject(id: string) {
     }
 
     try {
-        // Check if project has measurements or contracts
-        const projectWithRelations = await prisma.project.findUnique({
+        // Check if project has measurements or contracts using _count instead of loading full relations
+        const projectWithCounts = await prisma.project.findUnique({
             where: { id },
-            include: {
-                measurements: true,
-                contracts: true,
+            select: {
+                id: true,
+                name: true,
+                companyId: true,
+                _count: {
+                    select: {
+                        measurements: true,
+                        contracts: true,
+                    }
+                }
             }
         })
 
-        if (!projectWithRelations) {
+        if (!projectWithCounts) {
             return { success: false, error: 'Projeto não encontrado' }
         }
 
-        if (projectWithRelations.measurements.length > 0) {
+        if (projectWithCounts._count.measurements > 0) {
             return { success: false, error: 'Não é possível excluir projetos com medições registradas' }
         }
 
-        if (projectWithRelations.contracts.length > 0) {
+        if (projectWithCounts._count.contracts > 0) {
             return { success: false, error: 'Não é possível excluir projetos com contratos ativos' }
         }
 
@@ -176,7 +183,7 @@ export async function deleteProject(id: string) {
             where: { id }
         })
 
-        await logDelete('Project', id, projectWithRelations.name, projectWithRelations)
+        await logDelete('Project', id, projectWithCounts.name, projectWithCounts)
 
         revalidatePath('/projects')
         return { success: true }
@@ -247,25 +254,34 @@ export async function getProjectById(id: string) {
         const project = await prisma.project.findUnique({
             where: { id },
             include: {
-                company: true,
+                company: {
+                    select: { id: true, name: true, cnpj: true, tradeName: true },
+                },
                 client: true,
                 contracts: {
                     include: {
                         items: true,
-                    }
+                    },
                 },
                 measurements: {
                     include: {
-                        contractItem: true,
-                        employee: true,
+                        contractItem: {
+                            select: { id: true, description: true, unit: true, quantity: true, unitPrice: true, contractId: true },
+                        },
+                        employee: {
+                            select: { id: true, name: true, jobTitle: true },
+                        },
                     },
                     orderBy: {
                         date: 'desc'
-                    }
+                    },
+                    take: 50,
                 },
                 allocations: {
                     include: {
-                        employee: true,
+                        employee: {
+                            select: { id: true, name: true, jobTitle: true, status: true },
+                        },
                     }
                 },
                 _count: {

@@ -82,59 +82,58 @@ async function checkExpiringContracts() {
     const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
     const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-    // Contracts expiring in 7 days
-    const soonContracts = await prisma.contract.findMany({
+    // Fetch both soon and upcoming contracts in a single query
+    const allExpiringContracts = await prisma.contract.findMany({
       where: {
         status: 'ACTIVE',
-        endDate: { gte: now, lte: in7Days },
+        endDate: { gte: now, lte: in30Days },
       },
-      select: { id: true, identifier: true, companyId: true },
+      select: { id: true, identifier: true, companyId: true, endDate: true },
     })
 
-    for (const contract of soonContracts) {
-      const link = `/contratos/${contract.id}`
-      if (await alreadyNotifiedToday(contract.companyId, 'CONTRACT_EXPIRING', link)) continue
+    if (allExpiringContracts.length === 0) return
 
-      const userIds = await getManagerIds(contract.companyId)
-      if (userIds.length === 0) continue
-
-      const notifData = {
-        type: 'CONTRACT_EXPIRING',
-        title: 'Contrato vencendo em breve',
-        message: `O contrato ${contract.identifier} vence em menos de 7 dias.`,
-        link,
-      }
-
-      await prisma.notification.createMany({
-        data: userIds.map(userId => ({
-          userId,
-          companyId: contract.companyId,
-          ...notifData,
-        })),
-      })
-      notifyUsers(userIds, notifData)
+    // Collect unique companyIds and batch-fetch manager IDs
+    const companyIds = [...new Set(allExpiringContracts.map(c => c.companyId))]
+    const managersByCompany = new Map<string, string[]>()
+    const managers = await prisma.user.findMany({
+      where: { companyId: { in: companyIds }, role: { in: ['ADMIN', 'MANAGER', 'ENGINEER'] }, isActive: true },
+      select: { id: true, companyId: true },
+    })
+    for (const m of managers) {
+      if (!m.companyId) continue
+      const list = managersByCompany.get(m.companyId) || []
+      list.push(m.id)
+      managersByCompany.set(m.companyId, list)
     }
 
-    // Contracts expiring in 30 days
-    const upcomingContracts = await prisma.contract.findMany({
+    // Batch-check already notified today
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const contractLinks = allExpiringContracts.map(c => `/contratos/${c.id}`)
+    const existingNotifs = await prisma.notification.findMany({
       where: {
-        status: 'ACTIVE',
-        endDate: { gt: in7Days, lte: in30Days },
+        companyId: { in: companyIds },
+        type: 'CONTRACT_EXPIRING',
+        link: { in: contractLinks },
+        createdAt: { gte: todayStart },
       },
-      select: { id: true, identifier: true, companyId: true },
+      select: { link: true, companyId: true },
     })
+    const notifiedSet = new Set(existingNotifs.map(n => `${n.companyId}:${n.link}`))
 
-    for (const contract of upcomingContracts) {
+    for (const contract of allExpiringContracts) {
       const link = `/contratos/${contract.id}`
-      if (await alreadyNotifiedToday(contract.companyId, 'CONTRACT_EXPIRING', link)) continue
+      if (notifiedSet.has(`${contract.companyId}:${link}`)) continue
 
-      const userIds = await getManagerIds(contract.companyId)
+      const userIds = managersByCompany.get(contract.companyId) || []
       if (userIds.length === 0) continue
 
+      const isSoon = contract.endDate && contract.endDate <= in7Days
       const notifData = {
         type: 'CONTRACT_EXPIRING',
-        title: 'Contrato com vencimento próximo',
-        message: `O contrato ${contract.identifier} vence em menos de 30 dias.`,
+        title: isSoon ? 'Contrato vencendo em breve' : 'Contrato com vencimento próximo',
+        message: `O contrato ${contract.identifier} vence em menos de ${isSoon ? '7' : '30'} dias.`,
         link,
       }
 
@@ -211,13 +210,45 @@ async function checkOverdueMaintenances() {
           select: { id: true, name: true, companyId: true },
         },
       },
+      take: 100,
     })
+
+    if (overdue.length === 0) return
+
+    // Batch-fetch manager IDs for all affected companies
+    const companyIds = [...new Set(overdue.map(m => m.equipment.companyId))]
+    const managersByCompany = new Map<string, string[]>()
+    const managers = await prisma.user.findMany({
+      where: { companyId: { in: companyIds }, role: { in: ['ADMIN', 'MANAGER', 'ENGINEER'] }, isActive: true },
+      select: { id: true, companyId: true },
+    })
+    for (const mgr of managers) {
+      if (!mgr.companyId) continue
+      const list = managersByCompany.get(mgr.companyId) || []
+      list.push(mgr.id)
+      managersByCompany.set(mgr.companyId, list)
+    }
+
+    // Batch-check already notified today
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const equipLinks = overdue.map(m => `/equipamentos/${m.equipment.id}`)
+    const existingNotifs = await prisma.notification.findMany({
+      where: {
+        companyId: { in: companyIds },
+        type: 'EQUIPMENT_MAINTENANCE',
+        link: { in: equipLinks },
+        createdAt: { gte: todayStart },
+      },
+      select: { link: true, companyId: true },
+    })
+    const notifiedSet = new Set(existingNotifs.map(n => `${n.companyId}:${n.link}`))
 
     for (const m of overdue) {
       const link = `/equipamentos/${m.equipment.id}`
-      if (await alreadyNotifiedToday(m.equipment.companyId, 'EQUIPMENT_MAINTENANCE', link)) continue
+      if (notifiedSet.has(`${m.equipment.companyId}:${link}`)) continue
 
-      const userIds = await getManagerIds(m.equipment.companyId)
+      const userIds = managersByCompany.get(m.equipment.companyId) || []
       if (userIds.length === 0) continue
 
       const notifData = {
@@ -250,18 +281,52 @@ async function checkExpiringSupplierDocuments() {
       where: {
         expiresAt: { gte: now, lte: in30Days },
       },
-      include: {
+      select: {
+        id: true,
+        filename: true,
+        expiresAt: true,
         supplier: {
           select: { id: true, name: true, companyId: true },
         },
       },
     })
 
-    for (const doc of expiringDocs) {
-      const link = `/fornecedores/${doc.supplier.id}`
-      if (await alreadyNotifiedToday(doc.supplier.companyId, 'SUPPLIER_DOC_EXPIRING', link + `#${doc.id}`)) continue
+    if (expiringDocs.length === 0) return
 
-      const userIds = await getManagerIds(doc.supplier.companyId)
+    // Batch-fetch manager IDs for all affected companies
+    const companyIds = [...new Set(expiringDocs.map(d => d.supplier.companyId))]
+    const managersByCompany = new Map<string, string[]>()
+    const managers = await prisma.user.findMany({
+      where: { companyId: { in: companyIds }, role: { in: ['ADMIN', 'MANAGER', 'ENGINEER'] }, isActive: true },
+      select: { id: true, companyId: true },
+    })
+    for (const m of managers) {
+      if (!m.companyId) continue
+      const list = managersByCompany.get(m.companyId) || []
+      list.push(m.id)
+      managersByCompany.set(m.companyId, list)
+    }
+
+    // Batch-check already notified today
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const docLinks = expiringDocs.map(d => `/fornecedores/${d.supplier.id}#${d.id}`)
+    const existingNotifs = await prisma.notification.findMany({
+      where: {
+        companyId: { in: companyIds },
+        type: 'SUPPLIER_DOC_EXPIRING',
+        link: { in: docLinks },
+        createdAt: { gte: todayStart },
+      },
+      select: { link: true, companyId: true },
+    })
+    const notifiedSet = new Set(existingNotifs.map(n => `${n.companyId}:${n.link}`))
+
+    for (const doc of expiringDocs) {
+      const link = `/fornecedores/${doc.supplier.id}#${doc.id}`
+      if (notifiedSet.has(`${doc.supplier.companyId}:${link}`)) continue
+
+      const userIds = managersByCompany.get(doc.supplier.companyId) || []
       if (userIds.length === 0) continue
 
       const daysLeft = Math.ceil((doc.expiresAt!.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
@@ -269,7 +334,7 @@ async function checkExpiringSupplierDocuments() {
         type: 'SUPPLIER_DOC_EXPIRING',
         title: 'Documento de fornecedor vencendo',
         message: `Documento "${doc.filename}" do fornecedor ${doc.supplier.name} vence em ${daysLeft} dias.`,
-        link,
+        link: `/fornecedores/${doc.supplier.id}`,
       }
 
       await prisma.notification.createMany({

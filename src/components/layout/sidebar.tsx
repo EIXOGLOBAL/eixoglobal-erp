@@ -198,7 +198,15 @@ const sistemaSection = {
         { title: "Empresas", href: "/companies", icon: Building2 },
         { title: "Usuários", href: "/users", icon: Users },
         { title: "Auditoria", href: "/configuracoes/auditoria", icon: ClipboardList },
-        { title: "Configurações", href: "/configuracoes", icon: Settings },
+        {
+            title: "Configurações",
+            href: "/configuracoes",
+            icon: Settings,
+            items: [
+                { title: "Geral", href: "/configuracoes", icon: Settings },
+                { title: "Sistema", href: "/configuracoes/sistema", icon: Shield },
+            ],
+        },
     ]
 }
 
@@ -354,7 +362,7 @@ export function Sidebar({ className, userRole = 'USER', modulePermissions = {} }
     }
 
     return (
-        <div className={cn("flex flex-col w-64 border-r min-h-screen bg-background", className)}>
+        <div className={cn("flex flex-col w-full border-r min-h-screen bg-background", className)}>
             {/* Brand */}
             <div className="flex h-14 items-center border-b px-4 shrink-0">
                 <span className="font-bold text-base tracking-tight">Eixo Global</span>

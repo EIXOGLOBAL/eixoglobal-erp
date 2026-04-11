@@ -570,7 +570,7 @@ export function DashboardContent({
       {/* ================================================================
           SECTION 2 -- KPI CARDS PRINCIPAIS (2 rows x 4 cols)
           ================================================================ */}
-      <section className="grid grid-cols-4 gap-4 stagger-fade-in">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-fade-in">
         {/* Row 1 - Projetos & Financeiro */}
         <AnimatedNumberKPI
           icon={FolderKanban}
@@ -656,7 +656,7 @@ export function DashboardContent({
             Itens que requerem acao
           </Badge>
         </div>
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <AttentionKPICard
             icon={FileText}
             label="Boletins Pendentes"
@@ -703,9 +703,9 @@ export function DashboardContent({
       {/* ================================================================
           SECTION 3 -- MAIN CHARTS (Cashflow + Projects Pie)
           ================================================================ */}
-      <section className="grid grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Cashflow - 2 cols */}
-        <Card className="col-span-2 bg-card border border-border/50">
+        <Card className="col-span-1 lg:col-span-2 bg-card border border-border/50">
           <CardHeader>
             <CardTitle>Fluxo de Caixa Mensal</CardTitle>
             <CardDescription>
@@ -841,7 +841,7 @@ export function DashboardContent({
       {/* ================================================================
           SECTION 4 -- SECONDARY CHARTS
           ================================================================ */}
-      <section className="grid grid-cols-2 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Top 5 Projects */}
         <Card className="bg-card border border-border/50">
           <CardHeader>
@@ -975,7 +975,7 @@ export function DashboardContent({
           SECTION 5 -- AI INSIGHTS (managers only)
           ================================================================ */}
       {isManager && (
-        <section className="grid grid-cols-3 gap-4">
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <AIInsightCard
             title="Portfolio de Projetos"
             type="portfolio"
@@ -997,7 +997,7 @@ export function DashboardContent({
       {/* ================================================================
           SECTION 6 -- DATA TABLES
           ================================================================ */}
-      <section className="grid grid-cols-2 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Recent Projects */}
         <Card className="bg-card border border-border/50">
           <CardHeader>
@@ -1155,7 +1155,7 @@ export function DashboardContent({
               <AlertTriangle className="h-5 w-5 text-amber-500" />
               Alertas Operacionais
             </h2>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {alerts.map((alert, i) => {
                 const styles = SEVERITY_STYLES[alert.severity] ?? SEVERITY_FALLBACK
                 const Icon = ALERT_ICONS[alert.type] ?? AlertTriangle

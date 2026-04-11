@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { registerHeartbeat, getActiveCount } from '@/lib/active-users-tracker'
+import { getClientIP } from '@/lib/get-client-ip'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,10 +27,7 @@ export async function POST(request: NextRequest) {
     const { id: userId, role } = session.user
 
     // Extract metadata from request
-    const ip =
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-      request.headers.get('x-real-ip') ??
-      'unknown'
+    const ip = getClientIP(request)
     const userAgent = request.headers.get('user-agent') ?? ''
 
     // Parse body for current page

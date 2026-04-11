@@ -2,6 +2,8 @@ import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { getSuppliersEnhanced } from "@/app/actions/supplier-actions"
 import { FornecedoresClient } from "@/components/fornecedores/fornecedores-client"
+import { SupplierDialog } from "@/components/fornecedores/supplier-dialog"
+import { CreateShortcut } from "@/components/ui/page-keyboard-shortcuts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Truck, AlertTriangle, Star, DollarSign } from "lucide-react"
 import { toNumber, formatCurrency as fmt } from "@/lib/formatters"
@@ -38,6 +40,11 @@ export default async function FornecedoresPage() {
                         Gerencie fornecedores e prestadores de servico vinculados a empresa
                     </p>
                 </div>
+                <CreateShortcut label="Novo Fornecedor">
+                    {({ open, onOpenChange }) => (
+                        <SupplierDialog companyId={companyId} open={open} onOpenChange={onOpenChange} />
+                    )}
+                </CreateShortcut>
             </div>
 
             {/* KPIs */}

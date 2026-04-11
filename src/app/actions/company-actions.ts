@@ -62,6 +62,128 @@ export async function updateCompany(id: string, data: z.infer<typeof companySche
     }
 }
 
+// ─── Company Settings (own company) ──────────────────────────────────────────
+
+export async function getCompanyDetails() {
+    try {
+        const session = await assertAuthenticated()
+        const user = session.user as { companyId?: string }
+        if (!user.companyId) {
+            return { success: false, error: 'Nenhuma empresa vinculada ao usuário' }
+        }
+        const company = await prisma.company.findUnique({
+            where: { id: user.companyId },
+        })
+        if (!company) {
+            return { success: false, error: 'Empresa não encontrada' }
+        }
+        return { success: true, data: company }
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Erro ao buscar dados da empresa' }
+    }
+}
+
+const companySettingsSchema = z.object({
+    name: z.string().min(3, "Razão Social deve ter no mínimo 3 caracteres"),
+    tradeName: z.string().optional(),
+    cnpj: z.string().min(14, "CNPJ inválido"),
+    email: z.string().email("Email inválido").optional().or(z.literal('')),
+    phone: z.string().optional(),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zipCode: z.string().optional(),
+})
+
+export async function updateCompanySettings(data: z.infer<typeof companySettingsSchema>) {
+    try {
+        const session = await assertAuthenticated()
+        await assertRole(session, "ADMIN")
+        const user = session.user as { companyId?: string }
+        if (!user.companyId) {
+            return { success: false, error: 'Nenhuma empresa vinculada ao usuário' }
+        }
+        const validated = companySettingsSchema.parse(data)
+
+        const company = await prisma.company.update({
+            where: { id: user.companyId },
+            data: validated,
+        })
+
+        revalidatePath('/configuracoes/empresa')
+        revalidatePath('/dashboard')
+        return { success: true, data: company }
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Erro ao atualizar dados da empresa' }
+    }
+}
+
+export async function uploadCompanyLogo(formData: FormData) {
+    try {
+        const session = await assertAuthenticated()
+        await assertRole(session, "ADMIN")
+        const user = session.user as { companyId?: string }
+        if (!user.companyId) {
+            return { success: false, error: 'Nenhuma empresa vinculada ao usuário' }
+        }
+
+        const file = formData.get('file') as File | null
+        if (!file) return { success: false, error: 'Nenhum arquivo enviado' }
+        if (!file.type.startsWith('image/')) {
+            return { success: false, error: 'Apenas imagens são permitidas' }
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            return { success: false, error: 'Imagem muito grande (máximo 2MB)' }
+        }
+
+        const { writeFile, mkdir } = await import('fs/promises')
+        const { join } = await import('path')
+
+        const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
+        const filename = `company-${user.companyId}.${ext}`
+        const uploadDir = join(process.cwd(), 'public', 'uploads', 'logos')
+
+        await mkdir(uploadDir, { recursive: true })
+
+        const bytes = await file.arrayBuffer()
+        const buffer = Buffer.from(bytes)
+        await writeFile(join(uploadDir, filename), buffer)
+
+        const logoUrl = `/uploads/logos/${filename}`
+
+        await prisma.company.update({
+            where: { id: user.companyId },
+            data: { logoUrl },
+        })
+
+        revalidatePath('/configuracoes/empresa')
+        return { success: true, logoUrl }
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Erro ao enviar logo' }
+    }
+}
+
+export async function removeCompanyLogo() {
+    try {
+        const session = await assertAuthenticated()
+        await assertRole(session, "ADMIN")
+        const user = session.user as { companyId?: string }
+        if (!user.companyId) {
+            return { success: false, error: 'Nenhuma empresa vinculada ao usuário' }
+        }
+
+        await prisma.company.update({
+            where: { id: user.companyId },
+            data: { logoUrl: null },
+        })
+
+        revalidatePath('/configuracoes/empresa')
+        return { success: true }
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Erro ao remover logo' }
+    }
+}
+
 export async function deleteCompany(id: string) {
     try {
         const session = await assertAuthenticated()

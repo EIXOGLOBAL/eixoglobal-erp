@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/auth'
 import { securityHeaders } from '@/lib/security-headers'
 import { decrypt } from '@/lib/session'
+import { getClientIP } from '@/lib/get-client-ip'
 
 // ---------------------------------------------------------------------------
 // Public routes – no authentication required
@@ -73,22 +74,12 @@ function getRateLimit(ip: string): { allowed: boolean; limit: number; remaining:
 // ---------------------------------------------------------------------------
 // Security headers applied to every response
 // ---------------------------------------------------------------------------
-function applySecurityHeaders(response: NextResponse, request: NextRequest): void {
+function applySecurityHeaders(response: NextResponse): void {
   response.headers.delete('x-powered-by')
 
-  // Apply configured headers
-  Object.entries(securityHeaders).forEach(([key, value]) => {
+  // Apply all configured security headers (includes HSTS, X-Frame-Options, etc.)
+  for (const [key, value] of Object.entries(securityHeaders)) {
     response.headers.set(key, value)
-  })
-
-  // Extra headers
-  response.headers.set('X-XSS-Protection', '1; mode=block')
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-
-  // HSTS only over HTTPS
-  const proto = request.headers.get('x-forwarded-proto') ?? request.nextUrl.protocol
-  if (proto?.startsWith('https')) {
-    response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
   }
 }
 
@@ -118,7 +109,7 @@ export async function proxy(request: NextRequest) {
   // ---- CORS preflight ----
   if (isApiRoute && request.method === 'OPTIONS') {
     const preflightResponse = new NextResponse(null, { status: 204 })
-    applySecurityHeaders(preflightResponse, request)
+    applySecurityHeaders(preflightResponse)
     applyCorsHeaders(preflightResponse, request)
     return preflightResponse
   }
@@ -131,7 +122,7 @@ export async function proxy(request: NextRequest) {
   // ---- Public routes ----
   if (isPublicRoute(pathname)) {
     const response = NextResponse.next()
-    applySecurityHeaders(response, request)
+    applySecurityHeaders(response)
     return response
   }
 
@@ -143,7 +134,7 @@ export async function proxy(request: NextRequest) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('callbackUrl', pathname)
     const redirectResponse = NextResponse.redirect(loginUrl)
-    applySecurityHeaders(redirectResponse, request)
+    applySecurityHeaders(redirectResponse)
     return redirectResponse
   }
 
@@ -154,7 +145,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // ---- Security headers ----
-  applySecurityHeaders(response, request)
+  applySecurityHeaders(response)
 
   // ---- CORS on API routes ----
   if (isApiRoute) {
@@ -163,10 +154,7 @@ export async function proxy(request: NextRequest) {
 
   // ---- Rate limiting on API routes ----
   if (isApiRoute) {
-    const ip =
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-      request.headers.get('x-real-ip') ??
-      'unknown'
+    const ip = getClientIP(request)
 
     const { allowed, limit, remaining } = getRateLimit(ip)
     response.headers.set('X-RateLimit-Limit', String(limit))
@@ -177,7 +165,7 @@ export async function proxy(request: NextRequest) {
         { error: 'Too many requests. Please try again later.' },
         { status: 429 },
       )
-      applySecurityHeaders(rateLimitedResponse, request)
+      applySecurityHeaders(rateLimitedResponse)
       rateLimitedResponse.headers.set('X-RateLimit-Limit', String(limit))
       rateLimitedResponse.headers.set('X-RateLimit-Remaining', '0')
       rateLimitedResponse.headers.set('Retry-After', '60')

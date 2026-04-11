@@ -25,7 +25,9 @@ import type { UIMessage } from 'ai'
 
 function getMessageText(msg: UIMessage): string {
   return msg.parts
-    .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+    .filter((p): p is { type: 'text'; text: string } =>
+      p.type === 'text' && typeof (p as any).text === 'string' && (p as any).text.length > 0
+    )
     .map((p) => p.text)
     .join('')
 }
@@ -228,6 +230,7 @@ export function AIChat() {
         {messages.map((msg) => {
           const isUser = msg.role === 'user'
           const text = getMessageText(msg)
+          if (!isUser && !text.trim()) return null
           const { cleanText, action } = isUser
             ? { cleanText: text, action: null }
             : extractAction(text)

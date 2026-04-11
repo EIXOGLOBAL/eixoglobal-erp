@@ -73,6 +73,10 @@ const bankAccountSchema = z.object({
 
 export async function createFinancialRecord(data: z.infer<typeof financialRecordSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+        if (!session.user.companyId) return { success: false, error: "Sem empresa vinculada" }
+
         const _parsed = financialRecordSchema.safeParse(data)
         if (!_parsed.success) return { success: false, error: _parsed.error.issues[0]?.message ?? 'Dados inválidos' }
         const validated = _parsed.data
@@ -88,7 +92,7 @@ export async function createFinancialRecord(data: z.infer<typeof financialRecord
                 paidAmount: validated.paidAmount || 0,
                 bankAccountId: validated.bankAccountId || null,
                 category: validated.category || null,
-                companyId: validated.companyId,
+                companyId: session.user.companyId,
                 projectId: validated.projectId || null,
                 costCenterId: validated.costCenterId || null,
             }
@@ -300,35 +304,42 @@ export async function getFinancialRecords(params?: {
     }
 }
 
-export async function getFinancialSummary(companyId: string) {
+export async function getFinancialSummary(_companyId?: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+        if (!session.user.companyId) return { success: false, error: "Sem empresa vinculada" }
+
+        const companyId = session.user.companyId
         const now = new Date()
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
-        const records = await prisma.financialRecord.findMany({
-            where: { companyId },
-        })
+        // Use aggregate queries instead of fetching all records into memory
+        const [paidIncome, paidExpense, pendingIncomeAgg, pendingExpenseAgg, overdueCount] = await Promise.all([
+            prisma.financialRecord.aggregate({
+                where: { companyId, type: 'INCOME', status: 'PAID' },
+                _sum: { paidAmount: true, amount: true },
+            }),
+            prisma.financialRecord.aggregate({
+                where: { companyId, type: 'EXPENSE', status: 'PAID' },
+                _sum: { paidAmount: true, amount: true },
+            }),
+            prisma.financialRecord.aggregate({
+                where: { companyId, type: 'INCOME', status: 'PENDING' },
+                _sum: { amount: true },
+            }),
+            prisma.financialRecord.aggregate({
+                where: { companyId, type: 'EXPENSE', status: 'PENDING' },
+                _sum: { amount: true },
+            }),
+            prisma.financialRecord.count({
+                where: { companyId, status: 'PENDING', dueDate: { lt: now } },
+            }),
+        ])
 
-        const totalIncome = records
-            .filter(r => r.type === 'INCOME' && r.status === 'PAID')
-            .reduce((sum, r) => sum + Number(r.paidAmount || r.amount), 0)
-
-        const totalExpense = records
-            .filter(r => r.type === 'EXPENSE' && r.status === 'PAID')
-            .reduce((sum, r) => sum + Number(r.paidAmount || r.amount), 0)
-
-        const pendingIncome = records
-            .filter(r => r.type === 'INCOME' && r.status === 'PENDING')
-            .reduce((sum, r) => sum + Number(r.amount), 0)
-
-        const pendingExpense = records
-            .filter(r => r.type === 'EXPENSE' && r.status === 'PENDING')
-            .reduce((sum, r) => sum + Number(r.amount), 0)
-
-        const overdueRecords = records.filter(r =>
-            r.status === 'PENDING' && new Date(r.dueDate) < now
-        ).length
+        const totalIncome = Number(paidIncome._sum.paidAmount || paidIncome._sum.amount || 0)
+        const totalExpense = Number(paidExpense._sum.paidAmount || paidExpense._sum.amount || 0)
+        const pendingIncome = Number(pendingIncomeAgg._sum.amount || 0)
+        const pendingExpense = Number(pendingExpenseAgg._sum.amount || 0)
 
         return {
             success: true,
@@ -338,7 +349,7 @@ export async function getFinancialSummary(companyId: string) {
                 balance: totalIncome - totalExpense,
                 pendingIncome,
                 pendingExpense,
-                overdueRecords,
+                overdueRecords: overdueCount,
             }
         }
     } catch (error) {
@@ -353,6 +364,10 @@ export async function getFinancialSummary(companyId: string) {
 
 export async function createBankAccount(data: z.infer<typeof bankAccountSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+        if (!session.user.companyId) return { success: false, error: "Sem empresa vinculada" }
+
         const _parsed = bankAccountSchema.safeParse(data)
         if (!_parsed.success) return { success: false, error: _parsed.error.issues[0]?.message ?? 'Dados inválidos' }
         const validated = _parsed.data
@@ -365,7 +380,7 @@ export async function createBankAccount(data: z.infer<typeof bankAccountSchema>)
                 agency: validated.agency,
                 balance: validated.balance || 0,
                 currency: validated.currency || 'BRL',
-                companyId: validated.companyId,
+                companyId: session.user.companyId,
             }
         })
 
@@ -452,10 +467,14 @@ export async function deleteBankAccount(id: string) {
     }
 }
 
-export async function getBankAccounts(companyId: string) {
+export async function getBankAccounts(_companyId?: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return []
+        if (!session.user.companyId) return []
+
         const accounts = await prisma.bankAccount.findMany({
-            where: { companyId },
+            where: { companyId: session.user.companyId },
             include: {
                 _count: { select: { transactions: true } }
             },
@@ -588,16 +607,42 @@ export async function registerPayment(recordId: string, amount: number, date: Da
 
 export async function getReceivables() {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado", data: [] }
+        if (!session.user.companyId) return { success: false, error: "Sem empresa vinculada", data: [] }
+
         const receivables = await prisma.financialRecord.findMany({
             where: {
-                type: 'INCOME'
+                type: 'INCOME',
+                companyId: session.user.companyId,
             },
-            include: {
-                fiscalNote: true
+            select: {
+                id: true,
+                description: true,
+                amount: true,
+                paidAmount: true,
+                status: true,
+                dueDate: true,
+                paidDate: true,
+                companyId: true,
+                type: true,
+                bankAccountId: true,
+                category: true,
+                projectId: true,
+                costCenterId: true,
+                fiscalNoteId: true,
+                createdAt: true,
+                updatedAt: true,
+                isDeleted: true,
+                deletedAt: true,
+                fiscalNote: {
+                    select: { id: true, number: true, type: true, value: true, status: true },
+                },
             },
             orderBy: {
                 dueDate: 'asc'
-            }
+            },
+            take: 500,
         })
 
         // Serialize for client components
@@ -611,5 +656,220 @@ export async function getReceivables() {
         return { success: true, data: serialized }
     } catch (error: any) {
         return { success: false, error: error.message }
+    }
+}
+
+// ============================================================================
+// INADIMPLENCIA - OVERDUE RECORDS
+// ============================================================================
+
+export async function getOverdueRecords() {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Nao autenticado", data: [] }
+        if (!session.user.companyId) return { success: false, error: "Sem empresa vinculada", data: [] }
+
+        const user = session.user as { id: string; role: string; companyId: string; canManageFinancial?: boolean }
+        if (user.role !== 'ADMIN' && user.role !== 'MANAGER' && !user.canManageFinancial) {
+            return { success: false, error: "Sem permissao", data: [] }
+        }
+
+        const now = new Date()
+
+        const records = await prisma.financialRecord.findMany({
+            where: {
+                companyId: user.companyId,
+                type: 'INCOME',
+                status: { in: ['PENDING', 'SCHEDULED'] },
+                dueDate: { lt: now },
+                isDeleted: false,
+            },
+            select: {
+                id: true,
+                description: true,
+                amount: true,
+                dueDate: true,
+                status: true,
+                category: true,
+                collectionNotes: true,
+                collectionDate: true,
+                project: { select: { id: true, name: true } },
+            },
+            orderBy: { dueDate: 'asc' },
+        })
+
+        const mapped = records.map(r => {
+            const daysOverdue = Math.floor((now.getTime() - new Date(r.dueDate).getTime()) / 86400000)
+            let agingBucket: string
+            if (daysOverdue <= 30) agingBucket = '1-30 dias'
+            else if (daysOverdue <= 60) agingBucket = '31-60 dias'
+            else if (daysOverdue <= 90) agingBucket = '61-90 dias'
+            else agingBucket = '+90 dias'
+
+            return {
+                id: r.id,
+                description: r.description,
+                amount: Number(r.amount),
+                dueDate: r.dueDate,
+                status: r.status,
+                category: r.category,
+                collectionNotes: r.collectionNotes,
+                collectionDate: r.collectionDate,
+                projectName: r.project?.name ?? null,
+                agingBucket,
+                daysOverdue,
+            }
+        })
+
+        return { success: true, data: mapped }
+    } catch (error) {
+        console.error("Erro ao buscar inadimplencia:", error)
+        return { success: false, error: "Erro ao buscar registros vencidos", data: [] }
+    }
+}
+
+export async function registerCollection(
+    recordId: string,
+    notes: string,
+) {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Nao autenticado" }
+
+        const user = session.user as { id: string; role: string; companyId: string; canManageFinancial?: boolean }
+        if (!user.companyId) return { success: false, error: "Sem empresa vinculada" }
+        if (user.role !== 'ADMIN' && user.role !== 'MANAGER' && !user.canManageFinancial) {
+            return { success: false, error: "Sem permissao" }
+        }
+
+        const record = await prisma.financialRecord.findFirst({
+            where: { id: recordId, companyId: user.companyId },
+        })
+        if (!record) return { success: false, error: "Registro nao encontrado" }
+
+        const existingNotes = record.collectionNotes || ''
+        const timestamp = new Date().toLocaleString('pt-BR')
+        const newNotes = existingNotes
+            ? `${existingNotes}\n[${timestamp}] ${notes}`
+            : `[${timestamp}] ${notes}`
+
+        await prisma.financialRecord.update({
+            where: { id: recordId },
+            data: {
+                collectionNotes: newNotes,
+                collectionDate: new Date(),
+            },
+        })
+
+        await logAction('REGISTER_COLLECTION', 'FinancialRecord', recordId, record.description || 'N/A', `Collection note: ${notes}`)
+
+        revalidatePath('/financeiro/inadimplencia')
+        return { success: true }
+    } catch (error) {
+        console.error("Erro ao registrar cobranca:", error)
+        return { success: false, error: "Erro ao registrar cobranca" }
+    }
+}
+
+export async function markAsNegotiated(
+    recordId: string,
+    data: {
+        negotiatedAmount: number
+        negotiatedDueDate: string
+        notes?: string
+    },
+) {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Nao autenticado" }
+
+        const user = session.user as { id: string; role: string; companyId: string; canManageFinancial?: boolean }
+        if (!user.companyId) return { success: false, error: "Sem empresa vinculada" }
+        if (user.role !== 'ADMIN' && user.role !== 'MANAGER' && !user.canManageFinancial) {
+            return { success: false, error: "Sem permissao" }
+        }
+
+        if (data.negotiatedAmount <= 0) return { success: false, error: "Valor negociado deve ser maior que zero" }
+
+        const record = await prisma.financialRecord.findFirst({
+            where: { id: recordId, companyId: user.companyId },
+        })
+        if (!record) return { success: false, error: "Registro nao encontrado" }
+
+        const existingNotes = record.collectionNotes || ''
+        const timestamp = new Date().toLocaleString('pt-BR')
+        const noteText = data.notes
+            ? `[${timestamp}] NEGOCIADO: R$ ${data.negotiatedAmount.toFixed(2)} para ${data.negotiatedDueDate}. ${data.notes}`
+            : `[${timestamp}] NEGOCIADO: R$ ${data.negotiatedAmount.toFixed(2)} para ${data.negotiatedDueDate}.`
+        const newNotes = existingNotes ? `${existingNotes}\n${noteText}` : noteText
+
+        await prisma.financialRecord.update({
+            where: { id: recordId },
+            data: {
+                status: 'NEGOTIATED',
+                negotiatedAmount: data.negotiatedAmount,
+                negotiatedDate: new Date(),
+                negotiatedDueDate: new Date(data.negotiatedDueDate),
+                collectionNotes: newNotes,
+            },
+        })
+
+        await logAction('MARK_NEGOTIATED', 'FinancialRecord', recordId, record.description || 'N/A',
+            `Negotiated: ${data.negotiatedAmount}, new due: ${data.negotiatedDueDate}`)
+
+        revalidatePath('/financeiro/inadimplencia')
+        revalidatePath('/financeiro')
+        return { success: true }
+    } catch (error) {
+        console.error("Erro ao marcar como negociado:", error)
+        return { success: false, error: "Erro ao marcar como negociado" }
+    }
+}
+
+export async function markAsLoss(
+    recordId: string,
+    reason: string,
+) {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Nao autenticado" }
+
+        const user = session.user as { id: string; role: string; companyId: string; canManageFinancial?: boolean }
+        if (!user.companyId) return { success: false, error: "Sem empresa vinculada" }
+        if (user.role !== 'ADMIN' && user.role !== 'MANAGER' && !user.canManageFinancial) {
+            return { success: false, error: "Sem permissao" }
+        }
+
+        if (!reason.trim()) return { success: false, error: "Motivo e obrigatorio" }
+
+        const record = await prisma.financialRecord.findFirst({
+            where: { id: recordId, companyId: user.companyId },
+        })
+        if (!record) return { success: false, error: "Registro nao encontrado" }
+
+        const existingNotes = record.collectionNotes || ''
+        const timestamp = new Date().toLocaleString('pt-BR')
+        const noteText = `[${timestamp}] PERDA: ${reason}`
+        const newNotes = existingNotes ? `${existingNotes}\n${noteText}` : noteText
+
+        await prisma.financialRecord.update({
+            where: { id: recordId },
+            data: {
+                status: 'LOSS',
+                lossDate: new Date(),
+                lossReason: reason,
+                collectionNotes: newNotes,
+            },
+        })
+
+        await logAction('MARK_LOSS', 'FinancialRecord', recordId, record.description || 'N/A',
+            `Loss reason: ${reason}`)
+
+        revalidatePath('/financeiro/inadimplencia')
+        revalidatePath('/financeiro')
+        return { success: true }
+    } catch (error) {
+        console.error("Erro ao marcar como perda:", error)
+        return { success: false, error: "Erro ao marcar como perda" }
     }
 }

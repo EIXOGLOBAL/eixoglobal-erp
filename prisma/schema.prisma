@@ -83,6 +83,7 @@ model User {
   workTaskActivities  WorkTaskActivity[]   @relation("WorkTaskActivityAuthor")
   notifications       Notification[]
   announcements       Announcement[]       @relation("AnnouncementAuthor")
+  announcementReads   AnnouncementRead[]   @relation("AnnouncementReads")
   acceptedTermsAt     DateTime?
   lastAccessAt        DateTime?
   activeSessionToken  String?
@@ -103,6 +104,7 @@ model User {
   progressPhotos           ProgressPhoto[]        @relation("PhotoTaker")
 
   resolvedAnomalies      AnomalyDetection[]     @relation("AnomalyResolver")
+  createdBillings        Billing[]              @relation("BillingCreator")
 
   @@index([companyId])
   @@index([email])
@@ -170,6 +172,7 @@ model Company {
   documentFiles      DocumentFile[]
   progressPhotos     ProgressPhoto[]
   anomalyDetections  AnomalyDetection[]
+  billings           Billing[]
 
   @@map("companies")
 }
@@ -186,6 +189,7 @@ model CompanyContact {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@index([companyId])
   @@map("company_contacts")
 }
 
@@ -279,6 +283,7 @@ model EmployeeBenefit {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  @@index([employeeId])
   @@map("employee_benefits")
 }
 
@@ -305,6 +310,7 @@ model Contractor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([companyId, status])
   @@map("contractors")
 }
 
@@ -368,6 +374,7 @@ model Project {
   safetyInspections  SafetyInspection[]  @relation("SafetyInspections")
   documentFolders    DocumentFolder[]    @relation("DocumentFolders")
   progressPhotos     ProgressPhoto[]     @relation("ProgressPhotos")
+  billings           Billing[]           @relation("BillingProject")
 
   // Soft delete
   isDeleted Boolean   @default(false)
@@ -425,6 +432,7 @@ model Contract {
   paymentTerms      String?                 @db.Text
   retentionPercent  Decimal?                @db.Decimal(5, 2)
   schedule          FinancialScheduleItem[]
+  billings          Billing[]              @relation("BillingContract")
 
   // Soft delete
   isDeleted Boolean   @default(false)
@@ -454,6 +462,7 @@ model ContractItem {
   bulletinItems      MeasurementBulletinItem[]
   dailyActivities    DailyReportActivity[]
 
+  @@index([contractId])
   @@map("contract_items")
 }
 
@@ -468,6 +477,8 @@ model Allocation {
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  @@index([projectId, endDate])
+  @@index([employeeId])
   @@map("allocations")
 }
 
@@ -569,6 +580,15 @@ model FinancialRecord {
   costCenter   CostCenter? @relation("FinancialRecordCostCenter", fields: [costCenterId], references: [id])
 
   bankStatementTransaction BankStatementTransaction?
+
+  // Inadimplencia / Collection tracking
+  collectionNotes     String?   @db.Text
+  collectionDate      DateTime?
+  negotiatedAmount    Decimal?  @db.Decimal(18, 4)
+  negotiatedDate      DateTime?
+  negotiatedDueDate   DateTime?
+  lossDate            DateTime?
+  lossReason          String?   @db.Text
 
   // Soft delete
   isDeleted Boolean   @default(false)
@@ -765,6 +785,7 @@ model MeasurementBulletin {
   items       MeasurementBulletinItem[]
   attachments BulletinAttachment[]
   comments    BulletinComment[]
+  billings    Billing[]                @relation("BillingBulletin")
 
   // D4Sign - Assinatura Digital
   d4signDocumentUuid  String?
@@ -1108,6 +1129,7 @@ model Client {
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   projects Project[]
+  billings Billing[] @relation("BillingClient")
 
   // Soft delete
   isDeleted Boolean   @default(false)
@@ -1206,6 +1228,8 @@ enum TransactionStatus {
   PAID
   CANCELLED
   SCHEDULED
+  NEGOTIATED
+  LOSS
 }
 
 // Renamed from FiscalNoteType to DocumentType to accommodate all document categories
@@ -1454,6 +1478,7 @@ model VacationRequest {
   updatedAt  DateTime    @updatedAt
 
   @@index([status, startDate])
+  @@index([employeeId, status])
   @@map("vacation_requests")
 }
 
@@ -1933,6 +1958,7 @@ model Notification {
 
   @@index([userId, read])
   @@index([userId, createdAt])
+  @@index([companyId, type, createdAt])
   @@map("notifications")
 }
 
@@ -1946,6 +1972,7 @@ model ProjectStatusHistory {
   note      String?  @db.Text
   createdAt DateTime @default(now())
 
+  @@index([projectId, createdAt])
   @@map("project_status_history")
 }
 
@@ -1963,6 +1990,7 @@ model SalaryHistory {
   effectiveDate DateTime @default(now())
   createdAt     DateTime @default(now())
 
+  @@index([employeeId, effectiveDate])
   @@map("salary_history")
 }
 
@@ -1971,20 +1999,34 @@ model SalaryHistory {
 // --------------------------------------------------------
 
 model Announcement {
-  id        String               @id @default(uuid())
-  title     String
-  content   String               @db.Text
-  priority  AnnouncementPriority @default(NORMAL)
-  isPinned  Boolean              @default(false)
-  expiresAt DateTime?
-  companyId String
-  company   Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User                 @relation("AnnouncementAuthor", fields: [authorId], references: [id])
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+  id             String               @id @default(uuid())
+  title          String
+  content        String               @db.Text
+  priority       AnnouncementPriority @default(NORMAL)
+  isPinned       Boolean              @default(false)
+  targetAudience String               @default("ALL") // ALL, ADMIN, MANAGER, ENGINEER, etc.
+  expiresAt      DateTime?
+  companyId      String
+  company        Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User                 @relation("AnnouncementAuthor", fields: [authorId], references: [id])
+  reads          AnnouncementRead[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   @@map("announcements")
+}
+
+model AnnouncementRead {
+  id             String       @id @default(uuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation("AnnouncementReads", fields: [userId], references: [id])
+  readAt         DateTime     @default(now())
+
+  @@unique([announcementId, userId])
+  @@map("announcement_reads")
 }
 
 // --------------------------------------------------------
@@ -2276,6 +2318,8 @@ model SupplierDocument {
   uploadedAt DateTime             @default(now())
   uploadedBy String
 
+  @@index([supplierId])
+  @@index([expiresAt])
   @@map("supplier_documents")
 }
 
@@ -2880,4 +2924,60 @@ model SystemSetting {
   updatedBy String?
 
   @@map("system_settings")
+}
+
+// --------------------------------------------------------
+// MODULE: Billing / Faturamento
+// --------------------------------------------------------
+
+enum BillingStatus {
+  DRAFT
+  ISSUED
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Billing {
+  id          String        @id @default(uuid())
+  number      String // "FAT-001/2026"
+  description String?       @db.Text
+  value       Decimal       @db.Decimal(18, 4)
+  status      BillingStatus @default(DRAFT)
+
+  dueDate     DateTime
+  issuedDate  DateTime?
+  paidDate    DateTime?
+  paidAmount  Decimal?      @db.Decimal(18, 4)
+
+  // Relations
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  projectId String?
+  project   Project? @relation("BillingProject", fields: [projectId], references: [id])
+
+  contractId String?
+  contract   Contract? @relation("BillingContract", fields: [contractId], references: [id])
+
+  clientId String?
+  client   Client? @relation("BillingClient", fields: [clientId], references: [id])
+
+  measurementBulletinId String?
+  measurementBulletin   MeasurementBulletin? @relation("BillingBulletin", fields: [measurementBulletinId], references: [id])
+
+  createdById String
+  createdBy   User @relation("BillingCreator", fields: [createdById], references: [id])
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, status])
+  @@index([companyId, dueDate])
+  @@index([projectId])
+  @@index([contractId])
+  @@index([measurementBulletinId])
+  @@map("billings")
 }

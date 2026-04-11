@@ -2,7 +2,7 @@ import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { GraduationCap, CalendarClock, CheckCircle2, Clock } from "lucide-react"
+import { GraduationCap, CalendarClock, PlayCircle, AlertTriangle } from "lucide-react"
 import { TrainingsClient } from "@/components/rh/trainings-client"
 
 export const dynamic = 'force-dynamic'
@@ -32,9 +32,14 @@ export default async function TreinamentosPage() {
 
     // KPIs
     const totalTrainings = trainings.length
+    const inProgressTrainings = trainings.filter(t => t.status === 'IN_PROGRESS').length
     const scheduledTrainings = trainings.filter(t => t.status === 'SCHEDULED').length
-    const completedTrainings = trainings.filter(t => t.status === 'COMPLETED').length
-    const totalHours = trainings.reduce((sum, t) => sum + Number(t.hours), 0)
+    const now = new Date()
+    const expiredNRs = trainings.filter(t => {
+        if (t.type !== 'NR') return false
+        const endDate = t.endDate ?? t.startDate
+        return endDate < now && t.status !== 'CANCELLED'
+    }).length
 
     // Serialize for client component
     const serializedTrainings = trainings.map(t => ({
@@ -71,6 +76,17 @@ export default async function TreinamentosPage() {
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Em Andamento</CardTitle>
+                        <PlayCircle className="h-4 w-4 text-green-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{inProgressTrainings}</div>
+                        <p className="text-xs text-muted-foreground">Treinamentos ativos agora</p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Agendados</CardTitle>
                         <CalendarClock className="h-4 w-4 text-yellow-600" />
                     </CardHeader>
@@ -82,23 +98,12 @@ export default async function TreinamentosPage() {
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Concluídos</CardTitle>
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <CardTitle className="text-sm font-medium">NRs Vencidas</CardTitle>
+                        <AlertTriangle className="h-4 w-4 text-red-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{completedTrainings}</div>
-                        <p className="text-xs text-muted-foreground">Treinamentos finalizados</p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Horas Totais</CardTitle>
-                        <Clock className="h-4 w-4 text-purple-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{totalHours.toFixed(0)}h</div>
-                        <p className="text-xs text-muted-foreground">Carga horária acumulada</p>
+                        <div className="text-2xl font-bold">{expiredNRs}</div>
+                        <p className="text-xs text-muted-foreground">Normas regulamentadoras expiradas</p>
                     </CardContent>
                 </Card>
             </div>

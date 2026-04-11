@@ -440,7 +440,7 @@ function CreateNoteButton({ companyId, suppliers, projects = [], costCenters = [
                     Novo Documento
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Registrar Documento Fiscal</DialogTitle>
                 </DialogHeader>
@@ -609,7 +609,7 @@ function NotesTable({ notes, companyId, suppliers, projects = [], costCenters = 
             {/* Edit Dialog */}
             {editNote && (
                 <Dialog open={Boolean(editNote)} onOpenChange={() => setEditNote(null)}>
-                    <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>Editar Documento Fiscal</DialogTitle>
                         </DialogHeader>
