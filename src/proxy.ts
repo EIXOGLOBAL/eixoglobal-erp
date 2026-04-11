@@ -15,6 +15,7 @@ const PUBLIC_PATHS = [
   '/api/admin/debug-errors',
   '/api/admin/debug-login',
   '/api/admin/reset-users',
+  '/api/admin/fix-schema',
   '/setup',
   '/register-setup',
   '/manutencao',
