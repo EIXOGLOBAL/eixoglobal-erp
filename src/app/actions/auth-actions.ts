@@ -135,10 +135,12 @@ export async function logout() {
     redirect("/login")
 }
 
-// DEV ONLY — login automático para desenvolvimento
+// Login automatico para desenvolvimento (ativo enquanto DEV_LOGIN_ENABLED=true ou NODE_ENV=development)
 export async function devLogin(): Promise<{ success: boolean; error?: string }> {
-    if (process.env.NODE_ENV !== 'development') {
-        return { success: false, error: 'Dev login is only available in development mode' }
+    const isDev = process.env.NODE_ENV === 'development'
+    const isEnabled = process.env.DEV_LOGIN_ENABLED === 'true'
+    if (!isDev && !isEnabled) {
+        return { success: false, error: 'Dev login desabilitado' }
     }
 
     try {

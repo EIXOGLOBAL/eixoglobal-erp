@@ -114,35 +114,31 @@ export function LoginForm() {
                 </div>
             </form>
 
-            {process.env.NODE_ENV === 'development' && (
-                <>
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-background px-2 text-muted-foreground">
-                                Desenvolvimento
-                            </span>
-                        </div>
-                    </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleDevLogin}
-                        disabled={isDevLoginPending || isPending}
-                        className="border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
-                    >
-                        {isDevLoginPending && (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        {!isDevLoginPending && (
-                            <Zap className="mr-2 h-4 w-4" />
-                        )}
-                        Login Automático (DEV)
-                    </Button>
-                </>
-            )}
+            <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                        Acesso Rápido
+                    </span>
+                </div>
+            </div>
+            <Button
+                type="button"
+                variant="outline"
+                onClick={handleDevLogin}
+                disabled={isDevLoginPending || isPending}
+                className="border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+            >
+                {isDevLoginPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {!isDevLoginPending && (
+                    <Zap className="mr-2 h-4 w-4" />
+                )}
+                Entrar como Admin (DEV)
+            </Button>
         </div>
     )
 }
