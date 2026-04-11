@@ -126,7 +126,7 @@ interface VerifiedModel {
 }
 
 let verifiedModelCache: VerifiedModel | null = null
-const VERIFY_TTL = 5 * 60_000 // 5 minutos
+const VERIFY_TTL = 30 * 60_000 // 30 minutos — re-verificacao forcada apenas no onError
 
 /** Invalida o cache de modelo verificado (chamar apos atualizar configuracoes) */
 export function invalidateModelCache() {
@@ -194,6 +194,35 @@ async function getPriorityOrder(): Promise<AIProviderConfig[]> {
   return ordered
 }
 
+/** Flag para evitar multiplas re-verificacoes simultaneas */
+let isRevalidating = false
+
+/**
+ * Re-verifica o modelo em background (nao bloqueia a resposta).
+ * Se o modelo cacheado falhar, invalida o cache para forcar busca na proxima chamada.
+ */
+async function revalidateInBackground() {
+  if (isRevalidating || !verifiedModelCache) return
+  isRevalidating = true
+
+  try {
+    const result = await verifyModel(verifiedModelCache.model)
+    if (result.ok) {
+      // Modelo ainda funciona — renovar cache
+      verifiedModelCache.verifiedAt = Date.now()
+      console.log(`[AI] Re-verificacao OK: ${verifiedModelCache.provider}/${verifiedModelCache.modelId}`)
+    } else {
+      // Modelo morreu — invalida cache, proxima chamada vai buscar novo
+      console.warn(`[AI] Modelo ${verifiedModelCache.modelId} nao responde mais: ${result.error}`)
+      verifiedModelCache = null
+    }
+  } catch {
+    verifiedModelCache = null
+  } finally {
+    isRevalidating = false
+  }
+}
+
 /**
  * Retorna o modelo de IA ativo com verificacao e fallback robusto.
  *
@@ -203,15 +232,18 @@ async function getPriorityOrder(): Promise<AIProviderConfig[]> {
  *   3. Modelos alternativos do provider (fallbackModels)
  *   4. Proximo provider na fila
  *
- * O modelo verificado e cacheado por 5 minutos para evitar
- * chamadas de verificacao repetidas.
+ * Estrategia de cache stale-while-revalidate:
+ *   - Cache valido: retorna imediatamente (zero latencia extra)
+ *   - Cache expirado: retorna imediatamente + re-verifica em background
+ *   - Sem cache: verifica sincronamente (primeira chamada apenas)
+ *   - onError: invalida cache → proxima chamada busca modelo novo
  */
 export async function getAIModel(): Promise<{
   model: Parameters<typeof import('ai').streamText>[0]['model']
   provider: AIProviderName
   modelId: string
 }> {
-  // Retornar cache se verificado recentemente
+  // Cache valido — retorna imediatamente
   if (verifiedModelCache && Date.now() - verifiedModelCache.verifiedAt < VERIFY_TTL) {
     return {
       model: verifiedModelCache.model,
@@ -219,6 +251,19 @@ export async function getAIModel(): Promise<{
       modelId: verifiedModelCache.modelId,
     }
   }
+
+  // Cache expirado mas existe — retorna imediatamente, re-verifica em background
+  if (verifiedModelCache) {
+    // Disparar re-verificacao sem bloquear
+    revalidateInBackground().catch(() => {})
+    return {
+      model: verifiedModelCache.model,
+      provider: verifiedModelCache.provider,
+      modelId: verifiedModelCache.modelId,
+    }
+  }
+
+  // Sem cache — primeira chamada ou apos invalidacao, precisa verificar
 
   const ordered = await getPriorityOrder()
   const errors: string[] = []
