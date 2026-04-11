@@ -11,8 +11,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    // 1. Deletar todos os usuarios via raw SQL
-    await prisma.$executeRaw`DELETE FROM "users"`
+    // 1. Deletar registros dependentes e usuarios via raw SQL
+    await prisma.$executeRaw`DELETE FROM "audit_logs"`
+    await prisma.$executeRaw`DELETE FROM "notifications"`
+    await prisma.$executeRaw`DELETE FROM "user_departments"`
+    await prisma.$executeRaw`TRUNCATE "users" CASCADE`
 
     // 2. Garantir empresa existe
     const companies = await prisma.$queryRaw<{id: string}[]>`SELECT id FROM companies LIMIT 1`

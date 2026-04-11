@@ -63,16 +63,24 @@ export async function GET() {
   const dbUrl = process.env.DATABASE_URL || ''
   results.databaseUrl = dbUrl ? dbUrl.replace(/:[^@]+@/, ':***@') : 'NOT SET'
 
-  // 7. Tentar prisma db push
+  // 7. Tentar prisma db push com caminho direto
   try {
     const dbPush = execSync(
-      'npx prisma db push --accept-data-loss --skip-generate 2>&1',
+      'node ./node_modules/prisma/build/index.js db push --accept-data-loss --skip-generate 2>&1',
       { timeout: 60000 }
     ).toString().trim()
     results.prismaPush = dbPush.slice(0, 500)
   } catch (e: any) {
     results.prismaPushError = (e.stdout?.toString() || '') + (e.stderr?.toString() || '') || e.message
     results.prismaPushError = (results.prismaPushError as string).slice(0, 500)
+  }
+
+  // 8. Verificar arquivos criticos no container
+  try {
+    const files = execSync('ls -la prisma.config.ts prisma/schema.prisma node_modules/prisma/build/index.js 2>&1', { timeout: 5000 }).toString().trim()
+    results.criticalFiles = files
+  } catch (e: any) {
+    results.criticalFilesError = e.message
   }
 
   return NextResponse.json(results)
