@@ -232,7 +232,7 @@ export async function getContracts(params?: {
     const filterWhere = buildWhereClause(params?.filters || {}, ['identifier', 'description'])
     const where = {
       ...(params?.projectId && { projectId: params.projectId }),
-      ...(params?.companyId ? { companyId: params.companyId } : { companyId: (session.user as any).companyId }),
+      companyId: (session.user as any).companyId,
       ...filterWhere
     }
 

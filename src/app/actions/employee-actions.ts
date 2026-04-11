@@ -378,7 +378,7 @@ export async function getEmployees(params?: {
         const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
         const filterWhere = buildWhereClause(params?.filters || {}, ['name', 'matricula'])
         const where = {
-            companyId: params?.companyId || (session.user as any).companyId,
+            companyId: (session.user as any).companyId,
             ...(params?.status && { status: params.status }),
             ...filterWhere
         }

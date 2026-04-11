@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { notifyUsers } from '@/lib/sse-notifications'
 import { toNumber } from '@/lib/formatters'
+import { whatsappService } from '@/lib/whatsapp'
 
 const ONE_HOUR = 60 * 60 * 1000
 
@@ -22,10 +23,57 @@ async function alreadyNotifiedToday(companyId: string, type: string, link: strin
 
 async function getManagerIds(companyId: string): Promise<string[]> {
   const users = await prisma.user.findMany({
-    where: { companyId, role: { in: ['ADMIN', 'MANAGER', 'ENGINEER'] } },
+    where: { companyId, role: { in: ['ADMIN', 'MANAGER', 'ENGINEER'] }, isActive: true },
     select: { id: true },
   })
   return users.map(u => u.id)
+}
+
+async function getAdminIds(companyId: string): Promise<string[]> {
+  const users = await prisma.user.findMany({
+    where: { companyId, role: 'ADMIN', isActive: true },
+    select: { id: true },
+  })
+  return users.map(u => u.id)
+}
+
+// Send critical alerts to admins via WhatsApp (uses admin email as phone fallback)
+async function sendCriticalWhatsAppAlert(companyId: string, title: string, message: string) {
+  if (!whatsappService.isConfigured()) return
+  try {
+    // Get admin users - WhatsApp number configured in env
+    const fromNumber = process.env.WHATSAPP_FROM_NUMBER
+    if (!fromNumber) return
+
+    await whatsappService.sendMessage({
+      phone: fromNumber,
+      message: `⚠️ ALERTA CRÍTICO - ${title}\n\n${message}\n\nAcesse o sistema para mais detalhes.`,
+    })
+  } catch (error) {
+    console.error('[Scheduler] Erro ao enviar WhatsApp:', error)
+  }
+}
+
+// Send admin-only notification (system alerts that only ADMIN should see)
+async function notifyAdminsOnly(companyId: string, type: string, title: string, message: string, link: string, critical: boolean = false) {
+  const adminIds = await getAdminIds(companyId)
+  if (adminIds.length === 0) return
+
+  const notifData = { type, title, message, link }
+
+  await prisma.notification.createMany({
+    data: adminIds.map(userId => ({
+      userId,
+      companyId,
+      ...notifData,
+    })),
+  })
+  notifyUsers(adminIds, notifData)
+
+  // Send WhatsApp for critical alerts
+  if (critical) {
+    await sendCriticalWhatsAppAlert(companyId, title, message)
+  }
 }
 
 async function checkExpiringContracts() {
@@ -301,13 +349,227 @@ async function checkCostCenterBudgetOverruns() {
   }
 }
 
+// ============================================================================
+// MONITORING CHECKS (ADMIN ONLY)
+// ============================================================================
+
+async function checkSystemHealth() {
+  try {
+    // Test database connectivity and response time
+    const start = Date.now()
+    await prisma.$queryRaw`SELECT 1`
+    const dbResponseMs = Date.now() - start
+
+    // Get all companies
+    const companies = await prisma.company.findMany({ select: { id: true } })
+
+    for (const company of companies) {
+      // Log DB response time
+      await (prisma as any).systemHealthLog?.create({
+        data: {
+          metric: 'DB_RESPONSE',
+          value: dbResponseMs,
+          status: dbResponseMs > 5000 ? 'CRITICAL' : dbResponseMs > 2000 ? 'WARNING' : 'OK',
+          details: { responseMs: dbResponseMs },
+          companyId: company.id,
+        },
+      }).catch(() => {})
+
+      // Check for critical DB response
+      if (dbResponseMs > 5000) {
+        const link = '/configuracoes/monitoramento'
+        if (await alreadyNotifiedToday(company.id, 'SYSTEM_ERROR', link + '#db-slow')) continue
+        await notifyAdminsOnly(
+          company.id,
+          'SYSTEM_ERROR',
+          'Banco de dados lento',
+          `Tempo de resposta do banco: ${dbResponseMs}ms (limite: 5000ms)`,
+          link,
+          true // CRITICAL -> WhatsApp
+        )
+      }
+
+      // Log memory usage (Node.js)
+      const memUsage = process.memoryUsage()
+      const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024)
+      const heapTotalMB = Math.round(memUsage.heapTotal / 1024 / 1024)
+      const heapPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100)
+
+      await (prisma as any).systemHealthLog?.create({
+        data: {
+          metric: 'MEMORY_USAGE',
+          value: heapPercent,
+          status: heapPercent > 90 ? 'CRITICAL' : heapPercent > 75 ? 'WARNING' : 'OK',
+          details: { heapUsedMB, heapTotalMB, heapPercent },
+          companyId: company.id,
+        },
+      }).catch(() => {})
+
+      if (heapPercent > 90) {
+        const link = '/configuracoes/monitoramento'
+        if (await alreadyNotifiedToday(company.id, 'SYSTEM_ERROR', link + '#memory')) continue
+        await notifyAdminsOnly(
+          company.id,
+          'SYSTEM_ERROR',
+          'Uso de memória crítico',
+          `Uso de memória heap: ${heapPercent}% (${heapUsedMB}MB / ${heapTotalMB}MB)`,
+          link,
+          true
+        )
+      }
+    }
+  } catch (error) {
+    console.error('[Scheduler] Erro ao verificar saúde do sistema:', error)
+  }
+}
+
+async function checkDataIntegrity() {
+  try {
+    const companies = await prisma.company.findMany({ select: { id: true } })
+
+    for (const company of companies) {
+      const link = '/configuracoes/monitoramento'
+
+      // Check for negative stock
+      const negativeStock = await prisma.material.findMany({
+        where: {
+          companyId: company.id,
+          currentStock: { lt: 0 },
+        },
+        select: { id: true, name: true, currentStock: true },
+        take: 5,
+      })
+
+      if (negativeStock.length > 0) {
+        if (!(await alreadyNotifiedToday(company.id, 'DATA_INCONSISTENCY', link + '#negative-stock'))) {
+          const names = negativeStock.map(m => m.name).join(', ')
+          await notifyAdminsOnly(
+            company.id,
+            'DATA_INCONSISTENCY',
+            'Estoque negativo detectado',
+            `${negativeStock.length} material(is) com estoque negativo: ${names}`,
+            link,
+            negativeStock.length > 3 // Critical if many
+          )
+        }
+      }
+
+      // Check for orphan time entries (approved by themselves)
+      const selfApproved = await prisma.timeEntry.count({
+        where: {
+          companyId: company.id,
+          status: 'APPROVED',
+          NOT: { approvedById: null },
+        },
+      })
+
+      // We need a raw check for self-approval since Prisma doesn't support field comparison
+      const selfApprovedEntries = await prisma.$queryRaw<Array<{ cnt: bigint }>>`
+        SELECT COUNT(*) as cnt FROM time_entries
+        WHERE "companyId" = ${company.id}
+        AND status = 'APPROVED'
+        AND "approvedById" = "employeeId"
+        AND "approvedById" IS NOT NULL
+      `.catch(() => [{ cnt: BigInt(0) }])
+
+      const selfApprovalCount = Number(selfApprovedEntries[0]?.cnt || 0)
+      if (selfApprovalCount > 0) {
+        if (!(await alreadyNotifiedToday(company.id, 'DATA_INCONSISTENCY', link + '#self-approval'))) {
+          await notifyAdminsOnly(
+            company.id,
+            'DATA_INCONSISTENCY',
+            'Auto-aprovação detectada',
+            `${selfApprovalCount} ponto(s) foram aprovados pelo próprio funcionário`,
+            link,
+            selfApprovalCount > 5
+          )
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[Scheduler] Erro ao verificar integridade de dados:', error)
+  }
+}
+
+async function checkAnomalousActivity() {
+  try {
+    const companies = await prisma.company.findMany({ select: { id: true } })
+    const last1h = new Date(Date.now() - ONE_HOUR)
+
+    for (const company of companies) {
+      const link = '/configuracoes/monitoramento'
+
+      // Check for excessive deletions in the last hour
+      const recentDeletions = await prisma.auditLog.count({
+        where: {
+          companyId: company.id,
+          action: 'DELETE',
+          createdAt: { gte: last1h },
+        },
+      })
+
+      if (recentDeletions > 20) {
+        if (!(await alreadyNotifiedToday(company.id, 'UNUSUAL_ACTIVITY', link + '#deletions'))) {
+          await notifyAdminsOnly(
+            company.id,
+            'UNUSUAL_ACTIVITY',
+            'Atividade incomum: muitas exclusões',
+            `${recentDeletions} exclusões foram realizadas na última hora`,
+            link,
+            recentDeletions > 50
+          )
+        }
+      }
+
+      // Check for off-hours activity (before 5am or after 11pm)
+      const now = new Date()
+      const currentHour = now.getHours()
+      if (currentHour < 5 || currentHour > 23) {
+        const offHoursActions = await prisma.auditLog.count({
+          where: {
+            companyId: company.id,
+            createdAt: { gte: last1h },
+          },
+        })
+
+        if (offHoursActions > 10) {
+          if (!(await alreadyNotifiedToday(company.id, 'UNUSUAL_ACTIVITY', link + '#off-hours'))) {
+            await notifyAdminsOnly(
+              company.id,
+              'UNUSUAL_ACTIVITY',
+              'Atividade fora do horário',
+              `${offHoursActions} ações realizadas fora do horário comercial (${currentHour}h)`,
+              link,
+              false
+            )
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[Scheduler] Erro ao verificar atividade anômala:', error)
+  }
+}
+
+// ============================================================================
+// RUN ALL CHECKS
+// ============================================================================
+
 async function runChecks() {
   console.log('[Scheduler] Executando verificações de notificações...')
+
+  // Standard checks (notify managers)
   await checkExpiringContracts()
   await checkLowStockMaterials()
   await checkOverdueMaintenances()
   await checkExpiringSupplierDocuments()
   await checkCostCenterBudgetOverruns()
+
+  // Monitoring checks (notify admins only)
+  await checkSystemHealth()
+  await checkDataIntegrity()
+  await checkAnomalousActivity()
+
   console.log('[Scheduler] Verificações concluídas.')
 }
 

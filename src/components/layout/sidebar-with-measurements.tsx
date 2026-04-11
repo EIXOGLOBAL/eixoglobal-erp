@@ -1,14 +1,16 @@
 'use client'
 
 import { Sidebar } from "./sidebar"
+import type { ModulePermissions } from "./sidebar"
 import { MeasurementsSidebarStats } from "@/components/bulletins/measurements-sidebar-stats"
 import { useEffect, useState } from "react"
 
 interface SidebarWithMeasurementsProps {
     userRole?: string
+    modulePermissions?: ModulePermissions
 }
 
-export function SidebarWithMeasurements({ userRole = 'USER' }: SidebarWithMeasurementsProps) {
+export function SidebarWithMeasurements({ userRole = 'USER', modulePermissions = {} }: SidebarWithMeasurementsProps) {
     const [stats, setStats] = useState({
         pendingCount: 0,
         draftCount: 0,
@@ -37,7 +39,7 @@ export function SidebarWithMeasurements({ userRole = 'USER' }: SidebarWithMeasur
 
     return (
         <div className="flex flex-col h-full">
-            <Sidebar userRole={userRole} />
+            <Sidebar userRole={userRole} modulePermissions={modulePermissions} />
 
             {/* Quick Stats Section - Only shown if there's data */}
             {!isLoading && (stats.pendingCount > 0 || stats.draftCount > 0) && (

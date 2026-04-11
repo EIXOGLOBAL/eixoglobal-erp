@@ -48,11 +48,44 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { useCommandPalette } from "@/components/layout/command-palette-provider"
 import { VersionBadge } from "@/components/version-badge"
+
+// ---------------------------------------------------------------------------
+// Module permission field mapping
+// Maps sidebar item hrefs to the User.moduleXxx boolean fields.
+// Items NOT in this map are always visible (e.g. Dashboard, Tarefas).
+// ---------------------------------------------------------------------------
+const HREF_TO_PERMISSION: Record<string, string> = {
+    // Administração section
+    '/financeiro': 'moduleFinancial',
+    '/dep-pessoal': 'moduleEmployees',
+    '/rh': 'moduleTraining',
+    '/ponto': 'moduleTimesheet',
+    '/fornecedores': 'moduleSuppliers',
+    '/estoque': 'moduleInventory',
+    '/compras': 'modulePurchases',
+    // Engenharia section
+    '/clientes': 'moduleClients',
+    '/projects': 'moduleProjects',
+    '/mapa': 'moduleProjects',        // Map is part of Projects module
+    '/contratos': 'moduleContracts',
+    '/composicoes': 'moduleBudgets',   // Compositions are part of Budgets
+    '/orcamentos': 'moduleBudgets',
+    '/cronograma': 'moduleProjects',   // Schedule is part of Projects module
+    '/measurements': 'moduleMeasurements',
+    '/rdo': 'moduleDailyReports',
+    '/empreiteiras': 'moduleContracts', // Contractors are part of Contracts
+    '/equipamentos': 'moduleEquipment',
+    '/locacoes': 'moduleRentals',
+    '/qualidade': 'moduleQuality',
+    // Segurança section
+    '/seguranca-trabalho': 'moduleSafety',
+    '/documentos': 'moduleDocuments',
+}
 
 // Sidebar structure organized by department sections
 // Order: top-level → Administração → Engenharia → Sistema (ADMIN only)
@@ -178,8 +211,12 @@ type NavItem = {
     items?: { title: string; href: string; icon: React.ElementType }[]
 }
 
+// Module permissions passed from the server layout (User.moduleXxx fields)
+export type ModulePermissions = Record<string, boolean>
+
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     userRole?: string
+    modulePermissions?: ModulePermissions
 }
 
 // Returns true if item or any of its sub-items match the current path
@@ -190,13 +227,42 @@ function itemIsActive(item: NavItem, pathname: string): boolean {
     return pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
 }
 
-export function Sidebar({ className, userRole = 'USER' }: SidebarProps) {
+export function Sidebar({ className, userRole = 'USER', modulePermissions = {} }: SidebarProps) {
     const pathname = usePathname()
     const { setOpen: openCommandPalette } = useCommandPalette()
 
-    // Filter sections based on role — Sistema is ADMIN only
     const isAdmin = userRole === 'ADMIN'
-    const sidebarSections = allSidebarSections.filter(s => !s.adminOnly || isAdmin)
+
+    // Check if a nav item is accessible based on module permissions.
+    // ADMIN always sees everything. Items without a permission mapping are always visible.
+    const isItemAccessible = (item: NavItem): boolean => {
+        if (isAdmin) return true
+        const permField = HREF_TO_PERMISSION[item.href]
+        if (!permField) return true // no restriction
+        return !!modulePermissions[permField]
+    }
+
+    // Filter sections: remove admin-only sections, then remove inaccessible items.
+    // For collapsible groups, remove the whole group if none of its children are accessible.
+    const sidebarSections = useMemo(() => {
+        return allSidebarSections
+            .filter(s => !s.adminOnly || isAdmin)
+            .map(section => {
+                if (isAdmin) return section
+
+                const filteredItems = (section.items as NavItem[]).filter(item => {
+                    if (item.items) {
+                        // Group item: visible if the group itself is accessible
+                        return isItemAccessible(item)
+                    }
+                    return isItemAccessible(item)
+                })
+
+                return { ...section, items: filteredItems }
+            })
+            .filter(section => section.items.length > 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAdmin, modulePermissions])
 
     // Only auto-open the submenu that contains the active route; all others start closed
     const allNavItems = sidebarSections.flatMap(s => s.items as NavItem[])

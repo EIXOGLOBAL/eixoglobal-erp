@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { SpellCheckTextarea } from '@/components/ui/spell-check-textarea'
 import { useToast } from "@/hooks/use-toast"
 import { createProject, updateProject } from "@/app/actions/project-actions"
 import { CurrencyInput } from "@/components/ui/currency-input"
@@ -338,9 +339,12 @@ export function ProjectDialog({ companies, clients = [], project, trigger, open:
                                 <FormItem>
                                     <FormLabel>Descrição</FormLabel>
                                     <FormControl>
-                                        <Textarea
+                                        <SpellCheckTextarea
                                             placeholder="Detalhes sobre o projeto..."
                                             className="resize-none"
+                                            spellCheckEnabled
+                                            autoCorrectOnBlur
+                                            fieldName="description"
                                             {...field}
                                         />
                                     </FormControl>

@@ -169,7 +169,7 @@ export async function getSuppliers(params?: {
         const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
         const filterWhere = buildWhereClause(params?.filters || {}, ['name', 'tradeName', 'cnpj'])
         const where = {
-            companyId: params?.companyId || (session.user as any).companyId,
+            companyId: (session.user as any).companyId,
             ...filterWhere
         }
 
@@ -726,7 +726,7 @@ export async function getSuppliersEnhanced(params?: { companyId?: string }) {
             return { success: false, data: [], kpis: null, error: "Não autenticado" }
         }
 
-        const companyId = params?.companyId || session.user.companyId
+        const companyId = session.user.companyId
 
         const suppliers = await prisma.supplier.findMany({
             where: { companyId },

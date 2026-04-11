@@ -31,6 +31,8 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { SpellCheckInput } from '@/components/ui/spell-check-input'
+import { SpellCheckTextarea } from '@/components/ui/spell-check-textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import { reportIncident } from '@/app/actions/safety-actions'
@@ -221,10 +223,11 @@ export function IncidentDialog({
                 <FormItem>
                   <FormLabel>Descricao *</FormLabel>
                   <FormControl>
-                    <Textarea
+                    <SpellCheckTextarea
                       placeholder="Descreva o incidente ocorrido..."
                       className="resize-none"
                       rows={4}
+                      fieldName="description"
                       {...field}
                     />
                   </FormControl>
@@ -266,7 +269,7 @@ export function IncidentDialog({
                   <FormItem>
                     <FormLabel>Local</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: Bloco A, 3o andar" {...field} />
+                      <SpellCheckInput placeholder="Ex: Bloco A, 3o andar" fieldName="location" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

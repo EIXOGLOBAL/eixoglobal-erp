@@ -32,6 +32,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { SpellCheckTextarea } from '@/components/ui/spell-check-textarea'
 import { useToast } from "@/hooks/use-toast"
 import { createContract, updateContract } from "@/app/actions/contract-actions"
 import { CurrencyInput } from "@/components/ui/currency-input"
@@ -347,9 +348,12 @@ export function ContractDialog({
                                         <FormItem>
                                             <FormLabel>Objeto do Contrato</FormLabel>
                                             <FormControl>
-                                                <Textarea
+                                                <SpellCheckTextarea
                                                     placeholder="Descrição detalhada do objeto..."
                                                     className="resize-none"
+                                                    spellCheckEnabled
+                                                    autoCorrectOnBlur
+                                                    fieldName="object"
                                                     {...field}
                                                 />
                                             </FormControl>
@@ -365,9 +369,12 @@ export function ContractDialog({
                                         <FormItem>
                                             <FormLabel>Descrição Adicional</FormLabel>
                                             <FormControl>
-                                                <Textarea
+                                                <SpellCheckTextarea
                                                     placeholder="Observações gerais..."
                                                     className="resize-none"
+                                                    spellCheckEnabled
+                                                    autoCorrectOnBlur
+                                                    fieldName="description"
                                                     {...field}
                                                 />
                                             </FormControl>
@@ -544,9 +551,12 @@ export function ContractDialog({
                                             <FormItem>
                                                 <FormLabel>Condições de Pagamento</FormLabel>
                                                 <FormControl>
-                                                    <Textarea
+                                                    <SpellCheckTextarea
                                                         placeholder="Ex: À vista, 30 dias, conforme medição..."
                                                         className="resize-none"
+                                                        spellCheckEnabled
+                                                        autoCorrectOnBlur
+                                                        fieldName="paymentTerms"
                                                         {...field}
                                                     />
                                                 </FormControl>

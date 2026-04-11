@@ -14,7 +14,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Sidebar } from "./sidebar"
+import type { ModulePermissions } from "./sidebar"
 import { NotificationBell } from "./notification-bell"
+import { Breadcrumb } from "@/components/ui/breadcrumb"
+import { GlobalSearch } from "@/components/search/global-search"
+import { DateTimeDisplay } from "@/components/ui/datetime-display"
+import { PingMonitor } from "@/components/ui/ping-monitor"
 
 interface HeaderProps {
     user: {
@@ -23,9 +28,10 @@ interface HeaderProps {
         email?: string | null
         role?: string | null
     } | null
+    modulePermissions?: ModulePermissions
 }
 
-export function Header({ user }: HeaderProps) {
+export function Header({ user, modulePermissions = {} }: HeaderProps) {
     return (
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
             <Sheet>
@@ -36,14 +42,21 @@ export function Header({ user }: HeaderProps) {
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-[240px] sm:max-w-xs">
-                    <Sidebar />
+                    <Sidebar userRole={user?.role ?? 'USER'} modulePermissions={modulePermissions} />
                 </SheetContent>
             </Sheet>
-            <div className="relative ml-auto flex-1 md:grow-0">
-                {/* Search or breadcrumbs could go here */}
+            <div className="hidden md:block">
+                <Breadcrumb />
+            </div>
+            <div className="relative ml-auto flex-1 md:grow-0 md:w-72">
+                <GlobalSearch />
             </div>
             {user && (
                 <div className="flex items-center gap-2">
+                    <div className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground">
+                        <DateTimeDisplay mode="compact" className="text-xs" />
+                        <PingMonitor />
+                    </div>
                     <NotificationBell />
                     <div className="hidden flex-col items-end md:flex">
                         <span className="text-sm font-medium">{user.name || user.username}</span>
@@ -60,7 +73,7 @@ export function Header({ user }: HeaderProps) {
                             <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem asChild>
-                                <Link href="/configuracoes/perfil" className="cursor-pointer flex items-center">
+                                <Link href="/perfil" className="cursor-pointer flex items-center">
                                     <User className="mr-2 h-4 w-4" />
                                     Meu Perfil
                                 </Link>
@@ -68,7 +81,7 @@ export function Header({ user }: HeaderProps) {
                             <DropdownMenuItem asChild>
                                 <Link href="/configuracoes" className="cursor-pointer flex items-center">
                                     <Settings className="mr-2 h-4 w-4" />
-                                    Configurações
+                                    Configuracoes
                                 </Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />

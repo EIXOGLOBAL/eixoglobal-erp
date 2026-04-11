@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/route-guard"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Settings, Building2, Users, Lock, UserCircle, BarChart3, Shield, FileText, Brain } from "lucide-react"
+import { Settings, Building2, Users, Lock, UserCircle, BarChart3, Shield, FileText, Brain, Activity } from "lucide-react"
 import Link from "next/link"
 
 export const dynamic = 'force-dynamic'
@@ -65,6 +65,14 @@ export default async function ConfiguracoesPage() {
             icon: Shield,
             href: "/configuracoes/auditoria",
             color: "text-red-600",
+            adminOnly: true,
+        },
+        {
+            title: "Monitoramento",
+            description: "Saude do sistema, anomalias, varreduras de seguranca e fraudes",
+            icon: Activity,
+            href: "/configuracoes/monitoramento",
+            color: "text-emerald-600",
             adminOnly: true,
         },
     ]

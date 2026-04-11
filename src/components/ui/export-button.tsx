@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Download, FileText, Sheet, File } from 'lucide-react'
+import { Download, FileSpreadsheet, FileText, Printer, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -9,76 +9,58 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { exportToCSV, type ExportColumn } from '@/lib/export-utils'
+import {
+  exportToCSV,
+  exportToPDF,
+  exportToExcel,
+  type ExportColumn,
+  type ExportToPDFOptions,
+} from '@/lib/export-utils'
 
 interface ExportButtonProps {
-  data: any[]
+  /** Array of data objects to export */
+  data: Record<string, unknown>[]
+  /** Column definitions with key, label, and optional format */
   columns: ExportColumn[]
+  /** Base filename for the exported file (without extension) */
   filename: string
-  variant?: 'default' | 'outline' | 'ghost'
-  size?: 'default' | 'sm' | 'lg'
+  /** Title displayed in the PDF header */
+  title?: string
+  /** PDF export options (orientation, company name, etc.) */
+  pdfOptions?: ExportToPDFOptions
+  /** Excel sheet name */
+  sheetName?: string
+  /** Button visual variant */
+  variant?: 'default' | 'outline' | 'ghost' | 'secondary'
+  /** Button size */
+  size?: 'default' | 'sm' | 'lg' | 'xs'
+  /** Additional CSS classes */
   className?: string
 }
 
 /**
- * Dropdown button with export options: CSV, Excel, PDF
- * Handles the export logic client-side
+ * Reusable dropdown button for exporting table data to CSV, PDF, or Excel.
+ * All labels are in PT-BR. Shows a loading spinner during export.
  */
 export function ExportButton({
   data,
   columns,
   filename,
+  title,
+  pdfOptions,
+  sheetName,
   variant = 'outline',
   size = 'default',
   className = '',
 }: ExportButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     try {
       setIsLoading(true)
-      exportToCSV(data, filename, columns)
+      exportToCSV(data, columns, filename)
     } catch (error) {
-      console.error('Error exporting to CSV:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleExportExcel = async () => {
-    try {
-      setIsLoading(true)
-      // Dynamic import for xlsx to reduce bundle size
-      const XLSX = await import('xlsx')
-
-      // Prepare data
-      const wsData = [columns.map(col => col.label), ...data.map(item =>
-        columns.map(col => {
-          let value = item[col.key]
-          if (col.format) {
-            value = col.format(value)
-          }
-          return value ?? ''
-        })
-      )]
-
-      // Create worksheet
-      const ws = XLSX.utils.aoa_to_sheet(wsData)
-
-      // Auto-size columns
-      const columnWidths = columns.map(col => ({
-        wch: Math.max(col.label.length, 12),
-      }))
-      ws['!cols'] = columnWidths
-
-      // Create workbook and add worksheet
-      const wb = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(wb, ws, 'Dados')
-
-      // Trigger download
-      XLSX.writeFile(wb, `${filename}.xlsx`)
-    } catch (error) {
-      console.error('Error exporting to Excel:', error)
+      console.error('Erro ao exportar CSV:', error)
     } finally {
       setIsLoading(false)
     }
@@ -87,63 +69,26 @@ export function ExportButton({
   const handleExportPDF = async () => {
     try {
       setIsLoading(true)
-      // Note: jsPDF and jspdf-autotable packages are required for PDF export
-      // Install with: npm install jspdf jspdf-autotable
-      console.error('PDF export requires jsPDF package to be installed')
-      alert('PDF export requires jsPDF package to be installed')
-      setIsLoading(false)
-      return
-
-      // Dynamic import for jsPDF to reduce bundle size
-      // const { jsPDF } = await import('jspdf')
-      // const autoTable = await import('jspdf-autotable')
-
-      // const doc = new jsPDF()
-      //
-      // // Add title
-      // doc.setFontSize(14)
-      // doc.text(filename, 14, 15)
-      //
-      // // Prepare table data
-      // const tableData = data.map(item =>
-      //   columns.map(col => {
-      //     let value = item[col.key]
-      //     if (col.format) {
-      //       value = col.format(value)
-      //     }
-      //     return value ?? ''
-      //   })
-      // )
-      //
-      // // Add table
-      // autoTable(doc, {
-      //   head: [columns.map(col => col.label)],
-      //   body: tableData,
-      //   startY: 25,
-      //   margin: { top: 20 },
-      //   styles: {
-      //     fontSize: 10,
-      //     cellPadding: 3,
-      //     halign: 'left',
-      //     valign: 'middle',
-      //   },
-      //   headStyles: {
-      //     fillColor: [59, 130, 246],
-      //     textColor: [255, 255, 255],
-      //     fontStyle: 'bold',
-      //   },
-      //   alternateRowStyles: {
-      //     fillColor: [245, 247, 250],
-      //   },
-      // })
-      //
-      // doc.save(`${filename}.pdf`)
+      exportToPDF(title || filename, data, columns, pdfOptions)
     } catch (error) {
-      console.error('Error exporting to PDF:', error)
+      console.error('Erro ao exportar PDF:', error)
     } finally {
       setIsLoading(false)
     }
   }
+
+  const handleExportExcel = async () => {
+    try {
+      setIsLoading(true)
+      exportToExcel(data, columns, filename, sheetName)
+    } catch (error) {
+      console.error('Erro ao exportar Excel:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const isEmpty = !data || data.length === 0
 
   return (
     <DropdownMenu>
@@ -151,10 +96,15 @@ export function ExportButton({
         <Button
           variant={variant}
           size={size}
-          disabled={isLoading || data.length === 0}
+          disabled={isLoading || isEmpty}
           className={className}
+          title={isEmpty ? 'Sem dados para exportar' : 'Exportar dados'}
         >
-          <Download className="mr-2 h-4 w-4" />
+          {isLoading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-4 w-4" />
+          )}
           {isLoading ? 'Exportando...' : 'Exportar'}
         </Button>
       </DropdownMenuTrigger>
@@ -163,13 +113,13 @@ export function ExportButton({
           <FileText className="mr-2 h-4 w-4" />
           <span>Exportar CSV</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleExportExcel} disabled={isLoading}>
-          <Sheet className="mr-2 h-4 w-4" />
-          <span>Exportar Excel</span>
-        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleExportPDF} disabled={isLoading}>
-          <File className="mr-2 h-4 w-4" />
+          <Printer className="mr-2 h-4 w-4" />
           <span>Exportar PDF</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleExportExcel} disabled={isLoading}>
+          <FileSpreadsheet className="mr-2 h-4 w-4" />
+          <span>Exportar Excel</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

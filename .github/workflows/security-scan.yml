@@ -1,0 +1,34 @@
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 9,21 * * *'  # 06:00 and 18:00 BRT (UTC-3)
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Security Scan
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.APP_URL }}/api/cron/security-scan" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Security scan failed with status $HTTP_CODE"
+            exit 1
+          fi
+
+          # Check if critical vulnerabilities were found
+          CRITICAL=$(echo "$BODY" | jq -r '.summary.critical // 0')
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::warning::$CRITICAL critical vulnerabilities found!"
+          fi

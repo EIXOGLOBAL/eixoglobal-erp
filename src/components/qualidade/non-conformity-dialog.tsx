@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { SpellCheckTextarea } from '@/components/ui/spell-check-textarea'
 import { useToast } from '@/hooks/use-toast'
 import { createNonConformity } from '@/app/actions/quality-actions'
 import { Loader2 } from 'lucide-react'
@@ -129,10 +130,11 @@ export function NonConformityDialog({
                 <FormItem>
                   <FormLabel>Descricao *</FormLabel>
                   <FormControl>
-                    <Textarea
+                    <SpellCheckTextarea
                       placeholder="Descreva a nao conformidade encontrada..."
                       className="resize-none"
                       rows={3}
+                      fieldName="description"
                       {...field}
                     />
                   </FormControl>
@@ -172,10 +174,11 @@ export function NonConformityDialog({
                 <FormItem>
                   <FormLabel>Acao Corretiva</FormLabel>
                   <FormControl>
-                    <Textarea
+                    <SpellCheckTextarea
                       placeholder="Descreva a acao corretiva sugerida..."
                       className="resize-none"
                       rows={2}
+                      fieldName="correctiveAction"
                       {...field}
                     />
                   </FormControl>

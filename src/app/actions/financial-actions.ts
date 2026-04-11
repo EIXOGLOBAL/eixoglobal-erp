@@ -260,7 +260,7 @@ export async function getFinancialRecords(params?: {
         const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
         const filterWhere = buildWhereClause(params?.filters || {}, ['description'])
         const where = {
-            companyId: params?.companyId || (session.user as any).companyId,
+            companyId: (session.user as any).companyId,
             ...(params?.type && { type: params.type }),
             ...(params?.status && { status: params.status as any }),
             ...filterWhere

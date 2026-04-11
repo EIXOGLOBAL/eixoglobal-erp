@@ -42,6 +42,28 @@ model User {
   canViewReports     Boolean @default(true) // Pode ver relatórios
   aiAccessLevel      AiAccessLevel? // Nível de acesso à IA (null = inferir do role)
 
+  // Controle de acesso por módulo
+  moduleClients      Boolean @default(false)
+  moduleSuppliers    Boolean @default(false)
+  moduleProjects     Boolean @default(false)
+  moduleContracts    Boolean @default(false)
+  moduleFinancial    Boolean @default(false)
+  moduleBudgets      Boolean @default(false)
+  moduleMeasurements Boolean @default(false)
+  modulePurchases    Boolean @default(false)
+  moduleInventory    Boolean @default(false)
+  moduleEquipment    Boolean @default(false)
+  moduleRentals      Boolean @default(false)
+  moduleEmployees    Boolean @default(false)
+  moduleTimesheet    Boolean @default(false)
+  moduleDocuments    Boolean @default(false)
+  moduleQuality      Boolean @default(false)
+  moduleSafety       Boolean @default(false)
+  moduleDailyReports Boolean @default(false)
+  moduleTraining     Boolean @default(false)
+  moduleBilling      Boolean @default(false)
+  moduleCostCenters  Boolean @default(false)
+
   projects               Project[]
   registeredMeasurements Measurement[]       @relation("MeasurementRegistrar")
   approvedMeasurements   Measurement[]       @relation("MeasurementApprover")
@@ -62,6 +84,8 @@ model User {
   notifications       Notification[]
   announcements       Announcement[]       @relation("AnnouncementAuthor")
   acceptedTermsAt     DateTime?
+  lastAccessAt        DateTime?
+  activeSessionToken  String?
   auditLogs           AuditLog[]           @relation("AuditLogUser")
   supplierEvaluations SupplierEvaluation[] @relation("SupplierEvaluator")
 
@@ -77,6 +101,8 @@ model User {
   uploadedDocuments        DocumentFile[]         @relation("DocumentUploader")
   documentVersions         DocumentVersion[]      @relation("VersionUploader")
   progressPhotos           ProgressPhoto[]        @relation("PhotoTaker")
+
+  resolvedAnomalies      AnomalyDetection[]     @relation("AnomalyResolver")
 
   @@index([companyId])
   @@index([email])
@@ -95,6 +121,7 @@ model Company {
   city      String?
   state     String?
   zipCode   String?
+  logoUrl   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -142,6 +169,7 @@ model Company {
   documentFolders    DocumentFolder[]
   documentFiles      DocumentFile[]
   progressPhotos     ProgressPhoto[]
+  anomalyDetections  AnomalyDetection[]
 
   @@map("companies")
 }
@@ -2789,4 +2817,53 @@ model ProgressPhoto {
   @@index([projectId, takenAt])
   @@index([companyId])
   @@map("progress_photos")
+}
+
+// --------------------------------------------------------
+// SYSTEM: Health, Anomaly Detection & Security
+// --------------------------------------------------------
+
+model SystemHealthLog {
+  id        String   @id @default(uuid())
+  timestamp DateTime @default(now())
+  metric    String
+  value     Float
+  status    String
+  details   Json?
+  companyId String?
+
+  @@index([timestamp])
+  @@index([metric, status])
+}
+
+model AnomalyDetection {
+  id            String    @id @default(uuid())
+  type          String
+  severity      String
+  entity        String
+  entityId      String?
+  description   String    @db.Text
+  evidence      Json?
+  detectedAt    DateTime  @default(now())
+  resolvedAt    DateTime?
+  resolvedById  String?
+  resolvedBy    User?     @relation("AnomalyResolver", fields: [resolvedById], references: [id])
+  falsePositive Boolean   @default(false)
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, detectedAt])
+  @@index([type, severity])
+}
+
+model SecurityScan {
+  id              String    @id @default(uuid())
+  scanDate        DateTime  @default(now())
+  scanType        String
+  vulnerabilities Json?
+  recommendations Json?
+  status          String
+  resolvedAt      DateTime?
+
+  @@index([scanDate])
 }

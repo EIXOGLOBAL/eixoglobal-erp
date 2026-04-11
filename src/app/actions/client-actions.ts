@@ -50,7 +50,7 @@ export async function getClients(params?: {
     const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
     const filterWhere = buildWhereClause(params?.filters || {}, ['displayName', 'cnpj', 'cpf'])
     const where = {
-      companyId: params?.companyId || (session.user as any).companyId,
+      companyId: (session.user as any).companyId,
       ...filterWhere
     }
 

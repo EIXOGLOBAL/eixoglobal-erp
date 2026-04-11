@@ -45,6 +45,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import { SpellCheckTextarea } from '@/components/ui/spell-check-textarea'
 import { useToast } from "@/hooks/use-toast"
 import {
     createSupplier,
@@ -499,9 +500,12 @@ export function SuppliersClient({ companyId, suppliers }: SuppliersClientProps) 
                                         <FormItem>
                                             <FormLabel>Observações</FormLabel>
                                             <FormControl>
-                                                <Textarea
+                                                <SpellCheckTextarea
                                                     placeholder="Informações adicionais sobre o fornecedor..."
                                                     rows={3}
+                                                    spellCheckEnabled
+                                                    autoCorrectOnBlur
+                                                    fieldName="notes"
                                                     {...field}
                                                 />
                                             </FormControl>

@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { SpellCheckTextarea } from '@/components/ui/spell-check-textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import { createClient, updateClient } from '@/app/actions/client-actions'
@@ -554,10 +555,13 @@ export function ClientDialog({
                 <FormItem>
                   <FormLabel>Observações</FormLabel>
                   <FormControl>
-                    <Textarea
+                    <SpellCheckTextarea
                       placeholder="Informações adicionais sobre o cliente..."
                       className="resize-none"
                       rows={3}
+                      spellCheckEnabled
+                      autoCorrectOnBlur
+                      fieldName="notes"
                       {...field}
                     />
                   </FormControl>

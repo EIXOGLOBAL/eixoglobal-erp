@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { SpellCheckTextarea } from '@/components/ui/spell-check-textarea'
 import { HolidayDatePicker } from "@/components/ui/holiday-date-picker"
 import { useToast } from "@/hooks/use-toast"
 import { createDailyReport, updateDailyReport } from "@/app/actions/daily-report-actions"
@@ -345,9 +346,10 @@ export function DailyReportDialog({ companyId, projects, report, trigger }: Dail
                                 <FormItem>
                                     <FormLabel>Ocorrências</FormLabel>
                                     <FormControl>
-                                        <Textarea
+                                        <SpellCheckTextarea
                                             rows={3}
                                             placeholder="Registre ocorrências relevantes do dia..."
+                                            fieldName="occurrences"
                                             {...field}
                                             value={field.value as string || ""}
                                         />
@@ -364,9 +366,10 @@ export function DailyReportDialog({ companyId, projects, report, trigger }: Dail
                                 <FormItem>
                                     <FormLabel>Observações Gerais</FormLabel>
                                     <FormControl>
-                                        <Textarea
+                                        <SpellCheckTextarea
                                             rows={3}
                                             placeholder="Observações adicionais..."
+                                            fieldName="notes"
                                             {...field}
                                             value={field.value as string || ""}
                                         />

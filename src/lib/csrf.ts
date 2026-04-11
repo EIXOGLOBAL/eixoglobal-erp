@@ -1,62 +1,62 @@
+import { NextRequest, NextResponse } from 'next/server'
+
+export const CSRF_COOKIE_NAME = 'csrf-token'
+export const CSRF_HEADER_NAME = 'x-csrf-token'
+
 /**
- * CSRF Token Management
- *
- * Para usar em produção, integre com a biblioteca 'csrf':
- * npm install csrf
- *
- * Este é um exemplo simplificado para desenvolvimento.
+ * Generate a cryptographically random CSRF token.
  */
-
-import crypto from 'crypto'
-
-export class CSRFManager {
-    private tokens = new Map<string, { token: string; expiresAt: number }>()
-
-    /**
-     * Gera um novo token CSRF
-     */
-    generateToken(sessionId: string): string {
-        const token = crypto.randomBytes(32).toString('hex')
-        const expiresAt = Date.now() + 24 * 60 * 60 * 1000 // 24 horas
-
-        this.tokens.set(sessionId, { token, expiresAt })
-        this.cleanup()
-
-        return token
-    }
-
-    /**
-     * Valida um token CSRF
-     */
-    validateToken(sessionId: string, token: string): boolean {
-        const storedToken = this.tokens.get(sessionId)
-
-        if (!storedToken) {
-            return false
-        }
-
-        if (storedToken.expiresAt < Date.now()) {
-            this.tokens.delete(sessionId)
-            return false
-        }
-
-        return crypto.timingSafeEqual(
-            Buffer.from(storedToken.token),
-            Buffer.from(token)
-        )
-    }
-
-    /**
-     * Remove tokens expirados
-     */
-    private cleanup() {
-        const now = Date.now()
-        for (const [sessionId, { expiresAt }] of this.tokens) {
-            if (expiresAt < now) {
-                this.tokens.delete(sessionId)
-            }
-        }
-    }
+export function generateCsrfToken(): string {
+  return crypto.randomUUID()
 }
 
-export const csrfManager = new CSRFManager()
+/**
+ * Set the CSRF token cookie on a NextResponse.
+ *
+ * httpOnly is false so client-side JS can read the cookie value and send it
+ * back as a header (double-submit cookie pattern).
+ */
+export function setCsrfCookie(response: NextResponse, token: string): void {
+  response.cookies.set({
+    name: CSRF_COOKIE_NAME,
+    value: token,
+    httpOnly: false,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+  })
+}
+
+/**
+ * Read the CSRF token from the request cookie.
+ */
+export function getCsrfFromCookie(request: NextRequest): string | null {
+  return request.cookies.get(CSRF_COOKIE_NAME)?.value ?? null
+}
+
+/**
+ * Read the CSRF token from the request header.
+ */
+export function getCsrfFromHeader(request: NextRequest): string | null {
+  return request.headers.get(CSRF_HEADER_NAME) ?? null
+}
+
+/**
+ * Validate CSRF using the double-submit cookie pattern.
+ *
+ * Compares the token sent in the cookie (automatically by the browser) with
+ * the token sent in the header (explicitly by JS). An attacker cannot read
+ * our cookies due to SameSite policy, so they cannot forge the header value.
+ *
+ * Returns true when both tokens are present and match.
+ */
+export function validateCsrf(request: NextRequest): boolean {
+  const cookieToken = getCsrfFromCookie(request)
+  const headerToken = getCsrfFromHeader(request)
+
+  if (!cookieToken || !headerToken) {
+    return false
+  }
+
+  return cookieToken === headerToken
+}

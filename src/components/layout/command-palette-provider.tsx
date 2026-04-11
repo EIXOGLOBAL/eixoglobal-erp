@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, createContext, useContext } from "react"
-import { CommandPalette } from "./command-palette"
+import { CommandPalette } from "@/components/ui/command-palette"
 
 interface CommandPaletteContextValue {
     open: boolean
@@ -17,7 +17,12 @@ export function useCommandPalette() {
     return useContext(CommandPaletteContext)
 }
 
-export function CommandPaletteProvider({ children }: { children: React.ReactNode }) {
+interface CommandPaletteProviderProps {
+    children: React.ReactNode
+    userRole?: string
+}
+
+export function CommandPaletteProvider({ children, userRole = "USER" }: CommandPaletteProviderProps) {
     const [open, setOpen] = useState(false)
 
     useEffect(() => {
@@ -34,7 +39,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
     return (
         <CommandPaletteContext.Provider value={{ open, setOpen }}>
             {children}
-            <CommandPalette open={open} onOpenChange={setOpen} />
+            <CommandPalette open={open} onOpenChange={setOpen} userRole={userRole} />
         </CommandPaletteContext.Provider>
     )
 }

@@ -21,6 +21,37 @@ const changePasswordSchema = z.object({
     path: ["confirmPassword"],
 })
 
+export async function getProfileData() {
+    try {
+        const session = await assertAuthenticated()
+
+        const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: {
+                id: true,
+                username: true,
+                name: true,
+                email: true,
+                role: true,
+                avatarUrl: true,
+                createdAt: true,
+                updatedAt: true,
+                lastLoginAt: true,
+                company: { select: { name: true } },
+            },
+        })
+
+        if (!user) {
+            return { success: false as const, error: 'Usuario nao encontrado' }
+        }
+
+        return { success: true as const, data: user }
+    } catch (error: any) {
+        console.error("[getProfileData] error:", error)
+        return { success: false as const, error: `Erro ao carregar perfil: ${error?.message ?? "desconhecido"}` }
+    }
+}
+
 export async function updateProfile(data: { name: string; email?: string }) {
     try {
         const session = await assertAuthenticated()
@@ -32,6 +63,7 @@ export async function updateProfile(data: { name: string; email?: string }) {
         })
 
         revalidatePath('/configuracoes/perfil')
+        revalidatePath('/perfil')
         return { success: true }
     } catch (error: any) {
         console.error("[updateProfile] error:", error)

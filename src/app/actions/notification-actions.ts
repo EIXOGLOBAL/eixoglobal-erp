@@ -96,8 +96,8 @@ export async function markNotificationAsRead(notificationId: string) {
       return { success: false, error: 'Não autenticado' }
     }
 
-    const notification = await prisma.notification.update({
-      where: { id: notificationId },
+    const notification = await prisma.notification.updateMany({
+      where: { id: notificationId, userId: session.user.id },
       data: { read: true },
     })
 
@@ -145,8 +145,8 @@ export async function deleteNotification(notificationId: string) {
       return { success: false, error: 'Não autenticado' }
     }
 
-    await prisma.notification.delete({
-      where: { id: notificationId },
+    await prisma.notification.deleteMany({
+      where: { id: notificationId, userId: session.user.id },
     })
 
     revalidatePath('/notificacoes')

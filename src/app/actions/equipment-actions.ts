@@ -197,7 +197,7 @@ export async function getEquipment(params?: {
         const { skip, take, page, pageSize } = getPaginationArgs(params?.pagination)
         const filterWhere = buildWhereClause(params?.filters || {}, ['name', 'code'])
         const where = {
-            companyId: params?.companyId || (session.user as any).companyId,
+            companyId: (session.user as any).companyId,
             ...filterWhere
         }
 

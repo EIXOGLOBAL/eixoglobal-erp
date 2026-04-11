@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { SpellCheckTextarea } from '@/components/ui/spell-check-textarea'
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import { createEquipment, updateEquipment } from "@/app/actions/equipment-actions"
@@ -328,9 +329,10 @@ export function EquipmentDialog({ companyId, equipment, trigger, open: controlle
                                 <FormItem>
                                     <FormLabel>Observações</FormLabel>
                                     <FormControl>
-                                        <Textarea
+                                        <SpellCheckTextarea
                                             placeholder="Informações adicionais sobre o equipamento..."
                                             rows={3}
+                                            fieldName="notes"
                                             {...field}
                                         />
                                     </FormControl>
