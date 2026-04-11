@@ -6,8 +6,8 @@ const bcrypt = require("bcryptjs");
 (async () => {
   const prisma = new PrismaClient();
   try {
-    // Truncate cascade para limpar relacoes
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE "User" CASCADE');
+    // Truncate cascade para limpar relacoes (tabela mapeada como "users" via @@map)
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE "users" CASCADE');
     console.log("[reset-users] Todos os usuarios deletados");
 
     // Garantir que existe uma empresa

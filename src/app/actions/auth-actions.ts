@@ -61,7 +61,13 @@ export async function login(prevState: LoginState, formData: FormData): Promise<
 
         const { username, password } = result.data
 
-        const user = await prisma.user.findUnique({ where: { username } })
+        const user = await prisma.user.findUnique({
+            where: { username },
+            select: {
+                id: true, username: true, password: true, role: true,
+                isActive: true, isBlocked: true, blockedReason: true,
+            },
+        })
 
         if (!user || !user.password) {
             await logAudit({ action: 'LOGIN_FAILED', reason: 'user_not_found', details: username, ipAddress: ip, userAgent })
@@ -86,7 +92,7 @@ export async function login(prevState: LoginState, formData: FormData): Promise<
         }
 
         // Login OK — atualizar lastLoginAt e buscar permissões
-        await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+        await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch(() => {})
         const expires = new Date(Date.now() + SESSION_DURATION_MS)
         const userWithPerms = await prisma.user.findUnique({
             where: { id: user.id },
@@ -144,8 +150,13 @@ export async function devLogin(): Promise<{ success: boolean; error?: string }> 
     }
 
     try {
-        let user = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
-        if (!user) user = await prisma.user.findFirst()
+        let user = await prisma.user.findFirst({
+            where: { role: 'ADMIN' },
+            select: { id: true, username: true, email: true, name: true, role: true, companyId: true, password: true },
+        })
+        if (!user) user = await prisma.user.findFirst({
+            select: { id: true, username: true, email: true, name: true, role: true, companyId: true, password: true },
+        })
 
         if (!user) {
             const hashedPassword = await bcrypt.hash('Dev@123456', BCRYPT_ROUNDS)
