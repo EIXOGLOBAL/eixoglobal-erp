@@ -3,10 +3,12 @@ import { getMonitoringDashboard, getAnomalies, getSecurityScans } from '@/app/ac
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Activity, Shield, AlertTriangle, Bug, CheckCircle, XCircle } from 'lucide-react'
+import { Activity, Shield, AlertTriangle, Bug, CheckCircle, XCircle, Heart, ShieldAlert } from 'lucide-react'
 import { MonitoringActions } from '@/components/monitoring/monitoring-actions'
 import { AnomalyList } from '@/components/monitoring/anomaly-list'
 import { SecurityScanList } from '@/components/monitoring/security-scan-list'
+import { HealthChart } from '@/components/monitoring/health-chart'
+import { FraudAlerts } from '@/components/monitoring/fraud-alerts'
 
 export const dynamic = 'force-dynamic'
 
@@ -111,12 +113,34 @@ export default async function MonitoramentoPage() {
       {/* Tabs */}
       <Tabs defaultValue="anomalies" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="anomalies">Anomalias</TabsTrigger>
-          <TabsTrigger value="security">Seguranca</TabsTrigger>
+          <TabsTrigger value="anomalies">
+            <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
+            Anomalias
+          </TabsTrigger>
+          <TabsTrigger value="health">
+            <Heart className="mr-1.5 h-3.5 w-3.5" />
+            Saude
+          </TabsTrigger>
+          <TabsTrigger value="fraud">
+            <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
+            Fraudes
+          </TabsTrigger>
+          <TabsTrigger value="security">
+            <Shield className="mr-1.5 h-3.5 w-3.5" />
+            Seguranca
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="anomalies">
           <AnomalyList anomalies={anomalies?.items || []} />
+        </TabsContent>
+
+        <TabsContent value="health">
+          <HealthChart />
+        </TabsContent>
+
+        <TabsContent value="fraud">
+          <FraudAlerts />
         </TabsContent>
 
         <TabsContent value="security">
