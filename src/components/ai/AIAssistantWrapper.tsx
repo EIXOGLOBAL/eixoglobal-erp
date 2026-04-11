@@ -2,11 +2,11 @@
 
 import dynamic from 'next/dynamic'
 
-const AIAssistant = dynamic(
-  () => import('@/components/ai/AIAssistant').then(m => m.AIAssistant),
+const AIChat = dynamic(
+  () => import('@/components/ai/AIChat').then(m => m.AIChat),
   { ssr: false }
 )
 
 export function AIAssistantWrapper() {
-  return <AIAssistant />
+  return <AIChat />
 }
