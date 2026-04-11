@@ -39,6 +39,7 @@ import { BulletinMetadataPanel } from "@/components/bulletins/bulletin-metadata-
 import { BulletinTimeline } from "@/components/bulletins/bulletin-timeline"
 import { ContractExecutionChart } from "@/components/bulletins/contract-execution-chart"
 import { BulletinRejectionPanel } from "@/components/bulletins/bulletin-rejection-panel"
+import { formatDate } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -120,7 +121,7 @@ const [result, session] = await Promise.all([
                     </Button>
 
                     {/* Workflow Actions Component */}
-                    <BulletinActionButtons bulletin={bulletin} userId={userId} />
+                    <BulletinActionButtons bulletin={bulletin} />
                 </div>
             </div>
 
@@ -147,7 +148,7 @@ const [result, session] = await Promise.all([
                             {bulletin.referenceMonth}
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                            {new Date(bulletin.periodStart).toLocaleDateString('pt-BR')} até {new Date(bulletin.periodEnd).toLocaleDateString('pt-BR')}
+                            {formatDate(bulletin.periodStart)} até {formatDate(bulletin.periodEnd)}
                         </p>
                     </CardContent>
                 </Card>
@@ -343,7 +344,6 @@ const [result, session] = await Promise.all([
                         <CardContent>
                             <CommentsSection
                                 bulletinId={bulletin.id}
-                                userId={userId}
                                 comments={bulletin.comments as any}
                                 bulletinStatus={bulletin.status}
                             />

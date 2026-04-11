@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PrintButton } from "@/components/relatorios/print-button"
+import { formatDate } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -94,7 +95,7 @@ export default async function RelatorioExecutivoPage() {
     ).slice(0, 5)
 
     const fmt = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 }).format(n)
-    const fmtDate = (d: Date | string | null | undefined) => d ? new Date(d).toLocaleDateString("pt-BR") : "-"
+    const fmtDate = (d: Date | string | null | undefined) => d ? formatDate(d) : "-"
     const statusLabel: Record<string, string> = {
         BACKLOG: "Backlog", TODO: "A Fazer", IN_PROGRESS: "Em Andamento",
         IN_REVIEW: "Em Revisao", DONE: "Concluido", CANCELLED: "Cancelado",
@@ -117,7 +118,7 @@ export default async function RelatorioExecutivoPage() {
                     Relatorio Executivo &mdash; {company?.name ?? "Empresa"}
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                    Gerado em {now.toLocaleDateString("pt-BR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+                    Gerado em {formatDate(now)}
                 </p>
             </div>
             <section>

@@ -289,10 +289,17 @@ export function ReportGeneratorPanel({ companyId }: ReportGeneratorPanelProps) {
           {showPreview && (
             <Card>
               <CardContent className="pt-6">
-                <div
-                  className="prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: report.content }}
-                />
+                {/*
+                 * SECURITY: Renderizamos como texto puro pré-formatado para
+                 * evitar XSS via prompt injection. O conteúdo vem do
+                 * Anthropic API e não é confiável como HTML — um prompt
+                 * malicioso poderia injetar <script>, <iframe>, on*
+                 * handlers, etc. Se quiser markdown rico no futuro, usar
+                 * react-markdown com rehype-sanitize.
+                 */}
+                <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed">
+                  {report.content}
+                </pre>
               </CardContent>
             </Card>
           )}

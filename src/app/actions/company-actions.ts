@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { getNextCode } from "@/lib/sequence"
+import { assertAuthenticated, assertRole } from "@/lib/auth-helpers"
 
 const companySchema = z.object({
     name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres"),
@@ -27,6 +28,8 @@ const contactSchema = z.object({
 
 export async function createCompany(data: z.infer<typeof companySchema>) {
     try {
+        const session = await assertAuthenticated()
+        await assertRole(session, "ADMIN")
         const validated = companySchema.parse(data)
         const code = await getNextCode('company')
         const company = await prisma.company.create({
@@ -42,6 +45,8 @@ export async function createCompany(data: z.infer<typeof companySchema>) {
 
 export async function updateCompany(id: string, data: z.infer<typeof companySchema>) {
     try {
+        const session = await assertAuthenticated()
+        await assertRole(session, "ADMIN")
         const validated = companySchema.parse(data)
 
         const company = await prisma.company.update({
@@ -59,6 +64,8 @@ export async function updateCompany(id: string, data: z.infer<typeof companySche
 
 export async function deleteCompany(id: string) {
     try {
+        const session = await assertAuthenticated()
+        await assertRole(session, "ADMIN")
         const companyWithProjects = await prisma.company.findUnique({
             where: { id },
             include: { projects: true }
@@ -83,6 +90,7 @@ export async function deleteCompany(id: string) {
 
 export async function getCompanies() {
     try {
+        await assertAuthenticated()
         const companies = await prisma.company.findMany({
             include: {
                 _count: { select: { projects: true } }
@@ -98,6 +106,7 @@ export async function getCompanies() {
 
 export async function getCompanyById(id: string) {
     try {
+        await assertAuthenticated()
         const company = await prisma.company.findUnique({
             where: { id },
             include: {
@@ -130,6 +139,8 @@ export async function getCompanyById(id: string) {
 
 export async function addCompanyContact(companyId: string, data: z.infer<typeof contactSchema>) {
     try {
+        const session = await assertAuthenticated()
+        await assertRole(session, "ADMIN")
         const validated = contactSchema.parse(data)
 
         // If marking as primary, unset others of same type
@@ -153,6 +164,8 @@ export async function addCompanyContact(companyId: string, data: z.infer<typeof 
 
 export async function updateCompanyContact(contactId: string, companyId: string, data: z.infer<typeof contactSchema>) {
     try {
+        const session = await assertAuthenticated()
+        await assertRole(session, "ADMIN")
         const validated = contactSchema.parse(data)
 
         if (validated.isPrimary) {
@@ -176,6 +189,8 @@ export async function updateCompanyContact(contactId: string, companyId: string,
 
 export async function deleteCompanyContact(contactId: string, companyId: string) {
     try {
+        const session = await assertAuthenticated()
+        await assertRole(session, "ADMIN")
         await prisma.companyContact.delete({ where: { id: contactId } })
         revalidatePath(`/companies/${companyId}`)
         return { success: true }

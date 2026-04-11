@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 const fiscalNoteSchema = z.object({
     number: z.string().min(1, "Número é obrigatório"),
@@ -59,6 +60,8 @@ export async function createFiscalNote(data: z.infer<typeof fiscalNoteSchema>) {
             }
         })
 
+        await logCreate('FiscalNote', note.id, note.number || 'N/A', validated)
+
         revalidatePath('/financeiro/notas')
         return { success: true, data: { ...note, value: Number(note.value) } }
     } catch (error) {
@@ -78,7 +81,6 @@ export async function updateFiscalNote(id: string, data: z.infer<typeof fiscalNo
         // Verify note belongs to user's company
         const note = await prisma.fiscalNote.findUnique({
             where: { id },
-            select: { companyId: true }
         })
         if (!note || note.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
@@ -107,6 +109,8 @@ export async function updateFiscalNote(id: string, data: z.infer<typeof fiscalNo
             }
         })
 
+        await logUpdate('FiscalNote', id, updatedNote.number || 'N/A', note, updatedNote)
+
         revalidatePath('/financeiro/notas')
         return { success: true, data: { ...updatedNote, value: Number(updatedNote.value) } }
     } catch (error) {
@@ -123,7 +127,6 @@ export async function updateFiscalNoteStatus(id: string, status: 'DRAFT' | 'ISSU
         // Verify note belongs to user's company
         const note = await prisma.fiscalNote.findUnique({
             where: { id },
-            select: { companyId: true }
         })
         if (!note || note.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
@@ -133,6 +136,8 @@ export async function updateFiscalNoteStatus(id: string, status: 'DRAFT' | 'ISSU
             where: { id },
             data: { status }
         })
+
+        await logAction('STATUS_CHANGE', 'FiscalNote', id, updated.number || 'N/A', `${note.status} -> ${status}`)
 
         revalidatePath('/financeiro/notas')
         return { success: true, data: { ...updated, value: Number(updated.value) } }
@@ -166,6 +171,9 @@ export async function deleteFiscalNote(id: string) {
         }
 
         await prisma.fiscalNote.delete({ where: { id } })
+
+        await logDelete('FiscalNote', id, note.number || 'N/A', note)
+
         revalidatePath('/financeiro/notas')
         return { success: true }
     } catch (error) {

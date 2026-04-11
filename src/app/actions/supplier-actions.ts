@@ -4,7 +4,9 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
 import { logAudit } from "@/lib/audit"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 import { toNumber } from "@/lib/formatters"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
@@ -57,6 +59,8 @@ export async function createSupplier(data: z.infer<typeof supplierSchema>) {
             }
         })
 
+        await logCreate('Supplier', supplier.id, supplier.name, validated)
+
         revalidatePath('/fornecedores')
         revalidatePath('/financeiro/fornecedores')
         return { success: true, data: supplier }
@@ -75,11 +79,10 @@ export async function updateSupplier(id: string, data: z.infer<typeof supplierSc
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
 
         // Verify supplier belongs to user's company
-        const supplier = await prisma.supplier.findUnique({
+        const oldData = await prisma.supplier.findUnique({
             where: { id },
-            select: { companyId: true }
         })
-        if (!supplier || supplier.companyId !== session.user.companyId) {
+        if (!oldData || oldData.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
         }
 
@@ -103,6 +106,8 @@ export async function updateSupplier(id: string, data: z.infer<typeof supplierSc
             }
         })
 
+        await logUpdate('Supplier', id, updated.name, oldData, updated)
+
         revalidatePath('/fornecedores')
         revalidatePath('/financeiro/fornecedores')
         return { success: true, data: updated }
@@ -123,11 +128,10 @@ export async function deleteSupplier(id: string) {
         }
 
         // Verify supplier belongs to user's company
-        const supplier = await prisma.supplier.findUnique({
+        const old = await prisma.supplier.findUnique({
             where: { id },
-            select: { companyId: true }
         })
-        if (!supplier || supplier.companyId !== session.user.companyId) {
+        if (!old || old.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
         }
 
@@ -141,6 +145,9 @@ export async function deleteSupplier(id: string) {
         }
 
         await prisma.supplier.delete({ where: { id } })
+
+        await logDelete('Supplier', id, old.name, old)
+
         revalidatePath('/fornecedores')
         revalidatePath('/financeiro/fornecedores')
         return { success: true }
@@ -200,6 +207,45 @@ export async function getActiveSuppliers(companyId: string) {
     }
 }
 
+export async function getSuppliersWithScore(companyId: string) {
+    try {
+        const suppliers = await prisma.supplier.findMany({
+            where: { companyId, isActive: true },
+            select: {
+                id: true,
+                name: true,
+                evaluations: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                    select: { score: true },
+                },
+            },
+            orderBy: { name: 'asc' },
+        })
+
+        const result = suppliers
+            .map(s => ({
+                id: s.id,
+                name: s.name,
+                lastScore: s.evaluations.length > 0
+                    ? Number(s.evaluations[0]!.score)
+                    : null,
+            }))
+            .sort((a, b) => {
+                // Fornecedores com score primeiro, ordenados do maior para o menor
+                if (a.lastScore !== null && b.lastScore !== null) return b.lastScore - a.lastScore
+                if (a.lastScore !== null) return -1
+                if (b.lastScore !== null) return 1
+                return a.name.localeCompare(b.name)
+            })
+
+        return result
+    } catch (error) {
+        console.error("Erro ao buscar fornecedores com score:", error)
+        return []
+    }
+}
+
 export async function toggleSupplierStatus(id: string, isActive: boolean) {
     try {
         const session = await getSession()
@@ -208,7 +254,7 @@ export async function toggleSupplierStatus(id: string, isActive: boolean) {
         // Verify supplier belongs to user's company
         const supplier = await prisma.supplier.findUnique({
             where: { id },
-            select: { companyId: true }
+            select: { companyId: true, name: true }
         })
         if (!supplier || supplier.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
@@ -218,6 +264,9 @@ export async function toggleSupplierStatus(id: string, isActive: boolean) {
             where: { id },
             data: { isActive }
         })
+
+        await logAction(isActive ? 'ACTIVATE' : 'DEACTIVATE', 'Supplier', id, supplier.name, `Status alterado para ${isActive ? 'ativo' : 'inativo'}`)
+
         revalidatePath('/fornecedores')
         revalidatePath('/financeiro/fornecedores')
         return { success: true, data: updated }
@@ -433,6 +482,8 @@ export async function evaluateSupplier(
             })
         }
 
+        await logCreate('SupplierEvaluation', evaluation.id, `Avaliação ${supplier?.name || 'N/A'} (${score.toFixed(1)})`, data)
+
         revalidatePath(`/fornecedores/${supplierId}`)
         revalidatePath('/fornecedores')
         return { success: true, data: evaluation }
@@ -448,6 +499,8 @@ export async function evaluateSupplier(
 
 export async function getSupplierDetail(supplierId: string) {
     try {
+        const session = await assertAuthenticated()
+
         const supplier = await prisma.supplier.findUnique({
             where: { id: supplierId },
             include: {
@@ -461,6 +514,10 @@ export async function getSupplierDetail(supplierId: string) {
             },
         })
         if (!supplier) return { success: false, error: "Fornecedor não encontrado" }
+
+        if (supplier.companyId) {
+            await assertCompanyAccess(session, supplier.companyId)
+        }
 
         // Purchase orders summary
         const purchaseOrders = await prisma.purchaseOrder.findMany({

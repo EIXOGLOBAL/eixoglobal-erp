@@ -10,6 +10,7 @@ import { toNumber } from "@/lib/formatters"
 import { getSession } from "@/lib/auth"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS
@@ -58,6 +59,8 @@ export async function createPurchaseOrder(
             }
         })
 
+        await logCreate('PurchaseOrder', order.id, order.number, validated)
+
         revalidatePath('/compras')
         return { success: true, data: order }
     } catch (error) {
@@ -75,11 +78,10 @@ export async function updatePurchaseOrder(id: string, data: z.infer<typeof order
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
 
         // Verify order belongs to user's company
-        const order = await prisma.purchaseOrder.findUnique({
+        const oldOrder = await prisma.purchaseOrder.findUnique({
             where: { id },
-            select: { companyId: true }
         })
-        if (!order || order.companyId !== session.user.companyId) {
+        if (!oldOrder || oldOrder.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
         }
 
@@ -95,6 +97,8 @@ export async function updatePurchaseOrder(id: string, data: z.infer<typeof order
                 costCenterId: validated.costCenterId || null,
             }
         })
+
+        await logUpdate('PurchaseOrder', id, updated.number, oldOrder, updated)
 
         revalidatePath('/compras')
         revalidatePath(`/compras/${id}`)
@@ -137,6 +141,8 @@ export async function deletePurchaseOrder(id: string) {
         }
 
         await prisma.purchaseOrder.delete({ where: { id } })
+
+        await logDelete('PurchaseOrder', id, order.number, order)
 
         revalidatePath('/compras')
         return { success: true }
@@ -274,6 +280,8 @@ export async function addOrderItem(orderId: string, data: z.infer<typeof itemSch
             }
         })
 
+        await logCreate('PurchaseOrderItem', item.id, item.description, validated)
+
         await recalculateTotalValue(orderId)
 
         revalidatePath('/compras')
@@ -296,7 +304,7 @@ export async function updateOrderItem(itemId: string, data: z.infer<typeof itemS
         // Verify item belongs to user's company
         const existing = await prisma.purchaseOrderItem.findUnique({
             where: { id: itemId },
-            select: { purchaseOrder: { select: { companyId: true } } }
+            include: { purchaseOrder: { select: { companyId: true } } }
         })
         if (!existing || existing.purchaseOrder.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
@@ -316,6 +324,8 @@ export async function updateOrderItem(itemId: string, data: z.infer<typeof itemS
                 materialId: validated.materialId || null,
             }
         })
+
+        await logUpdate('PurchaseOrderItem', itemId, item.description, existing, item)
 
         await recalculateTotalValue(item.purchaseOrderId)
 
@@ -343,7 +353,7 @@ export async function deleteOrderItem(itemId: string) {
 
         const item = await prisma.purchaseOrderItem.findUnique({
             where: { id: itemId },
-            select: { purchaseOrderId: true, purchaseOrder: { select: { companyId: true } } }
+            include: { purchaseOrder: { select: { companyId: true } } }
         })
 
         if (!item) {
@@ -358,6 +368,8 @@ export async function deleteOrderItem(itemId: string) {
         const orderId = item.purchaseOrderId
 
         await prisma.purchaseOrderItem.delete({ where: { id: itemId } })
+
+        await logDelete('PurchaseOrderItem', itemId, item.description, item)
 
         await recalculateTotalValue(orderId as string)
 
@@ -393,8 +405,10 @@ export async function updateOrderStatus(id: string, status: PurchaseOrderStatus)
                 status,
                 ...(status === 'RECEIVED' ? { receivedAt: new Date() } : {})
             },
-            select: { id: true, number: true, companyId: true },
+            select: { id: true, number: true, companyId: true, projectId: true },
         })
+
+        await logAction(status, 'PurchaseOrder', id, updated.number, `Status changed to ${status}`)
 
         // Notify on approval
         if (status === 'APPROVED') {
@@ -411,6 +425,56 @@ export async function updateOrderStatus(id: string, status: PurchaseOrderStatus)
             }
             await createNotificationForMany(managerIds, notifData)
             notifyUsers(managerIds, notifData)
+        }
+
+        // Sync inventory when order is received
+        if (status === 'RECEIVED') {
+            try {
+                const items = await prisma.purchaseOrderItem.findMany({
+                    where: { purchaseOrderId: id, materialId: { not: null } },
+                    select: { materialId: true, quantity: true, unitPrice: true, description: true },
+                })
+
+                if (items.length > 0) {
+                    await prisma.$transaction(async (tx) => {
+                        for (const item of items) {
+                            const materialId = item.materialId as string
+
+                            const movement = await tx.inventoryMovement.create({
+                                data: {
+                                    type: 'IN',
+                                    quantity: item.quantity,
+                                    unitCost: item.unitPrice,
+                                    documentNumber: updated.number,
+                                    notes: `Recebimento OC #${updated.number}`,
+                                    materialId,
+                                    projectId: updated.projectId || null,
+                                    userId: session.user!.id,
+                                },
+                            })
+
+                            await tx.material.update({
+                                where: { id: materialId },
+                                data: {
+                                    currentStock: { increment: item.quantity },
+                                },
+                            })
+
+                            await logCreate('InventoryMovement', movement.id, `Recebimento OC #${updated.number}`, {
+                                type: 'IN',
+                                quantity: item.quantity,
+                                materialId,
+                                documentNumber: updated.number,
+                            })
+                        }
+                    })
+                }
+
+                revalidatePath('/estoque')
+            } catch (stockError) {
+                console.error("Erro ao atualizar estoque (OC recebida):", stockError)
+                // Stock sync failure does NOT block the status change
+            }
         }
 
         revalidatePath('/compras')

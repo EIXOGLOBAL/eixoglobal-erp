@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, RefreshCw } from "lucide-react"
 import Link from "next/link"
+import { formatDate } from "@/lib/formatters"
 
 interface BulletinRejectionPanelProps {
     bulletinId: string
@@ -28,7 +29,7 @@ export function BulletinRejectionPanel({
                 </div>
                 {rejectedAt && (
                     <p className="text-xs text-red-700">
-                        Rejeitado em {new Date(rejectedAt).toLocaleDateString('pt-BR')} às {new Date(rejectedAt).toLocaleTimeString('pt-BR')}
+                        Rejeitado em {formatDate(rejectedAt)} às {new Date(rejectedAt).toLocaleTimeString('pt-BR')}
                     </p>
                 )}
                 <div className="flex gap-2 pt-2">

@@ -7,187 +7,146 @@ import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
 import { loginRateLimiter } from "@/lib/rate-limit"
+import { BCRYPT_ROUNDS, validatePassword } from "@/lib/password-policy"
+import { logAudit } from "@/lib/audit-logger"
 
 const loginSchema = z.object({
-    email: z.string().email("Email inválido"),
+    username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres"),
     password: z.string().min(1, "Senha obrigatória"),
 })
 
 export type LoginState = {
     errors?: {
-        email?: string[];
+        username?: string[];
         password?: string[];
     };
     message?: string | null;
     success?: boolean;
 }
 
+const SESSION_DURATION_MS = 24 * 60 * 60 * 1000
+
 export async function login(prevState: LoginState, formData: FormData): Promise<LoginState> {
-  try {
-    console.log("[login] step=start")
-    const headersList = await headers()
-    const ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || '127.0.0.1'
-    const ipKey = `login:${ip}`
-    console.log("[login] step=headers ip=", ip)
-
-    // Check rate limit
-    const rateLimit = loginRateLimiter.check(ipKey)
-    if (!rateLimit.success) {
-        const resetAtMs = rateLimit.resetAt.getTime()
-        const nowMs = Date.now()
-        const minutesRemaining = Math.ceil((resetAtMs - nowMs) / 60000)
-        return {
-            message: `Muitas tentativas de login. Tente novamente em ${minutesRemaining} minuto(s).`,
-        }
-    }
-
-    const result = loginSchema.safeParse({
-        email: formData.get("email"),
-        password: formData.get("password"),
-    })
-
-    if (!result.success) {
-        // Log failed attempt (validation error)
-        await logFailedLoginAttempt(ip, 'validation_error', null)
-        return {
-            errors: result.error.flatten().fieldErrors,
-            message: "Dados de login inválidos.",
-        }
-    }
-
-    const { email, password } = result.data
-
     try {
-        const user = await prisma.user.findUnique({
-            where: { email },
+        const headersList = await headers()
+        const ip =
+            headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+            headersList.get('x-real-ip') ||
+            '127.0.0.1'
+        const userAgent = headersList.get('user-agent') || 'unknown'
+        const ipKey = `login:${ip}`
+
+        // Rate limit
+        const rateLimit = loginRateLimiter.check(ipKey)
+        if (!rateLimit.success) {
+            const resetAtMs = rateLimit.resetAt.getTime()
+            const minutesRemaining = Math.ceil((resetAtMs - Date.now()) / 60000)
+            return {
+                message: `Muitas tentativas de login. Tente novamente em ${minutesRemaining} minuto(s).`,
+            }
+        }
+
+        const result = loginSchema.safeParse({
+            username: formData.get("username"),
+            password: formData.get("password"),
         })
 
-        if (!user || !user.password) {
-            // Log failed attempt (user not found)
-            await logFailedLoginAttempt(ip, 'user_not_found', email)
+        if (!result.success) {
+            await logAudit({ action: 'LOGIN_FAILED', reason: 'validation_error', ipAddress: ip, userAgent })
             return {
-                message: "Credenciais inválidas.",
+                errors: result.error.flatten().fieldErrors,
+                message: "Dados de login inválidos.",
             }
+        }
+
+        const { username, password } = result.data
+
+        const user = await prisma.user.findUnique({ where: { username } })
+
+        if (!user || !user.password) {
+            await logAudit({ action: 'LOGIN_FAILED', reason: 'user_not_found', details: username, ipAddress: ip, userAgent })
+            return { message: "Credenciais inválidas." }
+        }
+
+        if (!user.isActive) {
+            await logAudit({ action: 'LOGIN_FAILED', reason: 'account_inactive', details: username, userId: user.id, ipAddress: ip, userAgent })
+            return { message: "Conta desativada. Contate o administrador." }
+        }
+
+        if (user.isBlocked) {
+            await logAudit({ action: 'LOGIN_FAILED', reason: 'account_blocked', details: username, userId: user.id, ipAddress: ip, userAgent })
+            return { message: `Conta bloqueada${user.blockedReason ? ': ' + user.blockedReason : ''}. Contate o administrador.` }
         }
 
         const passwordsMatch = await bcrypt.compare(password, user.password)
 
         if (!passwordsMatch) {
-            // Log failed attempt (wrong password)
-            await logFailedLoginAttempt(ip, 'invalid_password', email)
-            return {
-                message: "Credenciais inválidas.",
-            }
+            await logAudit({ action: 'LOGIN_FAILED', reason: 'invalid_password', details: username, userId: user.id, ipAddress: ip, userAgent })
+            return { message: "Credenciais inválidas." }
         }
 
-        // Login successful
-        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000)
-
-        // Buscar user com todos os campos de permissão
+        // Login OK — atualizar lastLoginAt e buscar permissões
+        await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+        const expires = new Date(Date.now() + SESSION_DURATION_MS)
         const userWithPerms = await prisma.user.findUnique({
             where: { id: user.id },
             select: {
-                id: true, email: true, name: true, role: true, companyId: true,
+                id: true, username: true, email: true, name: true, role: true, companyId: true,
                 avatarUrl: true,
                 canDelete: true, canApprove: true, canManageFinancial: true,
                 canManageHR: true, canManageSystem: true, canViewReports: true,
             }
         })
 
-        const session = await encrypt({
-            user: userWithPerms,
-            expires
-        })
+        const session = await encrypt({ user: userWithPerms, expires })
 
         const cookieStore = await cookies()
-        cookieStore.set("session", session, { expires, httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' })
+        cookieStore.set("session", session, {
+            expires,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+        })
 
-        // Log successful login
-        await logSuccessfulLogin(user.id, ip)
+        await logAudit({ action: 'LOGIN_SUCCESS', userId: user.id, details: user.username, ipAddress: ip, userAgent })
 
         return { success: true }
-
-    } catch (error: any) {
-        console.error("Login inner error:", error)
-        console.error("Login inner stack:", error?.stack)
-        try { await logFailedLoginAttempt(ip, 'system_error', null) } catch {}
-        return {
-            message: `Erro no login: ${error?.message ?? "desconhecido"} [${error?.name ?? "Error"}]`,
-        }
-    }
-  } catch (outer: any) {
-    console.error("[login] outer error:", outer)
-    console.error("[login] outer stack:", outer?.stack)
-    return { message: `Erro fatal no login: ${outer?.message ?? "desconhecido"} [${outer?.name ?? "Error"}]` }
-  }
-}
-
-/**
- * Log successful login attempt to audit trail
- */
-async function logSuccessfulLogin(userId: string, ipAddress: string) {
-    try {
-        // If you have an AuditLog table, uncomment and use:
-        // await prisma.auditLog.create({
-        //     data: {
-        //         userId,
-        //         action: 'LOGIN_SUCCESS',
-        //         ipAddress,
-        //         timestamp: new Date(),
-        //     }
-        // })
-        console.log(`[AUDIT] Login successful: user=${userId}, ip=${ipAddress}`)
     } catch (error) {
-        console.error('Failed to log successful login:', error)
-    }
-}
-
-/**
- * Log failed login attempt to audit trail
- */
-async function logFailedLoginAttempt(ipAddress: string, reason: string, email: string | null) {
-    try {
-        // If you have an AuditLog table, uncomment and use:
-        // await prisma.auditLog.create({
-        //     data: {
-        //         action: 'LOGIN_FAILED',
-        //         reason,
-        //         email,
-        //         ipAddress,
-        //         timestamp: new Date(),
-        //     }
-        // })
-        console.log(`[AUDIT] Login failed: reason=${reason}, email=${email}, ip=${ipAddress}`)
-    } catch (error) {
-        console.error('Failed to log failed login:', error)
+        const message = error instanceof Error ? error.message : "Erro desconhecido"
+        console.error("[login] error:", error)
+        return { message: `Erro no login: ${message}` }
     }
 }
 
 export async function logout() {
+    try {
+        const headersList = await headers()
+        const ip =
+            headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+            headersList.get('x-real-ip') ||
+            '127.0.0.1'
+        await logAudit({ action: 'LOGOUT', ipAddress: ip })
+    } catch {
+        // ignore audit failure on logout
+    }
     const cookieStore = await cookies()
     cookieStore.delete("session")
     redirect("/login")
 }
 
-// DEV ONLY - Login automático para desenvolvimento
+// DEV ONLY — login automático para desenvolvimento
 export async function devLogin(): Promise<{ success: boolean; error?: string }> {
     if (process.env.NODE_ENV !== 'development') {
         return { success: false, error: 'Dev login is only available in development mode' }
     }
 
     try {
-        // Busca o primeiro usuário ADMIN ou cria um admin de desenvolvimento
         let user = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
+        if (!user) user = await prisma.user.findFirst()
 
         if (!user) {
-            user = await prisma.user.findFirst()
-        }
-
-        if (!user) {
-            // Cria usuário de desenvolvimento
-            const hashedPassword = await bcrypt.hash('dev123', 10)
-
-            // Busca ou cria uma empresa
+            const hashedPassword = await bcrypt.hash('Dev@123456', BCRYPT_ROUNDS)
             let company = await prisma.company.findFirst()
             if (!company) {
                 company = await prisma.company.create({
@@ -198,10 +157,10 @@ export async function devLogin(): Promise<{ success: boolean; error?: string }> 
                     }
                 })
             }
-
             user = await prisma.user.create({
                 data: {
                     name: 'Admin Dev',
+                    username: 'admin',
                     email: 'admin@dev.com',
                     password: hashedPassword,
                     role: 'ADMIN',
@@ -210,12 +169,11 @@ export async function devLogin(): Promise<{ success: boolean; error?: string }> 
             })
         }
 
-        // Cria sessão com permissões
-        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000)
+        const expires = new Date(Date.now() + SESSION_DURATION_MS)
         const userWithPerms = await prisma.user.findUnique({
             where: { id: user.id },
             select: {
-                id: true, email: true, name: true, role: true, companyId: true,
+                id: true, username: true, email: true, name: true, role: true, companyId: true,
                 avatarUrl: true,
                 canDelete: true, canApprove: true, canManageFinancial: true,
                 canManageHR: true, canManageSystem: true, canViewReports: true,
@@ -224,11 +182,11 @@ export async function devLogin(): Promise<{ success: boolean; error?: string }> 
         const session = await encrypt({ user: userWithPerms, expires })
 
         const cookieStore = await cookies()
-        cookieStore.set("session", session, { expires, httpOnly: true })
+        cookieStore.set("session", session, { expires, httpOnly: true, sameSite: 'lax', path: '/' })
 
         return { success: true }
     } catch (error) {
-        console.error("Dev login error:", error)
+        console.error("[devLogin]", error)
         return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }
     }
 }
@@ -240,11 +198,12 @@ export async function checkSetup() {
 
 const registerSchema = z.object({
     name: z.string().min(3),
-    email: z.string().email(),
-    password: z.string().min(6),
+    username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres").regex(/^[a-zA-Z0-9._-]+$/, "Usuário pode conter apenas letras, números, pontos, hífens e underscores"),
+    email: z.string().email().optional().or(z.literal("")),
+    password: z.string().min(8),
 })
 
-export async function setupAdmin(prevState: any, formData: FormData) {
+export async function setupAdmin(prevState: { errors?: Record<string, string[]>; message?: string; success?: boolean } | undefined, formData: FormData) {
     const count = await prisma.user.count();
     if (count > 0) {
         return { message: "O sistema já possui usuários cadastrados." }
@@ -252,7 +211,8 @@ export async function setupAdmin(prevState: any, formData: FormData) {
 
     const result = registerSchema.safeParse({
         name: formData.get("name"),
-        email: formData.get("email"),
+        username: formData.get("username"),
+        email: formData.get("email") || "",
         password: formData.get("password"),
     })
 
@@ -260,16 +220,28 @@ export async function setupAdmin(prevState: any, formData: FormData) {
         return { errors: result.error.flatten().fieldErrors }
     }
 
-    const hashedPassword = await bcrypt.hash(result.data.password, 10);
+    const policy = validatePassword(result.data.password)
+    if (!policy.valid) {
+        return { errors: { password: policy.errors }, message: "Senha não atende à política de segurança." }
+    }
 
-    await prisma.user.create({
+    const hashedPassword = await bcrypt.hash(result.data.password, BCRYPT_ROUNDS);
+
+    const created = await prisma.user.create({
         data: {
             name: result.data.name,
-            email: result.data.email,
+            username: result.data.username,
+            email: result.data.email || null,
             password: hashedPassword,
-            role: "ADMIN"
+            role: "ADMIN",
         }
     })
+
+    try {
+        await logAudit({ action: 'USER_CREATED_INITIAL_ADMIN', userId: created.id, details: created.username })
+    } catch {
+        // ignore
+    }
 
     return { success: true }
 }

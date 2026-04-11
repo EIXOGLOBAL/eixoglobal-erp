@@ -4,8 +4,10 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { getSession } from "@/lib/auth"
+import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ========================================
 // SCHEMAS ZOD
@@ -115,6 +117,8 @@ export async function createContract(data: z.infer<typeof contractSchema>, compa
       }
     })
 
+    await logCreate('Contract', contract.id, contract.identifier, validated)
+
     revalidatePath('/contratos')
     return { success: true, data: contract }
   } catch (error: any) {
@@ -126,6 +130,8 @@ export async function createContract(data: z.infer<typeof contractSchema>, compa
 export async function updateContract(id: string, data: z.infer<typeof contractSchema>) {
   try {
     const validated = contractSchema.parse(data)
+
+    const oldData = await prisma.contract.findUnique({ where: { id } })
 
     const contract = await prisma.contract.update({
       where: { id },
@@ -159,6 +165,8 @@ export async function updateContract(id: string, data: z.infer<typeof contractSc
         contractor: true,
       }
     })
+
+    await logUpdate('Contract', id, contract.identifier, oldData, contract)
 
     revalidatePath('/contratos')
     revalidatePath(`/contratos/${id}`)
@@ -199,6 +207,8 @@ export async function deleteContract(id: string) {
     await prisma.contract.delete({
       where: { id }
     })
+
+    await logDelete('Contract', id, contract.identifier, contract)
 
     revalidatePath('/contratos')
     return { success: true }
@@ -267,6 +277,8 @@ export async function getContracts(params?: {
 
 export async function getContractById(id: string) {
   try {
+    const session = await assertAuthenticated()
+
     const contract = await prisma.contract.findUnique({
       where: { id },
       include: {
@@ -297,12 +309,19 @@ export async function getContractById(id: string) {
             createdAt: true,
           },
           orderBy: { createdAt: 'desc' }
+        },
+        schedule: {
+          orderBy: { month: 'asc' }
         }
       }
     })
 
     if (!contract) {
       return { success: false, error: "Contrato não encontrado" }
+    }
+
+    if (contract.companyId) {
+      await assertCompanyAccess(session, contract.companyId)
     }
 
     // Converter Decimals para numbers
@@ -336,6 +355,11 @@ export async function getContractById(id: string) {
       bulletins: contract.bulletins.map(b => ({
         ...b,
         totalValue: Number(b.totalValue)
+      })),
+      schedule: contract.schedule.map(s => ({
+        ...s,
+        percentage: Number(s.percentage),
+        value: Number(s.value),
       }))
     }
 
@@ -364,6 +388,8 @@ export async function addContractItem(contractId: string, data: z.infer<typeof c
       }
     })
 
+    await logCreate('ContractItem', item.id, item.description, validated)
+
     // Recalcular valor total do contrato
     await recalculateContractValue(contractId)
 
@@ -379,6 +405,8 @@ export async function updateContractItem(itemId: string, data: z.infer<typeof co
   try {
     const validated = contractItemSchema.parse(data)
 
+    const oldItem = await prisma.contractItem.findUnique({ where: { id: itemId } })
+
     const item = await prisma.contractItem.update({
       where: { id: itemId },
       data: {
@@ -389,6 +417,8 @@ export async function updateContractItem(itemId: string, data: z.infer<typeof co
       },
       include: { contract: true }
     })
+
+    await logUpdate('ContractItem', itemId, item.description, oldItem, item)
 
     // Recalcular valor total do contrato
     await recalculateContractValue(item.contractId)
@@ -426,6 +456,8 @@ export async function deleteContractItem(itemId: string) {
     await prisma.contractItem.delete({
       where: { id: itemId }
     })
+
+    await logDelete('ContractItem', itemId, item.description, item)
 
     // Recalcular valor total do contrato
     await recalculateContractValue(contractId)
@@ -481,6 +513,46 @@ export async function createAmendment(contractId: string, data: z.infer<typeof a
         where: { id: contractId },
         data: updateData
       })
+    }
+
+    await logCreate('ContractAmendment', amendment.id, amendment.number, validated)
+
+    // Sincronizar orçamento vinculado ao projeto quando há alteração de valor
+    if (
+      (validated.type === 'VALUE_CHANGE' || validated.type === 'MIXED') &&
+      validated.newValue !== undefined && validated.newValue !== null &&
+      validated.oldValue !== undefined && validated.oldValue !== null
+    ) {
+      try {
+        const contract = await prisma.contract.findUnique({
+          where: { id: contractId },
+          select: { projectId: true }
+        })
+
+        if (contract?.projectId) {
+          const budget = await prisma.budget.findFirst({
+            where: { projectId: contract.projectId }
+          })
+
+          if (budget) {
+            const valueDifference = validated.newValue - validated.oldValue
+            await prisma.budget.update({
+              where: { id: budget.id },
+              data: {
+                totalValue: {
+                  increment: valueDifference
+                }
+              }
+            })
+
+            revalidatePath('/orcamentos')
+            revalidatePath(`/orcamentos/${budget.id}`)
+          }
+        }
+      } catch (budgetError) {
+        console.error("Error syncing budget after amendment:", budgetError)
+        // Falha na sincronização do orçamento não reverte o aditivo
+      }
     }
 
     revalidatePath(`/contratos/${contractId}`)
@@ -585,6 +657,100 @@ export async function createAdjustment(contractId: string, data: z.infer<typeof 
   } catch (error: any) {
     console.error("Error creating adjustment:", error)
     return { success: false, error: error.message || "Erro ao criar reajuste" }
+  }
+}
+
+// ========================================
+// RESUMO FINANCEIRO DO CONTRATO
+// ========================================
+
+export interface ContractFinancialSummaryData {
+  contractId: string
+  contractIdentifier: string
+  totalValue: number        // Valor Contratado
+  measuredValue: number     // Soma dos boletins aprovados
+  invoicedValue: number     // Soma das notas fiscais emitidas (do projeto)
+  remainingBalance: number  // Contratado - Faturado
+  executionPercent: number  // Medido / Contratado * 100
+  bulletinsCount: number
+  invoicesCount: number
+}
+
+export async function getContractFinancialSummary(
+  contractId: string
+): Promise<{ success: boolean; data?: ContractFinancialSummaryData; error?: string }> {
+  try {
+    const session = await assertAuthenticated()
+
+    const contract = await prisma.contract.findUnique({
+      where: { id: contractId },
+      select: {
+        id: true,
+        identifier: true,
+        value: true,
+        companyId: true,
+        projectId: true,
+        bulletins: {
+          where: {
+            status: { in: ['APPROVED', 'MANAGER_APPROVED'] },
+          },
+          select: {
+            totalValue: true,
+          },
+        },
+      },
+    })
+
+    if (!contract) {
+      return { success: false, error: 'Contrato não encontrado' }
+    }
+
+    await assertCompanyAccess(session, contract.companyId)
+
+    const totalValue = Number(contract.value || 0)
+
+    // Soma dos boletins aprovados vinculados ao contrato
+    const measuredValue = contract.bulletins.reduce(
+      (sum, b) => sum + Number(b.totalValue || 0),
+      0
+    )
+
+    // Soma das notas fiscais emitidas vinculadas ao projeto do contrato
+    const fiscalNotes = await prisma.fiscalNote.findMany({
+      where: {
+        projectId: contract.projectId,
+        status: 'ISSUED',
+      },
+      select: {
+        value: true,
+      },
+    })
+
+    const invoicedValue = fiscalNotes.reduce(
+      (sum, fn) => sum + Number(fn.value || 0),
+      0
+    )
+
+    const remainingBalance = totalValue - invoicedValue
+    const executionPercent = totalValue > 0 ? (measuredValue / totalValue) * 100 : 0
+
+    return {
+      success: true,
+      data: {
+        contractId: contract.id,
+        contractIdentifier: contract.identifier,
+        totalValue,
+        measuredValue,
+        invoicedValue,
+        remainingBalance,
+        executionPercent,
+        bulletinsCount: contract.bulletins.length,
+        invoicesCount: fiscalNotes.length,
+      },
+    }
+  } catch (error: any) {
+    console.error('Error fetching contract financial summary:', error)
+    return { success: false, error: error.message || 'Erro ao buscar resumo financeiro' }
   }
 }
 

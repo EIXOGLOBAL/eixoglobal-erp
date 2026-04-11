@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import { createNotificationForMany } from "./notification-actions"
 import { notifyUsers } from "@/lib/sse-notifications"
 import { getSession } from "@/lib/auth"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 const vacationSchema = z.object({
     employeeId: z.string().uuid(),
@@ -54,6 +55,8 @@ export async function createVacationRequest(data: VacationInput) {
             },
         })
 
+        await logCreate('VacationRequest', request.id, `${validated.type} ${validated.startDate}`, validated)
+
         revalidatePath('/dep-pessoal/ferias')
         return { success: true, data: request }
     } catch (error) {
@@ -73,7 +76,7 @@ export async function updateVacationRequest(id: string, data: VacationInput) {
         // Verify vacation request belongs to user's company
         const existing = await prisma.vacationRequest.findUnique({
             where: { id },
-            select: { employee: { select: { companyId: true } } }
+            include: { employee: { select: { companyId: true, name: true } } }
         })
         if (!existing || existing.employee.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
@@ -105,6 +108,8 @@ export async function updateVacationRequest(id: string, data: VacationInput) {
             },
         })
 
+        await logUpdate('VacationRequest', id, `${validated.type} ${validated.startDate}`, existing, request)
+
         revalidatePath('/dep-pessoal/ferias')
         return { success: true, data: request }
     } catch (error) {
@@ -128,7 +133,7 @@ export async function deleteVacationRequest(id: string) {
 
         const existing = await prisma.vacationRequest.findUnique({
             where: { id },
-            select: { status: true, employee: { select: { companyId: true } } }
+            include: { employee: { select: { companyId: true, name: true } } }
         })
         if (!existing) {
             return { success: false, error: "Solicitação não encontrada" }
@@ -144,6 +149,8 @@ export async function deleteVacationRequest(id: string) {
         }
 
         await prisma.vacationRequest.delete({ where: { id } })
+
+        await logDelete('VacationRequest', id, `${existing.type} ${existing.employee.name}`, existing)
 
         revalidatePath('/dep-pessoal/ferias')
         return { success: true }
@@ -178,6 +185,8 @@ export async function approveVacationRequest(id: string, approvedBy: string) {
             },
             include: { employee: { select: { name: true, companyId: true } } },
         })
+
+        await logAction('APPROVE', 'VacationRequest', id, request.employee.name || 'N/A', 'Solicitação de férias aprovada')
 
         // Notify ADMIN/MANAGER about approval
         const managers = await prisma.user.findMany({
@@ -227,6 +236,8 @@ export async function rejectVacationRequest(id: string, reason: string) {
             },
             include: { employee: { select: { name: true, companyId: true } } },
         })
+
+        await logAction('REJECT', 'VacationRequest', id, request.employee.name || 'N/A', `Motivo: ${reason}`)
 
         // Notify ADMIN/MANAGER about rejection
         const managers = await prisma.user.findMany({

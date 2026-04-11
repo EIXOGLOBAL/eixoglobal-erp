@@ -34,7 +34,6 @@ type PermissionUser = {
 
 type PermissionDialogProps = {
   user: PermissionUser
-  requestingUserId: string
   trigger?: React.ReactNode
 }
 
@@ -75,7 +74,7 @@ const PERMISSION_ITEMS: {
   },
 ]
 
-export function PermissionDialog({ user, requestingUserId, trigger }: PermissionDialogProps) {
+export function PermissionDialog({ user, trigger }: PermissionDialogProps) {
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -98,7 +97,7 @@ export function PermissionDialog({ user, requestingUserId, trigger }: Permission
   async function handleSave() {
     setLoading(true)
     try {
-      const result = await updateUserPermissions(user.id, permissions, requestingUserId)
+      const result = await updateUserPermissions(user.id, permissions)
       if (result.success) {
         toast({
           title: 'Permissões atualizadas',

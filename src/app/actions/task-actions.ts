@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 const taskSchema = z.object({
   title: z.string().min(1, "Título obrigatório"),
@@ -131,6 +132,7 @@ export async function createWorkTask(data: TaskInput) {
         labels: { create: v.labelIds.map(labelId => ({ labelId })) },
       },
     })
+    await logCreate('Task', task.id, task.title || 'N/A', v)
     await prisma.workTaskActivity.create({
       data: { type: "CREATED", taskId: task.id, userId: user.id, newValue: v.title },
     })
@@ -146,7 +148,6 @@ export async function updateWorkTask(taskId: string, data: Partial<TaskInput>) {
     const user = await getUser()
     const existing = await prisma.workTask.findUnique({
       where: { id: taskId },
-      select: { companyId: true, status: true, priority: true },
     })
     if (!existing || existing.companyId !== user.companyId) {
       return { success: false as const, error: "Não encontrado" }
@@ -176,6 +177,7 @@ export async function updateWorkTask(taskId: string, data: Partial<TaskInput>) {
         }),
       },
     })
+    await logUpdate('Task', taskId, task.title || 'N/A', existing, task)
     if (activities.length > 0) {
       await prisma.workTaskActivity.createMany({
         data: activities.map(a => ({ ...a, taskId, userId: user.id })),
@@ -200,11 +202,12 @@ export async function moveWorkTask(taskId: string, newStatus: string, newOrder: 
       return { success: false as const, error: "Não encontrado" }
     }
     const statusChanged = existing.status !== newStatus
-    await prisma.workTask.update({
+    const movedTask = await prisma.workTask.update({
       where: { id: taskId },
       data: { status: newStatus as "BACKLOG" | "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE" | "CANCELLED", order: newOrder },
     })
     if (statusChanged) {
+      await logAction('STATUS_CHANGE', 'Task', taskId, movedTask.title || 'N/A', `${existing.status} -> ${newStatus}`)
       await prisma.workTaskActivity.create({
         data: { type: "STATUS_CHANGED", field: "status", oldValue: existing.status, newValue: newStatus, taskId, userId: user.id },
       })
@@ -221,7 +224,6 @@ export async function deleteWorkTask(taskId: string) {
     const user = await getUser()
     const task = await prisma.workTask.findUnique({
       where: { id: taskId },
-      select: { companyId: true, createdById: true },
     })
     if (!task || task.companyId !== user.companyId) {
       return { success: false as const, error: "Não encontrado" }
@@ -230,6 +232,7 @@ export async function deleteWorkTask(taskId: string) {
       return { success: false as const, error: "Sem permissão" }
     }
     await prisma.workTask.delete({ where: { id: taskId } })
+    await logDelete('Task', taskId, task.title || 'N/A', task)
     revalidatePath("/tarefas")
     return { success: true as const }
   } catch (error) {
@@ -247,6 +250,7 @@ export async function addWorkTaskComment(taskId: string, content: string) {
       data: { content, taskId, authorId: user.id },
       include: { author: { select: { id: true, name: true, email: true, avatarUrl: true } } },
     })
+    await logCreate('TaskComment', comment.id, content.substring(0, 50), { taskId, content })
     await prisma.workTaskActivity.create({ data: { type: "COMMENT_ADDED", taskId, userId: user.id } })
     revalidatePath(`/tarefas/${taskId}`)
     return { success: true as const, data: comment }
@@ -269,6 +273,7 @@ export async function deleteWorkTaskComment(commentId: string) {
       return { success: false as const, error: "Sem permissão" }
     }
     await prisma.workTaskComment.delete({ where: { id: commentId } })
+    await logDelete('TaskComment', commentId, comment.content?.substring(0, 50) || 'N/A', comment)
     revalidatePath(`/tarefas/${comment.task.id}`)
     return { success: true as const }
   } catch (error) {
@@ -287,6 +292,7 @@ export async function addSubtask(taskId: string, title: string) {
     const subtask = await prisma.workTaskSubtask.create({
       data: { title, taskId, order: (maxOrder?.order ?? -1) + 1 },
     })
+    await logCreate('TaskSubtask', subtask.id, title, { taskId, title })
     revalidatePath(`/tarefas/${taskId}`)
     return { success: true as const, data: subtask }
   } catch (error) {
@@ -306,6 +312,7 @@ export async function toggleSubtask(subtaskId: string) {
       where: { id: subtaskId },
       data: { done: !subtask.done },
     })
+    await logUpdate('TaskSubtask', subtaskId, subtask.title || 'N/A', subtask, updated)
     revalidatePath(`/tarefas/${subtask.task.id}`)
     return { success: true as const, data: updated }
   } catch (error) {
@@ -322,6 +329,7 @@ export async function deleteSubtask(subtaskId: string) {
     })
     if (!subtask || subtask.task.companyId !== user.companyId) return { success: false as const, error: "Acesso negado" }
     await prisma.workTaskSubtask.delete({ where: { id: subtaskId } })
+    await logDelete('TaskSubtask', subtaskId, subtask.title || 'N/A', subtask)
     revalidatePath(`/tarefas/${subtask.task.id}`)
     return { success: true as const }
   } catch (error) {
@@ -349,6 +357,7 @@ export async function createWorkTaskLabel(name: string, color: string) {
     const label = await prisma.workTaskLabel.create({
       data: { name, color, companyId: user.companyId },
     })
+    await logCreate('TaskLabel', label.id, name, { name, color })
     revalidatePath("/tarefas")
     return { success: true as const, data: label }
   } catch (error) {
@@ -377,6 +386,7 @@ export async function createDepartment(name: string, description?: string) {
     const dept = await prisma.department.create({
       data: { name, description: description ?? null, companyId: user.companyId },
     })
+    await logCreate('Department', dept.id, name, { name, description })
     revalidatePath("/tarefas")
     return { success: true as const, data: dept }
   } catch (error) {

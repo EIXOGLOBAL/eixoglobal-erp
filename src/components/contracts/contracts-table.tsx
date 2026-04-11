@@ -43,6 +43,7 @@ import {
 import { MoreHorizontal, Eye, Edit, Trash2, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useMemo } from "react"
+import { formatDate } from "@/lib/formatters"
 
 interface ContractsTableProps {
     data: any[]
@@ -225,11 +226,11 @@ export function ContractsTable({ data, projects, contractors, companyId }: Contr
                                 </TableCell>
                                 <TableCell>
                                     <div className="text-xs">
-                                        {new Date(contract.startDate).toLocaleDateString('pt-BR')}
+                                        {formatDate(contract.startDate)}
                                         {contract.endDate && (
                                             <>
                                                 <br />
-                                                {new Date(contract.endDate).toLocaleDateString('pt-BR')}
+                                                {formatDate(contract.endDate)}
                                             </>
                                         )}
                                     </div>

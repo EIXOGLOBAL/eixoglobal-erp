@@ -36,6 +36,7 @@ import {
     FolderKanban,
     Contact,
 } from "lucide-react"
+import { formatDate } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -209,11 +210,11 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
                                                     </Link>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {new Date(project.startDate).toLocaleDateString('pt-BR')}
+                                                    {formatDate(project.startDate)}
                                                 </TableCell>
                                                 <TableCell>
                                                     {project.endDate
-                                                        ? new Date(project.endDate).toLocaleDateString('pt-BR')
+                                                        ? formatDate(project.endDate)
                                                         : '-'
                                                     }
                                                 </TableCell>
@@ -308,13 +309,13 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
                                 <div>
                                     <span className="text-muted-foreground">Cadastrado em</span>
                                     <p className="font-medium">
-                                        {new Date(company.createdAt).toLocaleDateString('pt-BR')}
+                                        {formatDate(company.createdAt)}
                                     </p>
                                 </div>
                                 <div>
                                     <span className="text-muted-foreground">Última atualização</span>
                                     <p className="font-medium">
-                                        {new Date(company.updatedAt).toLocaleDateString('pt-BR')}
+                                        {formatDate(company.updatedAt)}
                                     </p>
                                 </div>
                             </div>

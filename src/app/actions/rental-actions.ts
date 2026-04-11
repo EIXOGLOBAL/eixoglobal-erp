@@ -3,6 +3,8 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS
@@ -54,6 +56,7 @@ const paymentSchema = z.object({
 
 export async function getRentalItems(companyId?: string) {
   try {
+        await assertAuthenticated()
     const items = await prisma.rentalItem.findMany({
       where: companyId ? { companyId } : undefined,
       include: {
@@ -70,6 +73,7 @@ export async function getRentalItems(companyId?: string) {
 
 export async function getRentalItemById(id: string) {
   try {
+    const session = await assertAuthenticated()
     const item = await prisma.rentalItem.findUnique({
       where: { id },
       include: {
@@ -83,6 +87,11 @@ export async function getRentalItemById(id: string) {
       },
     })
     if (!item) return { success: false, error: 'Item não encontrado' }
+
+    if (item.companyId) {
+      await assertCompanyAccess(session, item.companyId)
+    }
+
     return { success: true, data: item }
   } catch (error) {
     console.error('Erro ao buscar item de locação:', error)
@@ -92,6 +101,7 @@ export async function getRentalItemById(id: string) {
 
 export async function createRentalItem(data: z.infer<typeof rentalItemSchema>) {
   try {
+        await assertAuthenticated()
     const validated = rentalItemSchema.parse(data)
     const item = await prisma.rentalItem.create({
       data: {
@@ -106,6 +116,7 @@ export async function createRentalItem(data: z.infer<typeof rentalItemSchema>) {
         companyId: validated.companyId,
       },
     })
+    await logCreate('RentalItem', item.id, item.name, validated)
     revalidatePath('/locacoes')
     return { success: true, data: item }
   } catch (error) {
@@ -119,6 +130,8 @@ export async function createRentalItem(data: z.infer<typeof rentalItemSchema>) {
 
 export async function updateRentalItem(id: string, data: z.infer<typeof rentalItemSchema>) {
   try {
+        await assertAuthenticated()
+    const oldItem = await prisma.rentalItem.findUnique({ where: { id } })
     const validated = rentalItemSchema.parse(data)
     const item = await prisma.rentalItem.update({
       where: { id },
@@ -133,6 +146,7 @@ export async function updateRentalItem(id: string, data: z.infer<typeof rentalIt
         monthlyRate: validated.monthlyRate != null ? validated.monthlyRate : null,
       },
     })
+    await logUpdate('RentalItem', id, item.name, oldItem, item)
     revalidatePath('/locacoes')
     return { success: true, data: item }
   } catch (error) {
@@ -143,13 +157,16 @@ export async function updateRentalItem(id: string, data: z.infer<typeof rentalIt
 
 export async function deleteRentalItem(id: string) {
   try {
+        await assertAuthenticated()
     const activeRentals = await prisma.rental.findFirst({
       where: { itemId: id, status: 'ACTIVE' },
     })
     if (activeRentals) {
       return { success: false, error: 'Não é possível excluir item com locação ativa.' }
     }
+    const oldItem = await prisma.rentalItem.findUnique({ where: { id } })
     await prisma.rentalItem.delete({ where: { id } })
+    await logDelete('RentalItem', id, oldItem?.name || 'N/A', oldItem)
     revalidatePath('/locacoes')
     return { success: true }
   } catch (error) {
@@ -191,6 +208,7 @@ export async function getRentals(filters?: {
 
 export async function getRentalById(id: string) {
   try {
+    const session = await assertAuthenticated()
     const rental = await prisma.rental.findUnique({
       where: { id },
       include: {
@@ -200,6 +218,11 @@ export async function getRentalById(id: string) {
       },
     })
     if (!rental) return { success: false, error: 'Locação não encontrada' }
+
+    if (rental.companyId) {
+      await assertCompanyAccess(session, rental.companyId)
+    }
+
     return { success: true, data: rental }
   } catch (error) {
     console.error('Erro ao buscar locação:', error)
@@ -209,6 +232,7 @@ export async function getRentalById(id: string) {
 
 export async function createRental(data: z.infer<typeof rentalSchema>) {
   try {
+        await assertAuthenticated()
     const validated = rentalSchema.parse(data)
     const rental = await prisma.rental.create({
       data: {
@@ -225,6 +249,7 @@ export async function createRental(data: z.infer<typeof rentalSchema>) {
         costCenterId: validated.costCenterId ?? null,
       },
     })
+    await logCreate('Rental', rental.id, rental.id, validated)
     revalidatePath('/locacoes')
     return { success: true, data: rental }
   } catch (error) {
@@ -238,6 +263,8 @@ export async function createRental(data: z.infer<typeof rentalSchema>) {
 
 export async function updateRental(id: string, data: z.infer<typeof rentalSchema>) {
   try {
+        await assertAuthenticated()
+    const oldRental = await prisma.rental.findUnique({ where: { id } })
     const validated = rentalSchema.parse(data)
     const rental = await prisma.rental.update({
       where: { id },
@@ -252,6 +279,7 @@ export async function updateRental(id: string, data: z.infer<typeof rentalSchema
         costCenterId: validated.costCenterId ?? null,
       },
     })
+    await logUpdate('Rental', id, rental.id, oldRental, rental)
     revalidatePath('/locacoes')
     revalidatePath(`/locacoes/${id}`)
     return { success: true, data: rental }
@@ -266,6 +294,7 @@ export async function updateRental(id: string, data: z.infer<typeof rentalSchema
 
 export async function deleteRental(id: string) {
   try {
+        await assertAuthenticated()
     const rental = await prisma.rental.findUnique({
       where: { id },
       include: {
@@ -282,6 +311,7 @@ export async function deleteRental(id: string) {
       return { success: false, error: 'Apenas locações ativas ou canceladas podem ser excluídas' }
     }
     await prisma.rental.delete({ where: { id } })
+    await logDelete('Rental', id, rental.id, rental)
     revalidatePath('/locacoes')
     return { success: true }
   } catch (error) {
@@ -292,6 +322,7 @@ export async function deleteRental(id: string) {
 
 export async function returnRental(id: string, actualEndDate: string) {
   try {
+        await assertAuthenticated()
     const rental = await prisma.rental.update({
       where: { id },
       data: {
@@ -299,6 +330,7 @@ export async function returnRental(id: string, actualEndDate: string) {
         actualEndDate: new Date(actualEndDate),
       },
     })
+    await logAction('RETURN', 'Rental', id, rental.id, `Rental returned on ${actualEndDate}`)
     revalidatePath('/locacoes')
     revalidatePath(`/locacoes/${id}`)
     return { success: true, data: rental }
@@ -310,10 +342,12 @@ export async function returnRental(id: string, actualEndDate: string) {
 
 export async function cancelRental(id: string) {
   try {
+        await assertAuthenticated()
     const rental = await prisma.rental.update({
       where: { id },
       data: { status: 'CANCELLED' },
     })
+    await logAction('CANCEL', 'Rental', id, rental.id, 'Rental cancelled')
     revalidatePath('/locacoes')
     revalidatePath(`/locacoes/${id}`)
     return { success: true, data: rental }
@@ -329,6 +363,7 @@ export async function cancelRental(id: string) {
 
 export async function addRentalPayment(data: z.infer<typeof paymentSchema>) {
   try {
+        await assertAuthenticated()
     const validated = paymentSchema.parse(data)
     const payment = await prisma.rentalPayment.create({
       data: {
@@ -341,6 +376,7 @@ export async function addRentalPayment(data: z.infer<typeof paymentSchema>) {
         costCenterId: validated.costCenterId ?? null,
       },
     })
+    await logCreate('RentalPayment', payment.id, `Payment for rental ${validated.rentalId}`, validated)
     // Update totalPaid on rental
     const allPayments = await prisma.rentalPayment.findMany({
       where: { rentalId: validated.rentalId },
@@ -364,6 +400,7 @@ export async function addRentalPayment(data: z.infer<typeof paymentSchema>) {
 
 export async function getRentalPayments(rentalId: string) {
   try {
+        await assertAuthenticated()
     const payments = await prisma.rentalPayment.findMany({
       where: { rentalId },
       orderBy: { paidDate: 'desc' },
@@ -381,6 +418,7 @@ export async function getRentalPayments(rentalId: string) {
 
 export async function getRentalKPIs(companyId: string) {
   try {
+        await assertAuthenticated()
     const activeRentals = await prisma.rental.findMany({
       where: { companyId, status: 'ACTIVE' },
       include: { item: true },

@@ -28,6 +28,7 @@ import { MoreHorizontal, Eye, Pencil, ShieldCheck, UserX, Ban } from 'lucide-rea
 import { useToast } from '@/hooks/use-toast'
 import { changeClientStatus } from '@/app/actions/client-actions'
 import { ClientDialog } from './client-dialog'
+import { ClientQuickView } from './client-quick-view'
 
 const statusVariants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   ACTIVE: 'default',
@@ -80,6 +81,13 @@ export function ClientsTable({ clients, companyId }: ClientsTableProps) {
   const { toast } = useToast()
   const [editClient, setEditClient] = useState<Client | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [quickViewClient, setQuickViewClient] = useState<Client | null>(null)
+  const [quickViewOpen, setQuickViewOpen] = useState(false)
+
+  function handleQuickView(client: Client) {
+    setQuickViewClient(client)
+    setQuickViewOpen(true)
+  }
 
   async function handleStatusChange(
     id: string,
@@ -133,18 +141,21 @@ export function ClientsTable({ clients, companyId }: ClientsTableProps) {
             </TableHeader>
             <TableBody>
               {clients.map((client) => (
-                <TableRow key={client.id}>
+                <TableRow
+                  key={client.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleQuickView(client)}
+                >
                   <TableCell className="font-mono text-sm text-muted-foreground">
                     {client.code ? `#${client.code}` : '—'}
                   </TableCell>
                   <TableCell>
                     <div>
-                      <Link
-                        href={`/clientes/${client.id}`}
+                      <span
                         className="font-medium text-blue-600 hover:underline"
                       >
                         {client.displayName}
-                      </Link>
+                      </span>
                       {client.type === 'COMPANY' && client.tradeName && (
                         <p className="text-xs text-muted-foreground">
                           {client.tradeName}
@@ -175,7 +186,7 @@ export function ClientsTable({ clients, companyId }: ClientsTableProps) {
                       {statusLabels[client.status]}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -247,6 +258,17 @@ export function ClientsTable({ clients, companyId }: ClientsTableProps) {
           }}
         />
       )}
+
+      {/* Quick View Sheet */}
+      <ClientQuickView
+        client={quickViewClient}
+        open={quickViewOpen}
+        onOpenChange={(open) => {
+          setQuickViewOpen(open)
+          if (!open) setQuickViewClient(null)
+        }}
+        companyId={companyId}
+      />
     </Card>
   )
 }

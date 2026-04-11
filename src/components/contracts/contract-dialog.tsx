@@ -235,7 +235,7 @@ export function ContractDialog({
                                             <FormItem>
                                                 <FormLabel>Identificador *</FormLabel>
                                                 <FormControl>
-                                                    <Input placeholder="Ex: CTR-2026/001" {...field} />
+                                                    <Input autoFocus placeholder="Ex: CTR-2026/001" {...field} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>

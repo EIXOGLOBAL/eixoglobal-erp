@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { markAsPaid } from '@/app/actions/financial-actions'
 import { useToast } from '@/hooks/use-toast'
+import { formatDate } from "@/lib/formatters"
 
 interface OverdueRecord {
   id: string
@@ -124,7 +125,7 @@ export function InadimplenciaClient({ records }: InadimplenciaClientProps) {
                         {record.category ?? '—'}
                       </td>
                       <td className="py-2 pr-4 text-red-600">
-                        {new Date(record.dueDate).toLocaleDateString('pt-BR')}
+                        {formatDate(record.dueDate)}
                       </td>
                       <td className="py-2 pr-4 text-right font-medium text-red-700">
                         {record.daysOverdue}d

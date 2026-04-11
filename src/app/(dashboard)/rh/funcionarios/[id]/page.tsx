@@ -1,5 +1,6 @@
 import { getEmployeeById } from "@/app/actions/employee-actions"
 import { getSalaryTables } from "@/app/actions/salary-table-actions"
+import { getEmployeeCertifications } from "@/app/actions/training-actions"
 import { getSession } from "@/lib/auth"
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
@@ -34,10 +35,15 @@ import {
     Heart,
     Clock,
     Gift,
+    Award,
 } from "lucide-react"
 import { SalaryHistoryCard } from "@/components/rh/salary-history"
 import { MatriculaEditor } from "@/components/rh/matricula-editor"
 import { EmployeeBenefits } from "@/components/rh/employee-benefits"
+import { EmployeeCertifications } from "@/components/rh/employee-certifications"
+import { EntityAuditTrail } from "@/components/audit/entity-audit-trail"
+import { CopyableValue } from '@/components/ui/copy-button'
+import { formatDate } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -66,7 +72,10 @@ const session = await getSession()
     const companyId = session.user?.companyId || ''
     const skills: string[] = JSON.parse(employee.skills || '[]')
 
-    const salaryTables = await getSalaryTables(companyId)
+    const [salaryTables, certifications] = await Promise.all([
+        getSalaryTables(companyId),
+        getEmployeeCertifications(id),
+    ])
     const allGrades = salaryTables.flatMap(t => t.grades.map(g => ({
         id: g.id,
         jobTitle: g.jobTitle,
@@ -90,7 +99,7 @@ const session = await getSession()
     const activeAllocations = employee.allocations.filter(a => !a.endDate || new Date(a.endDate) >= new Date())
 
     const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-    const fmtDate = (d: Date | null | undefined) => d ? new Date(d).toLocaleDateString('pt-BR') : '—'
+    const fmtDate = (d: Date | null | undefined) => d ? formatDate(d) : '—'
 
     // Benefits calculations
     const vtMonthly = employee.valeTransporte && employee.vtDailyValue
@@ -171,8 +180,8 @@ const session = await getSession()
                         <User className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-lg font-medium font-mono">
-                            {employee.document || '—'}
+                        <div className="text-lg font-medium">
+                            {employee.document ? <CopyableValue value={employee.document} mono /> : '—'}
                         </div>
                     </CardContent>
                 </Card>
@@ -377,6 +386,11 @@ const session = await getSession()
                         <TrendingUp className="h-4 w-4 mr-1.5" />
                         Histórico Salarial
                     </TabsTrigger>
+                    <TabsTrigger value="certifications">
+                        <Award className="h-4 w-4 mr-1.5" />
+                        Certificações ({certifications.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="allocations">
@@ -410,11 +424,11 @@ const session = await getSession()
                                                         </Link>
                                                     </TableCell>
                                                     <TableCell>
-                                                        {new Date(allocation.startDate).toLocaleDateString('pt-BR')}
+                                                        {formatDate(allocation.startDate)}
                                                     </TableCell>
                                                     <TableCell>
                                                         {allocation.endDate
-                                                            ? new Date(allocation.endDate).toLocaleDateString('pt-BR')
+                                                            ? formatDate(allocation.endDate)
                                                             : '—'}
                                                     </TableCell>
                                                     <TableCell>
@@ -495,6 +509,31 @@ const session = await getSession()
                             <SalaryHistoryCard history={employee.salaryHistory} />
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="certifications">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Award className="h-5 w-5" />
+                                Certificações e Treinamentos
+                            </CardTitle>
+                            <CardDescription>
+                                Treinamentos realizados e certificações obtidas pelo funcionário
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <EmployeeCertifications certifications={certifications} />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="auditoria">
+                    <EntityAuditTrail
+                        entityType="employee"
+                        entityId={employee.id}
+                        title="Histórico de Alterações do Funcionário"
+                    />
                 </TabsContent>
             </Tabs>
         </div>

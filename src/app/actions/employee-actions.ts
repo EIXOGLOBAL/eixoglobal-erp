@@ -8,6 +8,7 @@ import { getSession } from "@/lib/auth"
 import { assertCanDelete } from "@/lib/permissions"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS DE VALIDAÇÃO
@@ -109,6 +110,8 @@ export async function createEmployee(data: z.infer<typeof employeeSchema>) {
             return emp
         })
 
+        await logCreate('Employee', employee.id, employee.name, validated)
+
         revalidatePath('/rh/funcionarios')
         return { success: true, data: employee }
     } catch (error) {
@@ -133,7 +136,6 @@ export async function updateEmployee(id: string, data: z.infer<typeof employeeSc
         // Fetch current employee to compare costPerHour and verify company access
         const current = await prisma.employee.findUnique({
             where: { id },
-            select: { id: true, companyId: true, costPerHour: true }
         })
         if (!current || current.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
@@ -165,6 +167,8 @@ export async function updateEmployee(id: string, data: z.infer<typeof employeeSc
                 outrosBeneficios: validated.outrosBeneficios ?? null,
             }
         })
+
+        await logUpdate('Employee', id, employee.name, current, employee)
 
         // Record salary change if costPerHour changed
         const prevCost = current?.costPerHour != null ? Number(current.costPerHour) : null
@@ -207,7 +211,7 @@ export async function inactivateEmployee(id: string) {
         // Verify employee belongs to user's company
         const existing = await prisma.employee.findUnique({
             where: { id },
-            select: { companyId: true }
+            select: { companyId: true, name: true }
         })
         if (!existing || existing.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
@@ -219,6 +223,8 @@ export async function inactivateEmployee(id: string) {
                 status: 'INACTIVE',
             }
         })
+
+        await logAction('DEACTIVATE', 'Employee', id, employee.name, 'Funcionário inativado')
 
         revalidatePath('/rh/funcionarios')
         return { success: true, data: employee }
@@ -244,7 +250,7 @@ export async function changeEmployeeStatus(id: string, status: 'ACTIVE' | 'INACT
         // Verify employee belongs to user's company
         const existing = await prisma.employee.findUnique({
             where: { id },
-            select: { companyId: true }
+            select: { companyId: true, name: true, status: true }
         })
         if (!existing || existing.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
@@ -254,6 +260,9 @@ export async function changeEmployeeStatus(id: string, status: 'ACTIVE' | 'INACT
             where: { id },
             data: { status },
         })
+
+        await logAction('STATUS_CHANGE', 'Employee', id, employee.name, `Status alterado de ${existing.status} para ${status}`)
+
         revalidatePath('/rh/funcionarios')
         revalidatePath(`/rh/funcionarios/${id}`)
         return { success: true, data: employee }
@@ -276,7 +285,7 @@ export async function updateMatricula(employeeId: string, matricula: string) {
         // Verify employee belongs to user's company
         const existing = await prisma.employee.findUnique({
             where: { id: employeeId },
-            select: { companyId: true }
+            select: { companyId: true, name: true, matricula: true }
         })
         if (!existing || existing.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
@@ -286,6 +295,9 @@ export async function updateMatricula(employeeId: string, matricula: string) {
             where: { id: employeeId },
             data: { matricula },
         })
+
+        await logAction('UPDATE', 'Employee', employeeId, employee.name, `Matrícula alterada de ${existing.matricula || 'N/A'} para ${matricula}`)
+
         revalidatePath('/rh/funcionarios')
         revalidatePath(`/rh/funcionarios/${employeeId}`)
         return { success: true, data: employee }
@@ -339,6 +351,8 @@ export async function deleteEmployee(id: string) {
         await prisma.employee.delete({
             where: { id }
         })
+
+        await logDelete('Employee', id, employee.name, employee)
 
         revalidatePath('/rh/funcionarios')
         return { success: true }
@@ -504,6 +518,9 @@ export async function addEmployeeBenefit(employeeId: string, data: z.infer<typeo
         const benefit = await prisma.employeeBenefit.create({
             data: { ...validated, employeeId }
         })
+
+        await logCreate('EmployeeBenefit', benefit.id, benefit.name, validated)
+
         revalidatePath(`/rh/funcionarios/${employeeId}`)
         return { success: true, data: { ...benefit, value: Number(benefit.value) } }
     } catch (error) {
@@ -531,10 +548,14 @@ export async function updateEmployeeBenefit(benefitId: string, employeeId: strin
         }
 
         const validated = benefitSchema.parse(data)
+        const oldBenefit = await prisma.employeeBenefit.findUnique({ where: { id: benefitId } })
         const benefit = await prisma.employeeBenefit.update({
             where: { id: benefitId },
             data: validated
         })
+
+        await logUpdate('EmployeeBenefit', benefitId, benefit.name, oldBenefit, benefit)
+
         revalidatePath(`/rh/funcionarios/${employeeId}`)
         return { success: true, data: { ...benefit, value: Number(benefit.value) } }
     } catch (error) {
@@ -564,7 +585,13 @@ export async function deleteEmployeeBenefit(benefitId: string, employeeId: strin
             return { success: false, error: "Acesso negado" }
         }
 
+        const oldBenefit = await prisma.employeeBenefit.findUnique({ where: { id: benefitId } })
         await prisma.employeeBenefit.delete({ where: { id: benefitId } })
+
+        if (oldBenefit) {
+            await logDelete('EmployeeBenefit', benefitId, oldBenefit.name, oldBenefit)
+        }
+
         revalidatePath(`/rh/funcionarios/${employeeId}`)
         return { success: true }
     } catch (error) {

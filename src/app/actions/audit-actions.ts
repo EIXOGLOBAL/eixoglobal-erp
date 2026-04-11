@@ -46,6 +46,7 @@ export async function getAuditLogs(filters: {
     if (filters.search) {
       where.OR = [
         { entityName: { contains: filters.search } },
+        { details: { contains: filters.search } },
         { oldData: { contains: filters.search } },
         { newData: { contains: filters.search } },
       ]
@@ -54,7 +55,24 @@ export async function getAuditLogs(filters: {
     const [logs, total] = await Promise.all([
       prisma.auditLog.findMany({
         where,
-        include: { user: { select: { id: true, name: true, email: true } } },
+        select: {
+          id: true,
+          action: true,
+          entity: true,
+          entityId: true,
+          entityName: true,
+          oldData: true,
+          newData: true,
+          details: true,
+          reason: true,
+          email: true,
+          ipAddress: true,
+          userAgent: true,
+          userId: true,
+          companyId: true,
+          createdAt: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
         orderBy: { createdAt: 'desc' },
         skip: page * pageSize,
         take: pageSize,
@@ -83,6 +101,46 @@ export async function getAuditEntities(companyId: string) {
     return { success: true as const, data: entities.map(e => e.entity) }
   } catch (error) {
     return { success: false as const, error: 'Erro' }
+  }
+}
+
+export async function getEntityAuditTrail(
+  entity: string,
+  entityId: string,
+  options?: { page?: number; pageSize?: number }
+) {
+  try {
+    const user = await getUser()
+    if (user.role !== 'ADMIN' && user.role !== 'MANAGER') {
+      return { success: false as const, error: 'Sem permissão' }
+    }
+
+    const page = options?.page ?? 0
+    const pageSize = options?.pageSize ?? 20
+
+    const where = {
+      entity,
+      entityId,
+      companyId: user.companyId,
+    }
+
+    const [logs, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip: page * pageSize,
+        take: pageSize,
+      }),
+      prisma.auditLog.count({ where }),
+    ])
+
+    return { success: true as const, data: { logs, total, page, pageSize } }
+  } catch (error) {
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : 'Erro ao buscar trilha de auditoria',
+    }
   }
 }
 

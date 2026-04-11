@@ -16,11 +16,17 @@ datasource db {
 
 model User {
   id        String   @id @default(uuid())
-  email     String   @unique
+  username  String   @unique
+  email     String?
   name      String?
   password  String // Hashed password
   role      Role     @default(USER)
   avatarUrl String?
+  isActive      Boolean  @default(true)
+  isBlocked     Boolean  @default(false)
+  blockedAt     DateTime?
+  blockedReason String?
+  lastLoginAt   DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -415,8 +421,9 @@ model ContractItem {
   contractId String
   contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
 
-  measurements  Measurement[]
-  bulletinItems MeasurementBulletinItem[]
+  measurements      Measurement[]
+  bulletinItems      MeasurementBulletinItem[]
+  dailyActivities    DailyReportActivity[]
 
   @@map("contract_items")
 }
@@ -584,7 +591,9 @@ model Supplier {
   purchaseOrders PurchaseOrder[]
   contacts       SupplierContact[]
   documents      SupplierDocument[]
-  evaluations    SupplierEvaluation[]
+  evaluations        SupplierEvaluation[]
+  materialSupplied   Material[]           @relation("MaterialSupplier")
+  rentalItemSupplied RentalItem[]         @relation("RentalItemSupplier")
 
   // Soft delete
   isDeleted Boolean   @default(false)
@@ -660,6 +669,7 @@ model ContractAmendment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([contractId])
   @@map("contract_amendments")
 }
 
@@ -681,6 +691,7 @@ model ContractAdjustment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([contractId])
   @@map("contract_adjustments")
 }
 
@@ -783,9 +794,14 @@ model MeasurementBulletinItem {
   contractItemId String
   contractItem   ContractItem @relation(fields: [contractItemId], references: [id])
 
+  // Vínculo opcional com item do orçamento
+  budgetItemId String?
+  budgetItem   BudgetItem? @relation(fields: [budgetItemId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([budgetItemId])
   @@map("measurement_bulletin_items")
 }
 
@@ -862,6 +878,7 @@ model CostComposition {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([companyId])
   @@map("cost_compositions")
 }
 
@@ -879,6 +896,7 @@ model CompositionMaterial {
   compositionId String
   composition   CostComposition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
 
+  @@index([compositionId])
   @@map("composition_materials")
 }
 
@@ -894,6 +912,7 @@ model CompositionLabor {
   compositionId String
   composition   CostComposition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
 
+  @@index([compositionId])
   @@map("composition_labor")
 }
 
@@ -911,6 +930,7 @@ model CompositionEquipment {
   compositionId String
   composition   CostComposition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
 
+  @@index([compositionId])
   @@map("composition_equipment")
 }
 
@@ -929,6 +949,8 @@ model Material {
   currentStock Decimal          @default(0) @db.Decimal(18, 4)
   unitCost     Decimal          @default(0) @db.Decimal(18, 4)
   supplier     String?
+  supplierId   String?
+  supplierRef  Supplier? @relation("MaterialSupplier", fields: [supplierId], references: [id])
   isActive     Boolean          @default(true)
 
   companyId String
@@ -1540,9 +1562,15 @@ model DailyReportActivity {
   description String      @db.Text
   location    String?
   percentDone Decimal     @default(0) @db.Decimal(5, 2)
+  quantity    Decimal?    @db.Decimal(18, 4)
   reportId    String
   report      DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
+  // Vinculação opcional com item de contrato (para facilitar medição)
+  contractItemId String?
+  contractItem   ContractItem? @relation(fields: [contractItemId], references: [id])
+
+  @@index([contractItemId])
   @@map("daily_report_activities")
 }
 
@@ -1653,6 +1681,7 @@ model EquipmentMaintenance {
   createdAt   DateTime        @default(now())
 
   @@index([equipmentId, completedAt])
+  @@index([equipmentId, scheduledAt])
   @@map("equipment_maintenances")
 }
 
@@ -1928,22 +1957,27 @@ model Announcement {
 
 model AuditLog {
   id         String   @id @default(uuid())
-  action     String // "CREATE", "UPDATE", "DELETE", "LOGIN", "APPROVE", "REJECT"
-  entity     String // "Project", "Contract", "Bulletin", "Employee", etc.
+  action     String // "CREATE", "UPDATE", "DELETE", "LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT", "APPROVE", "REJECT", ...
+  entity     String? // "Project", "Contract", "Bulletin", "Employee", etc. (null para eventos de sistema/auth)
   entityId   String?
   entityName String? // human-readable name
   oldData    String?  @db.Text // JSON string of old values
   newData    String?  @db.Text // JSON string of new values
-  userId     String
-  user       User     @relation("AuditLogUser", fields: [userId], references: [id])
-  companyId  String
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  ip         String?
+  details    String?  @db.Text // texto livre adicional (motivo, contexto)
+  reason     String? // razão estruturada ("validation_error", "invalid_password", ...)
+  email      String? // email envolvido (mesmo se não houver user, ex: tentativa em conta inexistente)
+  userId     String?
+  user       User?    @relation("AuditLogUser", fields: [userId], references: [id], onDelete: SetNull)
+  companyId  String?
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ipAddress  String?
+  userAgent  String?
   createdAt  DateTime @default(now())
 
   @@index([companyId, createdAt])
   @@index([entity, entityId])
   @@index([userId])
+  @@index([action, createdAt])
   @@map("audit_logs")
 }
 
@@ -1991,6 +2025,8 @@ model RentalItem {
   type          RentalItemType
   description   String?        @db.Text
   supplier      String?
+  supplierId    String?
+  supplierRef   Supplier? @relation("RentalItemSupplier", fields: [supplierId], references: [id])
   supplierPhone String?
   dailyRate     Decimal?       @db.Decimal(18, 4)
   weeklyRate    Decimal?       @db.Decimal(18, 4)
@@ -2038,6 +2074,7 @@ model Rental {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([companyId, status])
   @@map("rentals")
 }
 
@@ -2055,6 +2092,7 @@ model RentalPayment {
   costCenter     CostCenter? @relation("RentalPaymentCostCenter", fields: [costCenterId], references: [id])
   createdAt      DateTime    @default(now())
 
+  @@index([rentalId])
   @@map("rental_payments")
 }
 
@@ -2099,6 +2137,10 @@ model BudgetItem {
   totalPrice  Decimal @db.Decimal(18, 4)
   category    String?
 
+  // Itens de boletins de medição vinculados
+  bulletinItems MeasurementBulletinItem[]
+
+  @@index([budgetId])
   @@map("budget_items")
 }
 
@@ -2215,6 +2257,7 @@ model SupplierEvaluation {
   comment     String?  @db.Text
   createdAt   DateTime @default(now())
 
+  @@index([supplierId])
   @@map("supplier_evaluations")
 }
 
@@ -2479,22 +2522,25 @@ enum QualityStatus {
 }
 
 model QualityNonConformity {
-  id               String            @id @default(cuid())
-  checkpointId     String
-  checkpoint       QualityCheckpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
-  description      String
-  severity         String
-  correctiveAction String?
-  responsibleId    String?
-  responsible      User?             @relation("NonConformityResponsible", fields: [responsibleId], references: [id])
-  dueDate          DateTime?
-  resolvedAt       DateTime?
-  status           String            @default("OPEN")
-  photos           String[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id                String             @id @default(cuid())
+  checkpointId      String?
+  checkpoint        QualityCheckpoint? @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  safetyIncidentId  String?
+  safetyIncident    SafetyIncident?    @relation("IncidentNonConformities", fields: [safetyIncidentId], references: [id])
+  description       String
+  severity          String
+  correctiveAction  String?
+  responsibleId     String?
+  responsible       User?              @relation("NonConformityResponsible", fields: [responsibleId], references: [id])
+  dueDate           DateTime?
+  resolvedAt        DateTime?
+  status            String             @default("OPEN")
+  photos            String[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@index([checkpointId])
+  @@index([safetyIncidentId])
   @@map("quality_non_conformities")
 }
 
@@ -2521,6 +2567,7 @@ model SafetyIncident {
   witnesses         String[]
   daysLost          Int                @default(0)
   catNumber         String?
+  nonConformities   QualityNonConformity[] @relation("IncidentNonConformities")
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 

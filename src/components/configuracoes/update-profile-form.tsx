@@ -15,16 +15,15 @@ import { updateProfile } from "@/app/actions/profile-actions"
 
 const schema = z.object({
     name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-    email: z.string().email("Email inválido"),
+    email: z.string().email("Email inválido").optional().or(z.literal("")),
 })
 
 interface Props {
-    userId: string
     currentName: string
     currentEmail: string
 }
 
-export function UpdateProfileForm({ userId, currentName, currentEmail }: Props) {
+export function UpdateProfileForm({ currentName, currentEmail }: Props) {
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
 
@@ -36,7 +35,7 @@ export function UpdateProfileForm({ userId, currentName, currentEmail }: Props) 
     async function onSubmit(values: z.infer<typeof schema>) {
         setLoading(true)
         try {
-            const result = await updateProfile({ userId, ...values })
+            const result = await updateProfile(values)
             if (result.success) {
                 toast({ title: "Perfil atualizado com sucesso!" })
             } else {

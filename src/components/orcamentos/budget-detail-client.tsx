@@ -63,7 +63,9 @@ import {
     DollarSign,
     FolderKanban,
     FileSpreadsheet,
+    BarChart3,
 } from "lucide-react"
+import { BudgetVsActual } from "@/components/orcamentos/budget-vs-actual"
 import {
     addBudgetItem,
     updateBudgetItem,
@@ -114,6 +116,8 @@ interface BudgetItem {
     unitPrice: number
     totalPrice: number
     category: string | null
+    measuredQuantity?: number
+    measuredPercentage?: number
 }
 
 interface Budget {
@@ -485,6 +489,10 @@ export function BudgetDetailClient({ budget, companyId }: BudgetDetailClientProp
                 <TabsList>
                     <TabsTrigger value="general">Dados Gerais</TabsTrigger>
                     <TabsTrigger value="items">Itens do Orçamento</TabsTrigger>
+                    <TabsTrigger value="comparison">
+                        <BarChart3 className="h-4 w-4 mr-1.5" />
+                        Orcado vs Realizado
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="general" className="mt-4">
@@ -566,6 +574,8 @@ export function BudgetDetailClient({ budget, companyId }: BudgetDetailClientProp
                                             <TableHead>Categoria</TableHead>
                                             <TableHead className="text-center">Un.</TableHead>
                                             <TableHead className="text-right">Qtd.</TableHead>
+                                            <TableHead className="text-right">Medido Acum.</TableHead>
+                                            <TableHead className="text-right">% Medido</TableHead>
                                             <TableHead className="text-right">Preço Unit.</TableHead>
                                             <TableHead className="text-right">Total</TableHead>
                                             {isDraft && <TableHead className="w-[80px] pr-6"></TableHead>}
@@ -588,6 +598,20 @@ export function BudgetDetailClient({ budget, companyId }: BudgetDetailClientProp
                                                 </TableCell>
                                                 <TableCell className="text-right tabular-nums text-sm">
                                                     {item.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 3 })}
+                                                </TableCell>
+                                                <TableCell className="text-right tabular-nums text-sm">
+                                                    {(item.measuredQuantity ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 3 })}
+                                                </TableCell>
+                                                <TableCell className="text-right tabular-nums text-sm">
+                                                    <span className={
+                                                        (item.measuredPercentage ?? 0) >= 100
+                                                            ? "text-green-600 font-medium"
+                                                            : (item.measuredPercentage ?? 0) > 0
+                                                                ? "text-blue-600"
+                                                                : "text-muted-foreground"
+                                                    }>
+                                                        {(item.measuredPercentage ?? 0).toFixed(1)}%
+                                                    </span>
                                                 </TableCell>
                                                 <TableCell className="text-right tabular-nums text-sm">
                                                     {formatBRL(item.unitPrice)}
@@ -637,7 +661,7 @@ export function BudgetDetailClient({ budget, companyId }: BudgetDetailClientProp
                                     </TableBody>
                                     <TableFooter>
                                         <TableRow>
-                                            <TableCell colSpan={isDraft ? 6 : 6} className="pl-6 font-semibold">
+                                            <TableCell colSpan={isDraft ? 8 : 8} className="pl-6 font-semibold">
                                                 Total Geral
                                             </TableCell>
                                             <TableCell className="text-right tabular-nums font-bold text-base pr-0">
@@ -650,6 +674,10 @@ export function BudgetDetailClient({ budget, companyId }: BudgetDetailClientProp
                             )}
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="comparison" className="mt-4">
+                    <BudgetVsActual budgetId={budget.id} />
                 </TabsContent>
             </Tabs>
 

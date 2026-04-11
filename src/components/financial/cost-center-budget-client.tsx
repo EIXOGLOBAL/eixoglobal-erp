@@ -57,6 +57,7 @@ import {
   getRecentFinancialRecords,
 } from '@/app/actions/cost-center-budget-actions'
 
+import { formatDate } from "@/lib/formatters"
 // ─── Formatters ──────────────────────────────────────────────────────────────
 
 const formatCurrency = (value: number) =>
@@ -731,7 +732,7 @@ function DetailPanel({
                   <div className="flex-1 min-w-0">
                     <p className="truncate font-medium text-xs">{record.description}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(record.dueDate).toLocaleDateString('pt-BR')}
+                      {formatDate(record.dueDate)}
                       <span className="mx-1">-</span>
                       <Badge
                         variant="outline"

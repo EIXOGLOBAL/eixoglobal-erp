@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { MessageSquare, Send, Trash2, AlertCircle, CheckCircle, HelpCircle, Eye } from "lucide-react"
+import { formatDateTime } from "@/lib/formatters"
 
 type Comment = {
     id: string
@@ -22,7 +23,6 @@ type Comment = {
 
 interface CommentsSectionProps {
     bulletinId: string
-    userId: string
     comments: Comment[]
     bulletinStatus: string
 }
@@ -34,7 +34,7 @@ const typeConfig: Record<string, { label: string; color: string; icon: React.Ele
     REJECTION: { label: 'Rejeição', color: 'bg-red-50 border-red-200 text-red-900', icon: AlertCircle },
 }
 
-export function CommentsSection({ bulletinId, userId, comments: initialComments, bulletinStatus }: CommentsSectionProps) {
+export function CommentsSection({ bulletinId, comments: initialComments, bulletinStatus }: CommentsSectionProps) {
     const [comments, setComments] = useState(initialComments)
     const [text, setText] = useState('')
     const [commentType, setCommentType] = useState<'OBSERVATION' | 'QUESTION' | 'APPROVAL' | 'REJECTION'>('OBSERVATION')
@@ -47,7 +47,7 @@ export function CommentsSection({ bulletinId, userId, comments: initialComments,
 
         setLoading(true)
         try {
-            const result = await addBulletinComment(bulletinId, userId, { text, commentType })
+            const result = await addBulletinComment(bulletinId, { text, commentType })
             if (result.success && result.data) {
                 setComments(prev => [result.data as Comment, ...prev])
                 setText('')
@@ -139,7 +139,7 @@ export function CommentsSection({ bulletinId, userId, comments: initialComments,
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs opacity-70">
-                                            {new Date(comment.createdAt).toLocaleString('pt-BR')}
+                                            {formatDateTime(comment.createdAt)}
                                         </span>
                                         <Button
                                             variant="ghost"

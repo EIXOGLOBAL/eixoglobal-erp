@@ -7,9 +7,9 @@ import {
   ProjectReportContent,
   FinancialReportContent,
   HRReportContent,
-  formatDate,
   formatCurrency,
 } from '@/components/pdf/ReportTemplate'
+import { formatDate } from '@/lib/formatters'
 import type {
   ExecutiveKPIs,
   ProjectSummary,

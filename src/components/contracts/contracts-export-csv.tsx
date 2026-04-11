@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { formatDate } from "@/lib/formatters"
 
 interface Contract {
   id: string
@@ -45,8 +46,8 @@ export function ContractsExportCSV({ contracts }: ContractsExportCSVProps) {
       c.project?.name || '',
       c.contractor?.name || '',
       c.value ? c.value.toString() : '0',
-      new Date(c.startDate).toLocaleDateString('pt-BR'),
-      c.endDate ? new Date(c.endDate).toLocaleDateString('pt-BR') : '',
+      formatDate(c.startDate),
+      c.endDate ? formatDate(c.endDate) : '',
       c.status,
       c._count?.items?.toString() || '0',
       c._count?.amendments?.toString() || '0',

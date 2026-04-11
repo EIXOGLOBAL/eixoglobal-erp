@@ -1,3 +1,13 @@
+/**
+ * Centralized bcrypt cost factor. SEMPRE use esta constante ao chamar
+ * `bcrypt.hash` — nunca passe o número diretamente. Mantém consistência
+ * entre todos os fluxos (signup, reset, change password, etc).
+ *
+ * 12 rounds = ~250ms de hash em hardware moderno → bom equilíbrio
+ * entre resistência a brute-force e UX de login.
+ */
+export const BCRYPT_ROUNDS = 12
+
 export interface PasswordValidation {
   valid: boolean
   errors: string[]

@@ -260,7 +260,7 @@ export function EmployeeDialog({ companyId, employee, trigger, salaryGrades = []
                                     <FormItem>
                                         <FormLabel>Nome Completo *</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Ex: João da Silva" {...field} />
+                                            <Input autoFocus placeholder="Ex: João da Silva" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

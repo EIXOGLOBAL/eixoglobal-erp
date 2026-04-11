@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 const allocationSchema = z.object({
     employeeId: z.string().uuid("ID de funcionário inválido"),
@@ -49,6 +50,8 @@ export async function createAllocation(data: z.infer<typeof allocationSchema>) {
             }
         })
 
+        await logCreate('Allocation', allocation.id, `${allocation.employee.name} -> ${allocation.project.name}`, validated)
+
         revalidatePath('/rh/alocacoes')
         return { success: true, data: allocation }
     } catch (error) {
@@ -68,9 +71,9 @@ export async function updateAllocation(id: string, data: z.infer<typeof allocati
         // Verify allocation belongs to user's company
         const existing = await prisma.allocation.findUnique({
             where: { id },
-            select: {
-                employee: { select: { companyId: true } },
-                project: { select: { companyId: true } }
+            include: {
+                employee: { select: { companyId: true, name: true } },
+                project: { select: { companyId: true, name: true } }
             }
         })
         if (!existing ||
@@ -112,6 +115,8 @@ export async function updateAllocation(id: string, data: z.infer<typeof allocati
             }
         })
 
+        await logUpdate('Allocation', id, `${allocation.employee.name} -> ${allocation.project.name}`, existing, allocation)
+
         revalidatePath('/rh/alocacoes')
         return { success: true, data: allocation }
     } catch (error) {
@@ -133,9 +138,9 @@ export async function deleteAllocation(id: string) {
         // Verify allocation belongs to user's company
         const existing = await prisma.allocation.findUnique({
             where: { id },
-            select: {
-                employee: { select: { companyId: true } },
-                project: { select: { companyId: true } }
+            include: {
+                employee: { select: { companyId: true, name: true } },
+                project: { select: { companyId: true, name: true } }
             }
         })
         if (!existing ||
@@ -145,6 +150,9 @@ export async function deleteAllocation(id: string) {
         }
 
         await prisma.allocation.delete({ where: { id } })
+
+        await logDelete('Allocation', id, `${existing.employee.name} -> ${existing.project.name}`, existing)
+
         revalidatePath('/rh/alocacoes')
         return { success: true }
     } catch (error) {
@@ -166,6 +174,50 @@ export async function getAllocations(companyId: string) {
         return allocations
     } catch (error) {
         console.error("Erro ao buscar alocações:", error)
+        return []
+    }
+}
+
+export async function getEmployeesAllocatedToProject(projectId: string) {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return []
+
+        const now = new Date()
+
+        const allocations = await prisma.allocation.findMany({
+            where: {
+                projectId,
+                startDate: { lte: now },
+                OR: [
+                    { endDate: null },
+                    { endDate: { gte: now } },
+                ],
+                employee: {
+                    companyId: session.user.companyId,
+                    status: 'ACTIVE',
+                    isDeleted: false,
+                },
+            },
+            include: {
+                employee: { select: { id: true, name: true } },
+            },
+            orderBy: { employee: { name: 'asc' } },
+        })
+
+        // Deduplica caso haja múltiplas alocações para o mesmo funcionário
+        const seen = new Set<string>()
+        const employees: { id: string; name: string }[] = []
+        for (const alloc of allocations) {
+            if (!seen.has(alloc.employee.id)) {
+                seen.add(alloc.employee.id)
+                employees.push({ id: alloc.employee.id, name: alloc.employee.name })
+            }
+        }
+
+        return employees
+    } catch (error) {
+        console.error("Erro ao buscar funcionários alocados ao projeto:", error)
         return []
     }
 }

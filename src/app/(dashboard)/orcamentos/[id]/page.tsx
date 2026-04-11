@@ -1,8 +1,7 @@
 import { getSession } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
-import { getBudgetById } from "@/app/actions/budget-actions"
+import { getBudgetWithMeasured } from "@/app/actions/budget-actions"
 import { BudgetDetailClient } from "@/components/orcamentos/budget-detail-client"
-import { toNumber } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +17,7 @@ export default async function BudgetDetailPage({ params }: BudgetPageProps) {
     if (!companyId) redirect("/login")
 
     const { id } = await params
-    const result = await getBudgetById(id)
+    const result = await getBudgetWithMeasured(id)
 
     if (!result.success || !result.data) {
         notFound()
@@ -31,17 +30,5 @@ export default async function BudgetDetailPage({ params }: BudgetPageProps) {
         redirect("/orcamentos")
     }
 
-    // Converter Decimal para number para Client Component
-    const serializedBudget = {
-        ...budget,
-        totalValue: toNumber(budget.totalValue),
-        items: budget.items.map(item => ({
-            ...item,
-            quantity: toNumber(item.quantity),
-            unitPrice: toNumber(item.unitPrice),
-            totalPrice: toNumber(item.totalPrice),
-        })),
-    }
-
-    return <BudgetDetailClient budget={serializedBudget} companyId={companyId} />
+    return <BudgetDetailClient budget={budget} companyId={companyId} />
 }

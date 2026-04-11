@@ -173,7 +173,7 @@ export function ProjectDialog({ companies, clients = [], project, trigger, open:
                                 <FormItem>
                                     <FormLabel>Nome do Projeto *</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="Ex: Construção Edifício ABC" {...field} />
+                                        <Input autoFocus placeholder="Ex: Construção Edifício ABC" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>

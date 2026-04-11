@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button"
 import { Loader2, Zap } from "lucide-react"
 
 const loginSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(1),
+    username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres"),
+    password: z.string().min(1, "Senha obrigatória"),
 })
 
 export function LoginForm() {
@@ -29,7 +29,7 @@ export function LoginForm() {
         setError(null)
         startTransition(async () => {
             const formData = new FormData()
-            formData.append("email", data.email)
+            formData.append("username", data.username)
             formData.append("password", data.password)
 
             try {
@@ -76,19 +76,19 @@ export function LoginForm() {
                 )}
                 <div className="grid gap-4">
                     <div className="grid gap-2">
-                        <label htmlFor="email">Email</label>
+                        <label htmlFor="username">Usuário</label>
                         <Input
-                            id="email"
-                            placeholder="nome@exemplo.com"
-                            type="email"
+                            id="username"
+                            placeholder="seu.usuario"
+                            type="text"
                             autoCapitalize="none"
-                            autoComplete="email"
+                            autoComplete="username"
                             autoCorrect="off"
                             disabled={isPending}
-                            {...register("email")}
+                            {...register("username")}
                         />
-                        {errors.email && (
-                            <p className="text-sm text-red-500">{errors.email.message}</p>
+                        {errors.username && (
+                            <p className="text-sm text-red-500">{errors.username.message}</p>
                         )}
                     </div>
                     <div className="grid gap-2">
@@ -109,7 +109,7 @@ export function LoginForm() {
                         {isPending && (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         )}
-                        Entrar com Email
+                        Entrar
                     </Button>
                 </div>
             </form>

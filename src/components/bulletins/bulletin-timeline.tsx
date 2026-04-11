@@ -17,6 +17,7 @@ import {
     FileText,
     DollarSign,
 } from "lucide-react"
+import { formatDateTime } from "@/lib/formatters"
 
 interface TimelineEvent {
     status: string
@@ -45,16 +46,6 @@ export function BulletinTimeline({
     currentStatus,
     rejectionReason,
 }: BulletinTimelineProps) {
-    const formatDateTime = (date: Date) => {
-        return new Date(date).toLocaleDateString('pt-BR', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        })
-    }
-
     const events: TimelineEvent[] = [
         {
             status: 'CREATED',

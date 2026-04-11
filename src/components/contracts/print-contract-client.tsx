@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Printer, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { formatDate } from "@/lib/formatters"
 
 // ============================================================
 // TIPOS
@@ -114,7 +115,7 @@ const fmtQty = (n: number) =>
 
 const fmtDate = (d: Date | string | null | undefined): string => {
     if (!d) return '—'
-    return new Date(d).toLocaleDateString('pt-BR')
+    return formatDate(d)
 }
 
 // ============================================================

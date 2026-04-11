@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { deleteDailyReport, submitDailyReport, approveDailyReport } from "@/app/actions/daily-report-actions"
 import { Eye, Trash2, Send, CheckCircle } from "lucide-react"
+import { formatDate } from "@/lib/formatters"
 
 const WEATHER_ICONS: Record<string, string> = {
     SUNNY: "☀️",
@@ -115,7 +116,7 @@ export function DailyReportsTable({ reports, projects, companyId }: DailyReports
         }
     }
 
-    const fmtDate = (d: Date) => new Date(d).toLocaleDateString('pt-BR')
+    const fmtDate = (d: Date) => formatDate(d)
 
     return (
         <div className="space-y-4">

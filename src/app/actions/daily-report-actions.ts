@@ -4,6 +4,8 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { WeatherCondition, DailyReportStatus } from "@/lib/generated/prisma/client"
+import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS
@@ -28,6 +30,8 @@ const activitySchema = z.object({
     description: z.string().min(1, "Descrição é obrigatória"),
     location: z.string().optional().nullable(),
     percentDone: z.coerce.number().min(0).max(100).default(0),
+    quantity: z.coerce.number().min(0).optional().nullable(),
+    contractItemId: z.string().optional().nullable(),
 })
 
 // ============================================================================
@@ -72,6 +76,8 @@ export async function createDailyReport(
             }
         })
 
+        await logCreate('DailyReport', report.id, validated.date, validated)
+
         revalidatePath('/rdo')
         return { success: true, data: report }
     } catch (error) {
@@ -85,7 +91,10 @@ export async function createDailyReport(
 
 export async function updateDailyReport(id: string, data: z.infer<typeof reportSchema>) {
     try {
+        await assertAuthenticated()
         const validated = reportSchema.parse(data)
+
+        const oldData = await prisma.dailyReport.findUnique({ where: { id } })
 
         const report = await prisma.dailyReport.update({
             where: { id },
@@ -99,6 +108,8 @@ export async function updateDailyReport(id: string, data: z.infer<typeof reportS
                 supervisorId: validated.supervisorId ?? null,
             }
         })
+
+        await logUpdate('DailyReport', id, validated.date, oldData, report)
 
         revalidatePath('/rdo')
         revalidatePath(`/rdo/${id}`)
@@ -114,6 +125,7 @@ export async function updateDailyReport(id: string, data: z.infer<typeof reportS
 
 export async function deleteDailyReport(id: string) {
     try {
+        await assertAuthenticated()
         const report = await prisma.dailyReport.findUnique({ where: { id } })
 
         if (!report) {
@@ -129,6 +141,8 @@ export async function deleteDailyReport(id: string) {
 
         await prisma.dailyReport.delete({ where: { id } })
 
+        await logDelete('DailyReport', id, report.date?.toISOString() || 'N/A', report)
+
         revalidatePath('/rdo')
         return { success: true }
     } catch (error) {
@@ -142,6 +156,7 @@ export async function deleteDailyReport(id: string) {
 
 export async function getDailyReports(companyId: string, projectId?: string) {
     try {
+        await assertAuthenticated()
         const reports = await prisma.dailyReport.findMany({
             where: {
                 companyId,
@@ -167,6 +182,7 @@ export async function getDailyReports(companyId: string, projectId?: string) {
 
 export async function getDailyReportById(id: string) {
     try {
+        const session = await assertAuthenticated()
         const report = await prisma.dailyReport.findUnique({
             where: { id },
             include: {
@@ -177,10 +193,19 @@ export async function getDailyReportById(id: string) {
                     orderBy: { role: 'asc' }
                 },
                 activities: {
+                    include: {
+                        contractItem: {
+                            select: { id: true, description: true, unit: true }
+                        }
+                    },
                     orderBy: { description: 'asc' }
                 }
             }
         })
+
+        if (report && report.companyId) {
+            await assertCompanyAccess(session, report.companyId)
+        }
 
         return report
     } catch (error) {
@@ -195,6 +220,7 @@ export async function getDailyReportById(id: string) {
 
 export async function addWorker(reportId: string, role: string, count: number) {
     try {
+        await assertAuthenticated()
         const validated = workerSchema.parse({ role, count })
 
         const worker = await prisma.dailyReportWorker.create({
@@ -204,6 +230,8 @@ export async function addWorker(reportId: string, role: string, count: number) {
                 count: validated.count,
             }
         })
+
+        await logCreate('DailyReportWorker', worker.id, validated.role, validated)
 
         revalidatePath('/rdo')
         revalidatePath(`/rdo/${reportId}`)
@@ -219,7 +247,10 @@ export async function addWorker(reportId: string, role: string, count: number) {
 
 export async function updateWorker(workerId: string, role: string, count: number) {
     try {
+        await assertAuthenticated()
         const validated = workerSchema.parse({ role, count })
+
+        const oldData = await prisma.dailyReportWorker.findUnique({ where: { id: workerId } })
 
         const worker = await prisma.dailyReportWorker.update({
             where: { id: workerId },
@@ -228,6 +259,8 @@ export async function updateWorker(workerId: string, role: string, count: number
                 count: validated.count,
             }
         })
+
+        await logUpdate('DailyReportWorker', workerId, validated.role, oldData, worker)
 
         revalidatePath('/rdo')
         revalidatePath(`/rdo/${worker.reportId}`)
@@ -243,6 +276,7 @@ export async function updateWorker(workerId: string, role: string, count: number
 
 export async function deleteWorker(workerId: string) {
     try {
+        await assertAuthenticated()
         const worker = await prisma.dailyReportWorker.findUnique({
             where: { id: workerId }
         })
@@ -252,6 +286,8 @@ export async function deleteWorker(workerId: string) {
         }
 
         await prisma.dailyReportWorker.delete({ where: { id: workerId } })
+
+        await logDelete('DailyReportWorker', workerId, worker.role, worker)
 
         revalidatePath('/rdo')
         revalidatePath(`/rdo/${worker.reportId}`)
@@ -271,6 +307,7 @@ export async function deleteWorker(workerId: string) {
 
 export async function addActivity(reportId: string, data: z.infer<typeof activitySchema>) {
     try {
+        await assertAuthenticated()
         const validated = activitySchema.parse(data)
 
         const activity = await prisma.dailyReportActivity.create({
@@ -279,8 +316,12 @@ export async function addActivity(reportId: string, data: z.infer<typeof activit
                 description: validated.description,
                 location: validated.location ?? null,
                 percentDone: validated.percentDone,
+                quantity: validated.quantity ?? null,
+                contractItemId: validated.contractItemId ?? null,
             }
         })
+
+        await logCreate('DailyReportActivity', activity.id, validated.description, validated)
 
         revalidatePath('/rdo')
         revalidatePath(`/rdo/${reportId}`)
@@ -296,7 +337,10 @@ export async function addActivity(reportId: string, data: z.infer<typeof activit
 
 export async function updateActivity(activityId: string, data: z.infer<typeof activitySchema>) {
     try {
+        await assertAuthenticated()
         const validated = activitySchema.parse(data)
+
+        const oldData = await prisma.dailyReportActivity.findUnique({ where: { id: activityId } })
 
         const activity = await prisma.dailyReportActivity.update({
             where: { id: activityId },
@@ -304,8 +348,12 @@ export async function updateActivity(activityId: string, data: z.infer<typeof ac
                 description: validated.description,
                 location: validated.location ?? null,
                 percentDone: validated.percentDone,
+                quantity: validated.quantity ?? null,
+                contractItemId: validated.contractItemId ?? null,
             }
         })
+
+        await logUpdate('DailyReportActivity', activityId, validated.description, oldData, activity)
 
         revalidatePath('/rdo')
         revalidatePath(`/rdo/${activity.reportId}`)
@@ -321,6 +369,7 @@ export async function updateActivity(activityId: string, data: z.infer<typeof ac
 
 export async function deleteActivity(activityId: string) {
     try {
+        await assertAuthenticated()
         const activity = await prisma.dailyReportActivity.findUnique({
             where: { id: activityId }
         })
@@ -330,6 +379,8 @@ export async function deleteActivity(activityId: string) {
         }
 
         await prisma.dailyReportActivity.delete({ where: { id: activityId } })
+
+        await logDelete('DailyReportActivity', activityId, activity.description, activity)
 
         revalidatePath('/rdo')
         revalidatePath(`/rdo/${activity.reportId}`)
@@ -349,10 +400,13 @@ export async function deleteActivity(activityId: string) {
 
 export async function submitDailyReport(id: string) {
     try {
+        await assertAuthenticated()
         const report = await prisma.dailyReport.update({
             where: { id },
             data: { status: DailyReportStatus.SUBMITTED }
         })
+
+        await logAction('SUBMIT', 'DailyReport', id, report.date?.toISOString() || 'N/A', 'Status changed to SUBMITTED')
 
         revalidatePath('/rdo')
         revalidatePath(`/rdo/${id}`)
@@ -368,10 +422,13 @@ export async function submitDailyReport(id: string) {
 
 export async function approveDailyReport(id: string) {
     try {
+        await assertAuthenticated()
         const report = await prisma.dailyReport.update({
             where: { id },
             data: { status: DailyReportStatus.APPROVED }
         })
+
+        await logAction('APPROVE', 'DailyReport', id, report.date?.toISOString() || 'N/A', 'Status changed to APPROVED')
 
         revalidatePath('/rdo')
         revalidatePath(`/rdo/${id}`)

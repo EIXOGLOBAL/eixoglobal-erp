@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge"
+import { formatDate } from "@/lib/formatters"
 
 const STATUS_LABELS: Record<string, string> = {
   PLANNING: "Planejamento",
@@ -54,13 +55,7 @@ export function StatusHistory({ history }: { history: StatusHistoryItem[] }) {
               </div>
               {item.note && <p className="text-xs text-muted-foreground mt-1">{item.note}</p>}
               <p className="text-xs text-muted-foreground mt-0.5">
-                {new Date(item.createdAt).toLocaleDateString('pt-BR', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+                {formatDate(item.createdAt)}
               </p>
             </div>
           </div>

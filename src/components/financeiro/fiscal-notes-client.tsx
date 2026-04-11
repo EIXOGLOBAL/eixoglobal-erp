@@ -28,6 +28,7 @@ import {
     Plus, MoreHorizontal, CheckCircle, XCircle, Trash2, Pencil, Search
 } from "lucide-react"
 
+import { formatDate } from "@/lib/formatters"
 // ─── Document type labels and groups ────────────────────────────────────────
 
 export const DOC_TYPES: { value: string; label: string; group: string; icon?: React.ReactNode }[] = [
@@ -463,7 +464,7 @@ function NotesTable({ notes, companyId, suppliers, projects = [], costCenters = 
     const [search, setSearch] = useState('')
 
     const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-    const fmtDate = (d: Date | null) => d ? new Date(d).toLocaleDateString('pt-BR') : '—'
+    const fmtDate = (d: Date | null) => d ? formatDate(d) : '—'
 
     const filtered = useMemo(() => {
         if (!search.trim()) return notes

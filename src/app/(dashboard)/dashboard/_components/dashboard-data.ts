@@ -62,6 +62,10 @@ export async function getDashboardKPIs(companyId: string, period: string) {
     pendingBulletins,
     pendingBudgets,
     expiringContracts,
+    openPurchaseOrders,
+    openSafetyIncidents,
+    openNonConformities,
+    equipmentsInMaintenance,
   ] = await Promise.all([
     safeQ('projects', () => prisma.project.findMany({ where: { companyId }, select: { status: true } }), [] as { status: string }[]),
     safeQ('periodIncomes', () => prisma.financialRecord.findMany({ where: { companyId, type: 'INCOME', status: { in: ['PAID', 'PENDING', 'SCHEDULED'] }, dueDate: { gte: start, lte: end } }, select: { amount: true, status: true } }), [] as any[]),
@@ -69,9 +73,13 @@ export async function getDashboardKPIs(companyId: string, period: string) {
     safeQ('bankAccounts', () => prisma.bankAccount.findMany({ where: { companyId }, select: { balance: true } }), [] as any[]),
     safeQ('activeEmployees', () => prisma.employee.count({ where: { companyId, status: 'ACTIVE' } }), 0),
     safeQ('allocations', () => prisma.allocation.findMany({ where: { employee: { companyId }, startDate: { lte: now }, OR: [{ endDate: null }, { endDate: { gte: now } }] }, select: { employeeId: true }, distinct: ['employeeId'] }), [] as { employeeId: string }[]),
-    safeQ('pendingBulletins', () => prisma.measurementBulletin.findMany({ where: { project: { companyId }, status: { in: ['SUBMITTED', 'DRAFT'] } }, select: { id: true } }), [] as any[]),
+    safeQ('pendingBulletins', () => prisma.measurementBulletin.findMany({ where: { project: { companyId }, status: { in: ['SUBMITTED', 'ENGINEER_APPROVED', 'MANAGER_APPROVED'] } }, select: { id: true } }), [] as any[]),
     safeQ('pendingBudgets', () => prisma.budget.count({ where: { companyId, status: 'DRAFT' } }), 0),
     safeQ('expiringContracts', () => prisma.contract.count({ where: { companyId, status: 'ACTIVE', endDate: { lte: in30Days, gte: now } } }), 0),
+    safeQ('openPurchaseOrders', () => prisma.purchaseOrder.count({ where: { companyId, isDeleted: false, status: { in: ['DRAFT', 'PENDING_APPROVAL'] } } }), 0),
+    safeQ('openSafetyIncidents', () => prisma.safetyIncident.count({ where: { companyId, status: 'OPEN' } }), 0),
+    safeQ('openNonConformities', () => prisma.qualityNonConformity.count({ where: { checkpoint: { companyId }, status: { not: 'RESOLVED' } } }), 0),
+    safeQ('equipmentsInMaintenance', () => prisma.equipment.count({ where: { companyId, status: 'MAINTENANCE' } }), 0),
   ])
 
   const activeProjects = projects.filter(p => p.status === 'IN_PROGRESS').length
@@ -102,6 +110,10 @@ export async function getDashboardKPIs(companyId: string, period: string) {
     pendingBulletins: pendingBulletins.length,
     pendingBudgets,
     expiringContracts30d: expiringContracts,
+    openPurchaseOrders,
+    openSafetyIncidents,
+    openNonConformities,
+    equipmentsInMaintenance,
   }
 }
 

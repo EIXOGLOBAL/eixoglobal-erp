@@ -10,7 +10,7 @@ import { EquipmentDialog } from '@/components/equipamentos/equipment-dialog'
 import { UsageDialog } from '@/components/equipamentos/usage-dialog'
 import { MaintenanceDialog } from '@/components/equipamentos/maintenance-dialog'
 import { EquipmentDetailClient } from '@/components/equipamentos/equipment-detail-client'
-import { toNumber, formatCurrency } from '@/lib/formatters'
+import { toNumber, formatCurrency, formatDate} from '@/lib/formatters'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,7 +36,7 @@ const MAINTENANCE_TYPE_LABELS: Record<string, string> = {
 }
 const fmt = { format: formatCurrency } // Compatibilidade com código existente
 const fmtDate = (d: Date | string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString('pt-BR') : '—'
+    d ? formatDate(d) : '—'
 interface PageProps { params: Promise<{ id: string }> }
 export default async function EquipamentoDetailPage({ params }: PageProps) {
     const session = await getSession()

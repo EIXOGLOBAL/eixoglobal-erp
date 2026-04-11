@@ -219,7 +219,11 @@ export async function updateMeasurement(id: string, data: z.infer<typeof UpdateS
             return { success: false, error: 'Acesso negado' }
         }
 
-        const validated = UpdateSchema.parse(data);
+        const _parsed = UpdateSchema.safeParse(data)
+
+        if (!_parsed.success) return { success: false, error: _parsed.error.issues[0]?.message ?? 'Dados inválidos' }
+
+        const validated = _parsed.data;
 
         const measurement = await prisma.measurement.update({
             where: { id },

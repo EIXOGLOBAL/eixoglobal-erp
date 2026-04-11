@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { CheckCircle2, Loader2 } from "lucide-react"
 import { markAsPaid } from "@/app/actions/financial-actions"
 import { useToast } from "@/hooks/use-toast"
+import { formatDate } from "@/lib/formatters"
 
 interface ExpenseRecord {
     id: string
@@ -92,7 +93,7 @@ export function DespesasTable({ records }: { records: ExpenseRecord[] }) {
                                     {fmt(r.amount)}
                                 </td>
                                 <td className="py-2 pr-4 text-right text-muted-foreground">
-                                    {new Date(r.dueDate).toLocaleDateString('pt-BR')}
+                                    {formatDate(r.dueDate)}
                                     {isOverdue && <span className="ml-1 text-red-600 text-xs">⚠ vencido</span>}
                                 </td>
                                 <td className="py-2 pr-4 text-center">

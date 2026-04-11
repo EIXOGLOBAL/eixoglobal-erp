@@ -6,6 +6,7 @@ import { Package, AlertTriangle, DollarSign, TrendingDown, ArrowDownCircle, Arro
 import { MaterialDialog } from "@/components/inventory/material-dialog"
 import { MaterialsTable } from "@/components/inventory/materials-table"
 import { Badge } from "@/components/ui/badge"
+import { formatDate } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -189,7 +190,7 @@ export default async function EstoquePage() {
                                                 {m.notes || '—'}
                                             </td>
                                             <td className="py-2 text-right text-muted-foreground text-xs">
-                                                {new Date(m.createdAt).toLocaleDateString('pt-BR')}
+                                                {formatDate(m.createdAt)}
                                             </td>
                                         </tr>
                                     ))}

@@ -14,6 +14,7 @@ import {
   markNotificationsAsRead,
 } from "@/app/actions/notification-actions"
 
+import { formatDate } from "@/lib/formatters"
 const TYPE_ICONS: Record<string, string> = {
   TASK_ASSIGNED: "📋",
   TASK_COMMENT: "💬",
@@ -70,7 +71,7 @@ function timeAgo(date: Date | string): string {
   if (diff < 3600) return `${Math.floor(diff / 60)} min atrás`
   if (diff < 86400) return `${Math.floor(diff / 3600)}h atrás`
   if (diff < 604800) return `${Math.floor(diff / 86400)}d atrás`
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
+  return formatDate(d)
 }
 
 type Notification = {

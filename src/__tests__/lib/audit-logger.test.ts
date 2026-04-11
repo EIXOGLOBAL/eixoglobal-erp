@@ -107,9 +107,8 @@ describe('Audit Logger', () => {
       expect(callData.data.newData).toBeNull()
     })
 
-    it('should include timestamp in audit record', async () => {
+    it('should rely on schema default for createdAt (not pass timestamp)', async () => {
       const createMock = vi.spyOn(prisma.auditLog, 'create')
-      const beforeTime = new Date()
 
       await logAudit({
         userId: 'user-123',
@@ -120,12 +119,9 @@ describe('Audit Logger', () => {
       })
 
       const callData = createMock.mock.calls[0]![0]
-      const timestamp = callData.data.timestamp
-      const afterTime = new Date()
-
-      expect(timestamp).toBeInstanceOf(Date)
-      expect(timestamp.getTime()).toBeGreaterThanOrEqual(beforeTime.getTime())
-      expect(timestamp.getTime()).toBeLessThanOrEqual(afterTime.getTime())
+      // logAudit não passa createdAt — confia no @default(now()) do Prisma
+      expect(callData.data.createdAt).toBeUndefined()
+      expect(callData.data.action).toBe('DELETE')
     })
 
     it('should handle errors gracefully without throwing', async () => {
@@ -177,7 +173,7 @@ describe('Audit Logger', () => {
         { id: '2', action: 'UPDATE', entity: 'Invoice' }
       ]
       const findManyMock = vi.spyOn(prisma.auditLog, 'findMany')
-      findManyMock.mockResolvedValueOnce(mockLogs)
+      findManyMock.mockResolvedValueOnce(mockLogs as any)
 
       const result = await getAuditLogs({})
 
@@ -245,14 +241,14 @@ describe('Audit Logger', () => {
       expect(callData.take).toBe(100)
     })
 
-    it('should order by timestamp descending', async () => {
+    it('should order by createdAt descending', async () => {
       const findManyMock = vi.spyOn(prisma.auditLog, 'findMany')
       findManyMock.mockResolvedValueOnce([])
 
       await getAuditLogs({})
 
       const callData = findManyMock.mock.calls[0]![0]
-      expect(callData.orderBy).toEqual({ timestamp: 'desc' })
+      expect(callData.orderBy).toEqual({ createdAt: 'desc' })
     })
 
     it('should combine multiple filters', async () => {

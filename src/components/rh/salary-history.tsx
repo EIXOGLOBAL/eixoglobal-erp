@@ -1,3 +1,5 @@
+import { formatDate } from "@/lib/formatters"
+
 interface SalaryHistoryItem {
   id: string
   previousCost: number | null
@@ -63,11 +65,7 @@ export function SalaryHistoryCard({ history }: { history: SalaryHistoryItem[] })
               </div>
               <p className="text-xs text-muted-foreground">
                 {h.reason && <span className="mr-2">{h.reason}</span>}
-                {new Date(h.effectiveDate).toLocaleDateString('pt-BR', {
-                  day: '2-digit',
-                  month: 'long',
-                  year: 'numeric',
-                })}
+                {formatDate(h.effectiveDate)}
               </p>
             </div>
           </div>

@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { assertAuthenticated } from "@/lib/auth-helpers"
 
 // ============================================================================
 // SCHEMAS
@@ -26,6 +27,7 @@ export async function createEquipmentDocument(
     data: z.infer<typeof documentSchema>
 ) {
     try {
+        await assertAuthenticated()
         const validated = documentSchema.parse(data)
 
         const document = await prisma.equipmentDocument.create({
@@ -55,6 +57,7 @@ export async function updateEquipmentDocument(
     data: Partial<z.infer<typeof documentSchema>>
 ) {
     try {
+        await assertAuthenticated()
         const document = await prisma.equipmentDocument.findUnique({
             where: { id: documentId }
         })
@@ -89,6 +92,7 @@ export async function updateEquipmentDocument(
 
 export async function deleteEquipmentDocument(documentId: string) {
     try {
+        await assertAuthenticated()
         const document = await prisma.equipmentDocument.findUnique({
             where: { id: documentId }
         })
@@ -113,6 +117,7 @@ export async function deleteEquipmentDocument(documentId: string) {
 
 export async function getEquipmentDocuments(equipmentId: string, type?: string) {
     try {
+        await assertAuthenticated()
         const documents = await prisma.equipmentDocument.findMany({
             where: {
                 equipmentId,
@@ -130,6 +135,7 @@ export async function getEquipmentDocuments(equipmentId: string, type?: string) 
 
 export async function getEquipmentDocumentById(documentId: string) {
     try {
+        await assertAuthenticated()
         const document = await prisma.equipmentDocument.findUnique({
             where: { id: documentId }
         })
@@ -143,6 +149,7 @@ export async function getEquipmentDocumentById(documentId: string) {
 
 export async function getExpiredDocuments(equipmentId: string) {
     try {
+        await assertAuthenticated()
         const now = new Date()
 
         const expiredDocuments = await prisma.equipmentDocument.findMany({

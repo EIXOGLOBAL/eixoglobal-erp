@@ -1,9 +1,9 @@
 import { getSession } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { prisma } from '@/lib/prisma'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -11,11 +11,22 @@ import {
   Shield,
   AlertTriangle,
   TrendingUp,
-  Users,
+  ClipboardCheck,
 } from 'lucide-react'
-import { EmptyState } from '@/components/ui/empty-state'
+import { Badge } from '@/components/ui/badge'
+import { SegurancaClient } from '@/components/seguranca/seguranca-client'
 
 export const dynamic = 'force-dynamic'
+
+const INCIDENT_TYPE_MAP: Record<string, string> = {
+  ACCIDENT: 'Acidente',
+  NEAR_MISS: 'Quase-Acidente',
+  UNSAFE_CONDITION: 'Condicao Insegura',
+  UNSAFE_ACT: 'Ato Inseguro',
+  ENVIRONMENTAL: 'Ambiental',
+  FIRST_AID: 'Primeiros Socorros',
+  PPE_VIOLATION: 'Violacao EPI',
+}
 
 export default async function SegurancaTrabalhoPage() {
   const session = await getSession()
@@ -24,32 +35,101 @@ export default async function SegurancaTrabalhoPage() {
   const companyId = session.user?.companyId
   if (!companyId) redirect('/login')
 
-  // Placeholder values
-  const kpis = {
-    diasSemAcidentes: 0,
-    incidentesNoMes: 0,
-    inspecoesPendentes: 0,
-    ddsRealizados: 0,
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+
+  const [
+    totalIncidents,
+    incidentsThisMonth,
+    openIncidents,
+    incidentsByType,
+    lastIncidentDate,
+    pendingInspections,
+    inspectionsThisMonth,
+    incidents,
+    inspections,
+    projects,
+  ] = await Promise.all([
+    prisma.safetyIncident.count({ where: { companyId } }),
+    prisma.safetyIncident.count({
+      where: { companyId, date: { gte: monthStart } },
+    }),
+    prisma.safetyIncident.count({
+      where: { companyId, status: 'OPEN' },
+    }),
+    prisma.safetyIncident.groupBy({
+      by: ['type'],
+      where: { companyId },
+      _count: { id: true },
+    }),
+    prisma.safetyIncident.findFirst({
+      where: { companyId },
+      orderBy: { date: 'desc' },
+      select: { date: true },
+    }),
+    prisma.safetyInspection.count({
+      where: { companyId, status: 'DRAFT' },
+    }),
+    prisma.safetyInspection.count({
+      where: { companyId, date: { gte: monthStart } },
+    }),
+    prisma.safetyIncident.findMany({
+      where: { companyId },
+      include: {
+        project: { select: { name: true } },
+        reportedBy: { select: { name: true } },
+        injuredEmployee: { select: { name: true } },
+      },
+      orderBy: { date: 'desc' },
+      take: 30,
+    }),
+    prisma.safetyInspection.findMany({
+      where: { companyId },
+      include: {
+        project: { select: { name: true } },
+        inspector: { select: { name: true } },
+      },
+      orderBy: { date: 'desc' },
+      take: 20,
+    }),
+    prisma.project.findMany({
+      where: { companyId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+  ])
+
+  let daysSinceLastIncident = 0
+  if (lastIncidentDate?.date) {
+    const diff = Date.now() - new Date(lastIncidentDate.date).getTime()
+    daysSinceLastIncident = Math.floor(diff / (1000 * 60 * 60 * 24))
+  } else if (totalIncidents === 0) {
+    daysSinceLastIncident = 0
   }
 
-  const temDados =
-    kpis.diasSemAcidentes > 0 ||
-    kpis.incidentesNoMes > 0 ||
-    kpis.ddsRealizados > 0
+  const serializedIncidents = incidents.map((inc) => ({
+    ...inc,
+    date: inc.date.toISOString(),
+  }))
+
+  const serializedInspections = inspections.map((insp) => ({
+    ...insp,
+    date: insp.date.toISOString(),
+    overallScore: insp.overallScore ? Number(insp.overallScore) : null,
+  }))
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Segurança do Trabalho
-        </h1>
-        <p className="text-muted-foreground">
-          Gestão de segurança, acidentes e prevenção
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Seguranca do Trabalho
+          </h1>
+          <p className="text-muted-foreground">
+            Gestao de seguranca, acidentes e prevencao
+          </p>
+        </div>
       </div>
 
-      {/* KPI Cards */}
       <div>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Shield className="h-5 w-5" />
@@ -66,10 +146,12 @@ export default async function SegurancaTrabalhoPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-2xl font-bold text-green-700">
-                    {kpis.diasSemAcidentes}
+                    {totalIncidents === 0 ? '\u2014' : daysSinceLastIncident}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Consecutivos
+                    {totalIncidents === 0
+                      ? 'Sem registros'
+                      : 'Consecutivos'}
                   </p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-green-600/20" />
@@ -80,14 +162,14 @@ export default async function SegurancaTrabalhoPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase">
-                Incidentes no Mês
+                Incidentes no Mes
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-2xl font-bold text-red-700">
-                    {kpis.incidentesNoMes}
+                    {incidentsThisMonth}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Registrados
@@ -101,17 +183,17 @@ export default async function SegurancaTrabalhoPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase">
-                Inspeções Pendentes
+                Incidentes Abertos
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-2xl font-bold text-orange-700">
-                    {kpis.inspecoesPendentes}
+                    {openIncidents}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Aguardando
+                    Aguardando resolucao
                   </p>
                 </div>
                 <Shield className="h-8 w-8 text-orange-600/20" />
@@ -122,50 +204,48 @@ export default async function SegurancaTrabalhoPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase">
-                DDS Realizados
+                Inspecoes no Mes
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-2xl font-bold text-blue-700">
-                    {kpis.ddsRealizados}
+                    {inspectionsThisMonth}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Este mês
+                    Realizadas
                   </p>
                 </div>
-                <Users className="h-8 w-8 text-blue-600/20" />
+                <ClipboardCheck className="h-8 w-8 text-blue-600/20" />
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* Empty State */}
-      {!temDados && (
-        <Card className="border-dashed">
-          <CardContent className="pt-6">
-            <EmptyState
-              icon={Shield}
-              title="Nenhum dado registrado"
-              description="Comece a registrar informações de segurança do trabalho, acidentes e inspeções."
-            />
+      {incidentsByType.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Incidentes por Tipo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {incidentsByType.map((t) => (
+                <Badge key={t.type} variant="outline" className="text-xs">
+                  {INCIDENT_TYPE_MAP[t.type] || t.type}: {t._count.id}
+                </Badge>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Coming Soon Notice */}
-      <Card className="border-dashed">
-        <CardHeader>
-          <CardTitle>Módulo em Desenvolvimento</CardTitle>
-          <CardDescription>
-            Em breve, você poderá gerenciar incidentes, programar inspeções de
-            segurança e acompanhar DDS (Diálogo Diário de Segurança) através
-            dessa interface.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <SegurancaClient
+        incidents={serializedIncidents as any}
+        inspections={serializedInspections as any}
+        projects={projects}
+      />
     </div>
   )
 }

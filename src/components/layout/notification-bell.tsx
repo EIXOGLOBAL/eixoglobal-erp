@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { useNotifications } from "@/hooks/use-notifications"
 import { useToast } from "@/hooks/use-toast"
+import { formatDate } from "@/lib/formatters"
 
 // Icon map for notification types
 const TYPE_ICONS: Record<string, string> = {
@@ -38,7 +39,7 @@ function timeAgo(date: Date | string): string {
   if (diff < 3600) return `${Math.floor(diff / 60)}m`
   if (diff < 86400) return `${Math.floor(diff / 3600)}h`
   if (diff < 604800) return `${Math.floor(diff / 86400)}d`
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+  return formatDate(d)
 }
 
 export function NotificationBell() {

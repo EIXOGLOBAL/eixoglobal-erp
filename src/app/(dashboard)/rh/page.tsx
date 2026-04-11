@@ -1,4 +1,5 @@
 import { getSession } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -31,12 +32,52 @@ export default async function RHPage() {
   const companyId = session.user?.companyId
   if (!companyId) redirect('/login')
 
-  // Placeholder KPI values - these would be fetched from database in real implementation
-  const kpis = {
-    totalFuncionarios: 45,
-    alocados: 38,
-    deFerias: 3,
-    treinamentosAtivos: 12,
+  let kpis = {
+    totalFuncionarios: 0,
+    alocados: 0,
+    deFerias: 0,
+    treinamentosAtivos: 0,
+  }
+
+  try {
+    const now = new Date()
+
+    const [totalFuncionarios, alocados, deFerias, treinamentosAtivos] =
+      await Promise.all([
+        prisma.employee.count({
+          where: { companyId, status: 'ACTIVE' },
+        }),
+        prisma.employee.count({
+          where: {
+            companyId,
+            status: 'ACTIVE',
+            allocations: {
+              some: {
+                startDate: { lte: now },
+                OR: [{ endDate: null }, { endDate: { gte: now } }],
+              },
+            },
+          },
+        }),
+        prisma.vacationRequest.count({
+          where: {
+            employee: { companyId },
+            status: 'APPROVED',
+            startDate: { lte: now },
+            endDate: { gte: now },
+          },
+        }),
+        prisma.training.count({
+          where: {
+            companyId,
+            status: 'IN_PROGRESS',
+          },
+        }),
+      ])
+
+    kpis = { totalFuncionarios, alocados, deFerias, treinamentosAtivos }
+  } catch {
+    // fallback to zeros on error
   }
 
   const subModules = [

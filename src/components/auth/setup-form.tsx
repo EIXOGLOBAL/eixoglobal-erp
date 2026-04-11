@@ -12,8 +12,9 @@ import { useRouter } from "next/navigation"
 
 const setupSchema = z.object({
     name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres"),
-    email: z.string().email("Email inválido"),
-    password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+    username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres").regex(/^[a-zA-Z0-9._-]+$/, "Apenas letras, números, pontos, hífens e underscores"),
+    email: z.string().email("Email inválido").optional().or(z.literal("")),
+    password: z.string().min(8, "Senha deve ter no mínimo 8 caracteres"),
 })
 
 export function SetupForm() {
@@ -30,7 +31,8 @@ export function SetupForm() {
         startTransition(async () => {
             const formData = new FormData()
             formData.append("name", data.name)
-            formData.append("email", data.email)
+            formData.append("username", data.username)
+            if (data.email) formData.append("email", data.email)
             formData.append("password", data.password)
 
             const result = await setupAdmin({}, formData)
@@ -67,7 +69,23 @@ export function SetupForm() {
                         )}
                     </div>
                     <div className="grid gap-2">
-                        <label htmlFor="email">Email</label>
+                        <label htmlFor="username">Usuário de Login</label>
+                        <Input
+                            id="username"
+                            placeholder="admin"
+                            type="text"
+                            autoCapitalize="none"
+                            autoComplete="username"
+                            autoCorrect="off"
+                            disabled={isPending}
+                            {...register("username")}
+                        />
+                        {errors.username && (
+                            <p className="text-sm text-red-500">{errors.username.message}</p>
+                        )}
+                    </div>
+                    <div className="grid gap-2">
+                        <label htmlFor="email">Email (opcional)</label>
                         <Input
                             id="email"
                             placeholder="admin@eixoglobal.com"

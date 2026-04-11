@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { assertAuthenticated } from "@/lib/auth-helpers"
 
 // ============================================================================
 // SCHEMAS
@@ -24,6 +25,7 @@ export async function createDailyReportEquipment(
     data: z.infer<typeof equipmentEntrySchema>
 ) {
     try {
+        await assertAuthenticated()
         const validated = equipmentEntrySchema.parse(data)
 
         const equipment = await prisma.dailyReportEquipment.create({
@@ -53,6 +55,7 @@ export async function updateDailyReportEquipment(
     data: z.infer<typeof equipmentEntrySchema>
 ) {
     try {
+        await assertAuthenticated()
         const validated = equipmentEntrySchema.parse(data)
 
         const equipment = await prisma.dailyReportEquipment.findUnique({
@@ -87,6 +90,7 @@ export async function updateDailyReportEquipment(
 
 export async function deleteDailyReportEquipment(equipmentId: string) {
     try {
+        await assertAuthenticated()
         const equipment = await prisma.dailyReportEquipment.findUnique({
             where: { id: equipmentId }
         })
@@ -111,6 +115,7 @@ export async function deleteDailyReportEquipment(equipmentId: string) {
 
 export async function getDailyReportEquipments(reportId: string) {
     try {
+        await assertAuthenticated()
         const equipments = await prisma.dailyReportEquipment.findMany({
             where: { reportId },
             include: {
@@ -130,6 +135,7 @@ export async function getDailyReportEquipments(reportId: string) {
 
 export async function getDailyReportEquipmentById(equipmentId: string) {
     try {
+        await assertAuthenticated()
         const equipment = await prisma.dailyReportEquipment.findUnique({
             where: { id: equipmentId },
             include: {

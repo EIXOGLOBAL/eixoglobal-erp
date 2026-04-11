@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS
@@ -54,32 +55,34 @@ export async function uploadPhoto(
     const validated = progressPhotoSchema.parse(data)
 
     // Verify project exists
-    const project = await (prisma as any).project.findUnique({
+    const project = await prisma.project.findUnique({
       where: { id: validated.projectId },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!project) {
       return { success: false, error: "Projeto não encontrado" }
     }
 
-    const photo = await (prisma as any).progressPhoto.create({
+    const photo = await prisma.progressPhoto.create({
       data: {
         projectId: validated.projectId,
+        companyId: session.user.companyId!,
         filePath: validated.filePath,
         caption: validated.caption || null,
         category: validated.category || 'GENERAL',
         latitude: validated.latitude || null,
         longitude: validated.longitude || null,
-        uploadedBy: session.user.id,
-        uploadedAt: new Date(),
+        takenById: session.user.id,
+        takenAt: new Date(),
       },
       include: {
         project: { select: { id: true, name: true } },
-        uploader: { select: { id: true, name: true } },
+        takenBy: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logCreate('ProgressPhoto', photo.id, photo.caption || photo.filePath || 'N/A', validated)
 
     revalidatePath('/progress-photos')
     revalidatePath(`/projects/${validated.projectId}`)
@@ -109,26 +112,26 @@ export async function getPhotos(
       ...(filters.projectId && { projectId: filters.projectId }),
       ...(filters.category && { category: filters.category }),
       ...(filters.startDate && {
-        uploadedAt: { gte: new Date(filters.startDate) },
+        takenAt: { gte: new Date(filters.startDate) },
       }),
       ...(filters.endDate && {
-        uploadedAt: { lte: new Date(filters.endDate) },
+        takenAt: { lte: new Date(filters.endDate) },
       }),
     }
 
     const [data, total] = await Promise.all([
-      (prisma as any).progressPhoto.findMany({
+      prisma.progressPhoto.findMany({
         where,
         include: {
           project: { select: { id: true, name: true } },
-          uploader: { select: { id: true, name: true } },
+          takenBy: { select: { id: true, name: true } },
         },
-        orderBy: { uploadedAt: 'desc' },
+        orderBy: { takenAt: 'desc' },
         skip,
         take: pagination.limit,
       }),
-      // TODO: Remove 'as any' after running prisma generate
-      (prisma as any).progressPhoto.count({ where }),
+  
+      prisma.progressPhoto.count({ where }),
     ])
 
     return {
@@ -155,14 +158,14 @@ export async function getPhotos(
 
 export async function getPhotoById(id: string) {
   try {
-    const photo = await (prisma as any).progressPhoto.findUnique({
+    const photo = await prisma.progressPhoto.findUnique({
       where: { id },
       include: {
         project: { select: { id: true, name: true } },
-        uploader: { select: { id: true, name: true } },
+        takenBy: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!photo) {
       return { success: false, error: "Foto não encontrada" }
@@ -183,19 +186,20 @@ export async function deletePhoto(id: string) {
   if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
 
   try {
-    const photo = await (prisma as any).progressPhoto.findUnique({
+    const photo = await prisma.progressPhoto.findUnique({
       where: { id },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!photo) {
       return { success: false, error: "Foto não encontrada" }
     }
 
-    await (prisma as any).progressPhoto.delete({
+    await prisma.progressPhoto.delete({
       where: { id },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logDelete('ProgressPhoto', id, photo.caption || photo.filePath || 'N/A', photo)
 
     revalidatePath('/progress-photos')
     revalidatePath(`/projects/${photo.projectId}`)
@@ -215,28 +219,28 @@ export async function deletePhoto(id: string) {
 
 export async function getPhotoTimeline(projectId: string) {
   try {
-    const project = await (prisma as any).project.findUnique({
+    const project = await prisma.project.findUnique({
       where: { id: projectId },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!project) {
       return { success: false, error: "Projeto não encontrado" }
     }
 
-    const photos = await (prisma as any).progressPhoto.findMany({
+    const photos = await prisma.progressPhoto.findMany({
       where: { projectId },
       include: {
-        uploader: { select: { id: true, name: true } },
+        takenBy: { select: { id: true, name: true } },
       },
-      orderBy: { uploadedAt: 'asc' },
+      orderBy: { takenAt: 'asc' },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     // Group photos by date
     const timelineByDate: { [key: string]: any[] } = {}
     photos.forEach((photo: any) => {
-      const dateKey = photo.uploadedAt
+      const dateKey = photo.takenAt
         .toISOString()
         .split('T')[0]
       if (!timelineByDate[dateKey]) {
@@ -264,8 +268,8 @@ export async function getPhotoTimeline(projectId: string) {
         totalPhotos: photos.length,
         byCategory,
         timeline,
-        firstPhoto: photos.length > 0 ? photos[0].uploadedAt : null,
-        lastPhoto: photos.length > 0 ? photos[photos.length - 1].uploadedAt : null,
+        firstPhoto: photos.length > 0 ? photos[0].takenAt : null,
+        lastPhoto: photos.length > 0 ? photos[photos.length - 1].takenAt : null,
       },
     }
   } catch (error) {

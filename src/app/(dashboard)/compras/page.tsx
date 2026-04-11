@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ShoppingCart, DollarSign, Clock, CalendarDays } from "lucide-react"
 import { getPurchaseOrders } from "@/app/actions/purchase-actions"
+import { getSuppliersWithScore } from "@/app/actions/supplier-actions"
 import { PurchaseOrdersTable } from "@/components/compras/purchase-orders-table"
 import { PurchaseOrderDialog } from "@/components/compras/purchase-order-dialog"
 import { toNumber, formatCurrency } from "@/lib/formatters"
@@ -19,11 +20,7 @@ export default async function ComprasPage() {
 
     const [ordersResponse, suppliers, projects] = await Promise.all([
         getPurchaseOrders({ companyId }),
-        prisma.supplier.findMany({
-            where: { companyId, isActive: true },
-            select: { id: true, name: true },
-            orderBy: { name: 'asc' }
-        }),
+        getSuppliersWithScore(companyId),
         prisma.project.findMany({
             where: { companyId },
             select: { id: true, name: true },

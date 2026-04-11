@@ -21,6 +21,7 @@ import {
   BILLING_CYCLE_LABELS,
   RENTAL_STATUS_LABELS,
 } from '@/lib/rental-icons'
+import { formatDate } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -28,11 +29,6 @@ function formatCurrency(value: number | { toString(): string } | null | undefine
   if (value == null) return 'R$ 0,00'
   const num = typeof value === 'number' ? value : parseFloat(value.toString())
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num)
-}
-
-function formatDate(date: Date | string | null | undefined) {
-  if (!date) return '-'
-  return new Date(date).toLocaleDateString('pt-BR')
 }
 
 function statusBadgeClass(status: string) {

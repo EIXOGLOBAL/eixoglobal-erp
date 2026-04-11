@@ -16,6 +16,7 @@ import {
   isD4SignConfigured,
   type D4SignSigner,
 } from '@/lib/d4sign'
+import { formatDate } from '@/lib/formatters'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -64,9 +65,6 @@ function generateContractSignaturePdf(contract: {
 }): Buffer {
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-
-  const formatDate = (d: Date) =>
-    new Date(d).toLocaleDateString('pt-BR')
 
   // Build a simple text-based PDF (minimal valid PDF structure)
   const lines: string[] = []
@@ -123,9 +121,6 @@ function generateBulletinSignaturePdf(bulletin: {
 }): Buffer {
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-
-  const formatDate = (d: Date) =>
-    new Date(d).toLocaleDateString('pt-BR')
 
   const lines: string[] = []
   lines.push(`BOLETIM DE MEDICAO: ${bulletin.number}`)

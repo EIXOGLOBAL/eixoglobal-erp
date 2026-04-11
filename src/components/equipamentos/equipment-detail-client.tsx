@@ -4,10 +4,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { endUsage } from "@/app/actions/equipment-actions"
 import { useToast } from "@/hooks/use-toast"
+import { formatDate } from "@/lib/formatters"
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const fmtDate = (d: Date | string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString('pt-BR') : '—'
+    d ? formatDate(d) : '—'
 
 const MAINTENANCE_TYPE_LABELS: Record<string, string> = {
     PREVENTIVE: "Preventiva",

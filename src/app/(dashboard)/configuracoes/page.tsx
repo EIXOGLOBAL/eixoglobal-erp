@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export default async function ConfiguracoesPage() {
     const session = await requireAuth()
 
-    const user = session.user as { id: string; name?: string; email?: string; role?: string }
+    const user = session.user as { id: string; username: string; name?: string; email?: string; role?: string }
 
     const configSections = [
         {
@@ -110,7 +110,7 @@ export default async function ConfiguracoesPage() {
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Usuário</span>
-                            <span className="font-medium">{user.name || user.email}</span>
+                            <span className="font-medium">{user.name || user.username}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Função</span>

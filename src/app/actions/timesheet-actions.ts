@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS
@@ -48,10 +49,10 @@ export async function clockIn(data: z.infer<typeof clockInSchema>) {
     const validated = clockInSchema.parse(data)
 
     // Check if employee already has an active clock-in
-    const activeEntry = await (prisma as any).timeEntry.findFirst({
+    const activeEntry = await prisma.timeEntry.findFirst({
       where: {
         employeeId: session.user.id,
-        clockOutTime: null,
+        clockOut: null,
       },
     })
 
@@ -62,11 +63,13 @@ export async function clockIn(data: z.infer<typeof clockInSchema>) {
       }
     }
 
-    const timeEntry = await (prisma as any).timeEntry.create({
+    const timeEntry = await prisma.timeEntry.create({
       data: {
         employeeId: session.user.id,
+        companyId: session.user.companyId!,
         projectId: validated.projectId || null,
-        clockInTime: new Date(),
+        date: new Date(),
+        clockIn: new Date(),
         latitude: validated.latitude || null,
         longitude: validated.longitude || null,
         status: 'PENDING',
@@ -76,7 +79,8 @@ export async function clockIn(data: z.infer<typeof clockInSchema>) {
         project: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logAction('CLOCK_IN', 'TimeEntry', timeEntry.id, timeEntry.employee?.name || 'N/A', `Project: ${timeEntry.project?.name || 'N/A'}`)
 
     revalidatePath('/timesheet')
     return { success: true, data: timeEntry }
@@ -94,10 +98,10 @@ export async function clockOut(timeEntryId: string) {
   if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
 
   try {
-    const timeEntry = await (prisma as any).timeEntry.findUnique({
+    const timeEntry = await prisma.timeEntry.findUnique({
       where: { id: timeEntryId },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!timeEntry) {
       return { success: false, error: "Ponto não encontrado" }
@@ -107,27 +111,28 @@ export async function clockOut(timeEntryId: string) {
       return { success: false, error: "Você não tem permissão para fechar este ponto" }
     }
 
-    if (timeEntry.clockOutTime) {
+    if (timeEntry.clockOut) {
       return { success: false, error: "Este ponto já foi fechado" }
     }
 
-    const clockOutTime = new Date()
-    const durationMinutes = Math.floor(
-      (clockOutTime.getTime() - timeEntry.clockInTime.getTime()) / 60000
-    )
+    const clockOut = new Date()
+    const totalHours = Math.round(
+      ((clockOut.getTime() - timeEntry.clockIn.getTime()) / 3600000) * 100
+    ) / 100
 
-    const updated = await (prisma as any).timeEntry.update({
+    const updated = await prisma.timeEntry.update({
       where: { id: timeEntryId },
       data: {
-        clockOutTime,
-        durationMinutes,
+        clockOut: clockOut,
+        totalHours,
       },
       include: {
         employee: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logAction('CLOCK_OUT', 'TimeEntry', timeEntryId, updated.employee?.name || 'N/A', `Total hours: ${totalHours}`)
 
     revalidatePath('/timesheet')
     return { success: true, data: updated }
@@ -164,26 +169,26 @@ export async function getTimeEntries(
       ...(filters.employeeId && { employeeId: filters.employeeId }),
       ...(filters.projectId && { projectId: filters.projectId }),
       ...(filters.startDate && {
-        clockInTime: { gte: new Date(filters.startDate) },
+        clockIn: { gte: new Date(filters.startDate) },
       }),
       ...(filters.endDate && {
-        clockInTime: { lte: new Date(filters.endDate) },
+        clockIn: { lte: new Date(filters.endDate) },
       }),
     }
 
     const [data, total] = await Promise.all([
-      (prisma as any).timeEntry.findMany({
+      prisma.timeEntry.findMany({
         where,
         include: {
           employee: { select: { id: true, name: true } },
           project: { select: { id: true, name: true } },
         },
-        orderBy: { clockInTime: 'desc' },
+        orderBy: { clockIn: 'desc' },
         skip,
         take: pagination.limit,
       }),
-      // TODO: Remove 'as any' after running prisma generate
-      (prisma as any).timeEntry.count({ where }),
+  
+      prisma.timeEntry.count({ where }),
     ])
 
     return {
@@ -228,25 +233,25 @@ export async function getMyTimeEntries(
       ...(filters.status && { status: filters.status }),
       ...(filters.projectId && { projectId: filters.projectId }),
       ...(filters.startDate && {
-        clockInTime: { gte: new Date(filters.startDate) },
+        clockIn: { gte: new Date(filters.startDate) },
       }),
       ...(filters.endDate && {
-        clockInTime: { lte: new Date(filters.endDate) },
+        clockIn: { lte: new Date(filters.endDate) },
       }),
     }
 
     const [data, total] = await Promise.all([
-      (prisma as any).timeEntry.findMany({
+      prisma.timeEntry.findMany({
         where,
         include: {
           project: { select: { id: true, name: true } },
         },
-        orderBy: { clockInTime: 'desc' },
+        orderBy: { clockIn: 'desc' },
         skip,
         take: pagination.limit,
       }),
-      // TODO: Remove 'as any' after running prisma generate
-      (prisma as any).timeEntry.count({ where }),
+  
+      prisma.timeEntry.count({ where }),
     ])
 
     return {
@@ -283,29 +288,30 @@ export async function approveTimeEntry(
   if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
 
   try {
-    const timeEntry = await (prisma as any).timeEntry.findUnique({
+    const timeEntry = await prisma.timeEntry.findUnique({
       where: { id },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!timeEntry) {
       return { success: false, error: "Ponto não encontrado" }
     }
 
-    const updated = await (prisma as any).timeEntry.update({
+    const updated = await prisma.timeEntry.update({
       where: { id },
       data: {
         status: 'APPROVED',
-        approvedBy: session.user.id,
+        approvedById: session.user.id,
         approvedAt: new Date(),
-        approvalComments: comments || null,
+        notes: comments || null,
       },
       include: {
         employee: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logAction('APPROVE', 'TimeEntry', id, updated.employee?.name || 'N/A', comments || 'Approved')
 
     revalidatePath('/timesheet')
     return { success: true, data: updated }
@@ -328,29 +334,30 @@ export async function rejectTimeEntry(
   try {
     const validated = rejectTimeEntrySchema.parse({ reason })
 
-    const timeEntry = await (prisma as any).timeEntry.findUnique({
+    const timeEntry = await prisma.timeEntry.findUnique({
       where: { id },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!timeEntry) {
       return { success: false, error: "Ponto não encontrado" }
     }
 
-    const updated = await (prisma as any).timeEntry.update({
+    const updated = await prisma.timeEntry.update({
       where: { id },
       data: {
         status: 'REJECTED',
-        rejectedBy: session.user.id,
-        rejectedAt: new Date(),
-        rejectionReason: validated.reason,
+        approvedById: session.user.id,
+        approvedAt: new Date(),
+        notes: validated.reason,
       },
       include: {
         employee: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logAction('REJECT', 'TimeEntry', id, updated.employee?.name || 'N/A', `Reason: ${validated.reason}`)
 
     revalidatePath('/timesheet')
     return { success: true, data: updated }
@@ -368,15 +375,16 @@ export async function bulkApproveTimeEntries(ids: string[]) {
   if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
 
   try {
-    const updated = await (prisma as any).timeEntry.updateMany({
+    const updated = await prisma.timeEntry.updateMany({
       where: { id: { in: ids } },
       data: {
         status: 'APPROVED',
-        approvedBy: session.user.id,
+        approvedById: session.user.id,
         approvedAt: new Date(),
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logAction('BULK_APPROVE', 'TimeEntry', ids.join(','), `${updated.count} entries`, `Approved ${updated.count} time entries`)
 
     revalidatePath('/timesheet')
     return {
@@ -405,10 +413,10 @@ export async function getTimesheetSummary(
     const startDate = new Date(year, month - 1, 1)
     const endDate = new Date(year, month, 0, 23, 59, 59)
 
-    const entries = await (prisma as any).timeEntry.findMany({
+    const entries = await prisma.timeEntry.findMany({
       where: {
         employeeId,
-        clockInTime: {
+        clockIn: {
           gte: startDate,
           lte: endDate,
         },
@@ -417,32 +425,30 @@ export async function getTimesheetSummary(
         project: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
 
-    const totalMinutes = entries
-      .filter((e: any) => e.durationMinutes)
-      .reduce((sum: number, e: any) => sum + e.durationMinutes, 0)
 
-    const totalHours = Math.round((totalMinutes / 60) * 100) / 100
+    const totalHours = entries
+      .filter((e: any) => e.totalHours)
+      .reduce((sum: number, e: any) => sum + e.totalHours, 0)
+
     const approvedEntries = entries.filter((e: any) => e.status === 'APPROVED')
-    const approvedMinutes = approvedEntries
-      .filter((e: any) => e.durationMinutes)
-      .reduce((sum: number, e: any) => sum + e.durationMinutes, 0)
-    const approvedHours = Math.round((approvedMinutes / 60) * 100) / 100
+    const approvedHours = approvedEntries
+      .filter((e: any) => e.totalHours)
+      .reduce((sum: number, e: any) => sum + e.totalHours, 0)
 
     const byProject = entries.reduce((acc: any, entry: any) => {
       const projectName = entry.project?.name || 'Sem projeto'
       if (!acc[projectName]) {
-        acc[projectName] = { minutes: 0, entries: 0 }
+        acc[projectName] = { hours: 0, entries: 0 }
       }
-      acc[projectName].minutes += entry.durationMinutes || 0
+      acc[projectName].hours += entry.totalHours || 0
       acc[projectName].entries += 1
       return acc
     }, {})
 
     const projectBreakdown = Object.entries(byProject).map(([name, data]: [string, any]) => ({
       project: name,
-      hours: Math.round((data.minutes / 60) * 100) / 100,
+      hours: Math.round(data.hours * 100) / 100,
       entries: data.entries,
     }))
 
@@ -480,9 +486,9 @@ export async function getDailyPresence(
     const endOfDay = new Date(targetDate)
     endOfDay.setHours(23, 59, 59, 999)
 
-    const entries = await (prisma as any).timeEntry.findMany({
+    const entries = await prisma.timeEntry.findMany({
       where: {
-        clockInTime: {
+        clockIn: {
           gte: startOfDay,
           lte: endOfDay,
         },
@@ -492,9 +498,9 @@ export async function getDailyPresence(
         employee: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
       },
-      orderBy: { clockInTime: 'asc' },
+      orderBy: { clockIn: 'asc' },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     const employees = new Map()
     entries.forEach((entry: any) => {
@@ -510,8 +516,8 @@ export async function getDailyPresence(
         })
       }
       const emp = employees.get(empId)
-      if (!emp.clockIn) emp.clockIn = entry.clockInTime
-      if (entry.clockOutTime) emp.clockOut = entry.clockOutTime
+      if (!emp.clockIn) emp.clockIn = entry.clockIn
+      if (entry.clockOut) emp.clockOut = entry.clockOut
     })
 
     const result = Array.from(employees.values()).map((emp: any) => ({

@@ -333,6 +333,7 @@ export function ClientDialog({
                   <FormLabel>Nome de Exibição *</FormLabel>
                   <FormControl>
                     <Input
+                      autoFocus
                       placeholder="Nome usado para identificação no sistema"
                       {...field}
                     />

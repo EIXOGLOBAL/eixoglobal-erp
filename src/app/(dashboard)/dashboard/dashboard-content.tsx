@@ -16,6 +16,9 @@ import {
   CalendarClock,
   ArrowRight,
   Inbox,
+  ShoppingCart,
+  ShieldAlert,
+  CircleOff,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -73,6 +76,10 @@ interface KPIs {
   pendingBulletins: number
   pendingBudgets: number
   expiringContracts30d: number
+  openPurchaseOrders: number
+  openSafetyIncidents: number
+  openNonConformities: number
+  equipmentsInMaintenance: number
 }
 
 interface CashflowItem {
@@ -285,6 +292,80 @@ function AnimatedNumberKPI({
 }
 
 // ---------------------------------------------------------------------------
+// Attention KPI Card (styled with severity colors)
+// ---------------------------------------------------------------------------
+
+const ATTENTION_STYLES = {
+  ok: {
+    border: 'border-green-200 dark:border-green-800/50',
+    bg: 'bg-green-50/50 dark:bg-green-950/20',
+    iconColor: 'text-green-600 dark:text-green-400',
+    badgeVariant: 'secondary' as const,
+    badgeClass: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
+  },
+  medium: {
+    border: 'border-amber-200 dark:border-amber-800/50',
+    bg: 'bg-amber-50/50 dark:bg-amber-950/20',
+    iconColor: 'text-amber-600 dark:text-amber-400',
+    badgeVariant: 'secondary' as const,
+    badgeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
+  },
+  high: {
+    border: 'border-red-200 dark:border-red-800/50',
+    bg: 'bg-red-50/50 dark:bg-red-950/20',
+    iconColor: 'text-red-600 dark:text-red-400',
+    badgeVariant: 'destructive' as const,
+    badgeClass: '',
+  },
+}
+
+function AttentionKPICard({
+  icon: Icon,
+  label,
+  value,
+  subtitle,
+  href,
+  severity,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: number
+  subtitle: string
+  href: string
+  severity: 'ok' | 'medium' | 'high'
+}) {
+  const animated = useAnimatedCounter(value, 1000)
+  const styles = ATTENTION_STYLES[severity]
+
+  const content = (
+    <Card className={`${styles.bg} ${styles.border} border hover:shadow-lg transition-all duration-200`}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{label}</CardTitle>
+        <div className="flex items-center gap-2">
+          {value > 0 && (
+            <Badge
+              variant={styles.badgeVariant}
+              className={`text-[10px] px-1.5 py-0 ${styles.badgeClass}`}
+            >
+              {value}
+            </Badge>
+          )}
+          <Icon className={`h-4 w-4 ${styles.iconColor}`} />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className={`text-2xl font-bold ${severity === 'ok' ? 'text-green-700 dark:text-green-300' : ''}`}>
+          {animated}
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+      </CardContent>
+    </Card>
+  )
+
+  return <Link href={href}>{content}</Link>
+}
+
+// ---------------------------------------------------------------------------
 // Custom tooltips
 // ---------------------------------------------------------------------------
 
@@ -487,10 +568,10 @@ export function DashboardContent({
       )}
 
       {/* ================================================================
-          SECTION 2 -- KPI CARDS (2 rows x 4 cols)
+          SECTION 2 -- KPI CARDS PRINCIPAIS (2 rows x 4 cols)
           ================================================================ */}
       <section className="grid grid-cols-4 gap-4 stagger-fade-in">
-        {/* Row 1 */}
+        {/* Row 1 - Projetos & Financeiro */}
         <AnimatedNumberKPI
           icon={FolderKanban}
           label="Projetos Ativos"
@@ -524,7 +605,7 @@ export function DashboardContent({
           href="/financeiro/contas"
         />
 
-        {/* Row 2 */}
+        {/* Row 2 - RH, Orcamentos & Equipamentos */}
         <AnimatedNumberKPI
           icon={Users}
           label="Funcionarios Alocados"
@@ -532,19 +613,6 @@ export function DashboardContent({
           subtitle={`${allocationPct}% de ${kpis.totalActiveEmployees} ativos`}
           iconColor="text-purple-600"
           href="/rh/funcionarios"
-        />
-        <AnimatedNumberKPI
-          icon={FileText}
-          label="Boletins Pendentes"
-          value={kpis.pendingBulletins}
-          subtitle="Aguardando aprovacao"
-          iconColor="text-amber-600"
-          href="/measurements"
-          badge={
-            kpis.pendingBulletins > 5
-              ? { text: `${kpis.pendingBulletins}`, variant: 'destructive' }
-              : undefined
-          }
         />
         <AnimatedNumberKPI
           icon={Calculator}
@@ -555,18 +623,81 @@ export function DashboardContent({
           href="/orcamentos"
         />
         <AnimatedNumberKPI
-          icon={AlertTriangle}
-          label="Contratos Vencendo"
-          value={kpis.expiringContracts30d}
-          subtitle="Proximos 30 dias"
-          iconColor="text-orange-600"
-          href="/contracts"
+          icon={Wrench}
+          label="Equipamentos em Manutencao"
+          value={kpis.equipmentsInMaintenance}
+          subtitle="Status manutencao"
+          iconColor="text-yellow-600"
+          href="/equipamentos"
           badge={
-            kpis.expiringContracts30d > 0
-              ? { text: `${kpis.expiringContracts30d}`, variant: 'destructive' }
+            kpis.equipmentsInMaintenance > 0
+              ? { text: `${kpis.equipmentsInMaintenance}`, variant: 'secondary' }
               : undefined
           }
         />
+        <AnimatedCurrencyKPI
+          icon={Wallet}
+          label="Resultado do Periodo"
+          value={kpis.periodRevenue - kpis.periodExpenses}
+          subtitle={kpis.periodRevenue - kpis.periodExpenses >= 0 ? 'Superavit' : 'Deficit'}
+          iconColor={kpis.periodRevenue - kpis.periodExpenses >= 0 ? 'text-green-600' : 'text-red-600'}
+          href="/financeiro/fluxo-de-caixa"
+        />
+      </section>
+
+      {/* ================================================================
+          SECTION 2.5 -- KPIs OPERACIONAIS APRIMORADOS (secao destacada)
+          ================================================================ */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <AlertTriangle className="h-5 w-5 text-amber-500" />
+          <h2 className="text-lg font-semibold tracking-tight">Painel de Atencao</h2>
+          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+            Itens que requerem acao
+          </Badge>
+        </div>
+        <div className="grid grid-cols-5 gap-4">
+          <AttentionKPICard
+            icon={FileText}
+            label="Boletins Pendentes"
+            value={kpis.pendingBulletins}
+            subtitle="Aguardando aprovacao"
+            href="/measurements"
+            severity={kpis.pendingBulletins > 5 ? 'high' : kpis.pendingBulletins > 0 ? 'medium' : 'ok'}
+          />
+          <AttentionKPICard
+            icon={ShoppingCart}
+            label="Ordens de Compra"
+            value={kpis.openPurchaseOrders}
+            subtitle="Abertas (rascunho/pendente)"
+            href="/compras"
+            severity={kpis.openPurchaseOrders > 10 ? 'high' : kpis.openPurchaseOrders > 0 ? 'medium' : 'ok'}
+          />
+          <AttentionKPICard
+            icon={ShieldAlert}
+            label="Incidentes de Seguranca"
+            value={kpis.openSafetyIncidents}
+            subtitle="Abertos"
+            href="/seguranca-trabalho"
+            severity={kpis.openSafetyIncidents > 0 ? 'high' : 'ok'}
+          />
+          <AttentionKPICard
+            icon={CircleOff}
+            label="Nao Conformidades"
+            value={kpis.openNonConformities}
+            subtitle="Abertas"
+            href="/qualidade"
+            severity={kpis.openNonConformities > 0 ? 'high' : 'ok'}
+          />
+          <AttentionKPICard
+            icon={CalendarClock}
+            label="Contratos Vencendo"
+            value={kpis.expiringContracts30d}
+            subtitle="Proximos 30 dias"
+            href="/contratos"
+            severity={kpis.expiringContracts30d > 3 ? 'high' : kpis.expiringContracts30d > 0 ? 'medium' : 'ok'}
+          />
+        </div>
       </section>
 
       {/* ================================================================

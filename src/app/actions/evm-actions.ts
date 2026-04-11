@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import { assertAuthenticated } from '@/lib/auth-helpers'
 
 // ============================================================================
 // Types
@@ -133,8 +134,9 @@ function getHealthStatus(spi: number, cpi: number): 'green' | 'yellow' | 'red' {
  */
 export async function getProjectEVMData(projectId: string): Promise<EVMProjectData | null> {
   try {
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
+    const session = await assertAuthenticated()
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, ...(session.user.companyId ? { companyId: session.user.companyId } : {}) },
       select: {
         id: true,
         name: true,
@@ -211,8 +213,11 @@ export async function getProjectEVMData(projectId: string): Promise<EVMProjectDa
 /**
  * Get EVM data for all projects in a company
  */
-export async function getAllProjectsEVMData(companyId: string): Promise<EVMProjectData[]> {
+export async function getAllProjectsEVMData(_companyId?: string): Promise<EVMProjectData[]> {
   try {
+    const session = await assertAuthenticated()
+    const companyId = session.user.companyId
+    if (!companyId) return []
     const projects = await prisma.project.findMany({
       where: { companyId },
       select: {
@@ -287,9 +292,9 @@ export async function getAllProjectsEVMData(companyId: string): Promise<EVMProje
 /**
  * Get portfolio summary for all projects in a company
  */
-export async function getPortfolioEVMSummary(companyId: string): Promise<EVMPortfolioSummary | null> {
+export async function getPortfolioEVMSummary(_companyId?: string): Promise<EVMPortfolioSummary | null> {
   try {
-    const projects = await getAllProjectsEVMData(companyId)
+    const projects = await getAllProjectsEVMData()
 
     if (projects.length === 0) {
       return null
@@ -328,8 +333,9 @@ export async function getPortfolioEVMSummary(companyId: string): Promise<EVMPort
  */
 export async function getProjectSCurveData(projectId: string): Promise<MonthlySCurveData[]> {
   try {
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
+    const session = await assertAuthenticated()
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, ...(session.user.companyId ? { companyId: session.user.companyId } : {}) },
       select: {
         id: true,
         budget: true,
@@ -404,11 +410,11 @@ export async function getProjectSCurveData(projectId: string): Promise<MonthlySC
  * Get monthly comparison data for a company's projects
  */
 export async function getMonthlyComparison(
-  companyId: string,
+  _companyId?: string,
   months: number = 12
 ): Promise<MonthlySCurveData[]> {
   try {
-    const projects = await getAllProjectsEVMData(companyId)
+    const projects = await getAllProjectsEVMData()
 
     if (projects.length === 0) return []
 

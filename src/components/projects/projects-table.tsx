@@ -33,6 +33,7 @@ import {
 import { MoreHorizontal, Eye, Edit, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ExportExcelButton } from "@/components/ui/export-excel-button"
+import { formatDate } from "@/lib/formatters"
 
 interface ProjectsTableProps {
     data: any[]
@@ -168,11 +169,11 @@ export function ProjectsTable({ data, companies, clients = [] }: ProjectsTablePr
                                 </TableCell>
                                 <TableCell>{project.company?.name || 'N/A'}</TableCell>
                                 <TableCell>
-                                    {new Date(project.startDate).toLocaleDateString('pt-BR')}
+                                    {formatDate(project.startDate)}
                                 </TableCell>
                                 <TableCell>
                                     {project.endDate
-                                        ? new Date(project.endDate).toLocaleDateString('pt-BR')
+                                        ? formatDate(project.endDate)
                                         : '-'
                                     }
                                 </TableCell>

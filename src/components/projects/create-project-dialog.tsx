@@ -119,7 +119,7 @@ export function CreateProjectDialog({ companies, engineers }: CreateProjectDialo
                                     <FormItem>
                                         <FormLabel>Nome do Projeto</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Ex: Reforma Comercial X" {...field} />
+                                            <Input autoFocus placeholder="Ex: Reforma Comercial X" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

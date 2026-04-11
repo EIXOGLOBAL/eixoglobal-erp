@@ -62,6 +62,10 @@ export default async function DashboardPage() {
     pendingBulletins: 0,
     pendingBudgets: 0,
     expiringContracts30d: 0,
+    openPurchaseOrders: 0,
+    openSafetyIncidents: 0,
+    openNonConformities: 0,
+    equipmentsInMaintenance: 0,
   } as any)
   const cashflow = val(1, [] as any)
   const projectsChart = val(2, [] as any)

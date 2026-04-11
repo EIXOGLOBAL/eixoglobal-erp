@@ -4,6 +4,8 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import type { DocumentFileCategory } from "@/lib/generated/prisma/enums"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS
@@ -20,26 +22,28 @@ const documentSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   description: z.string().optional(),
   category: z.enum([
-    'CONTRACT',
-    'SPECIFICATION',
     'DRAWING',
+    'SPECIFICATION',
+    'MEMORIAL',
+    'ART_RRT',
+    'PERMIT',
+    'CONTRACT',
     'REPORT',
-    'MEETING_NOTES',
+    'PHOTO',
     'INVOICE',
     'CERTIFICATE',
+    'MANUAL',
     'OTHER',
   ]),
   filePath: z.string().min(1, "Caminho do arquivo é obrigatório"),
   fileSize: z.number().positive("Tamanho do arquivo deve ser positivo"),
   mimeType: z.string().min(1, "Tipo MIME é obrigatório"),
-  projectId: z.string().uuid().optional(),
 })
 
 const documentVersionSchema = z.object({
   filePath: z.string().min(1, "Caminho do arquivo é obrigatório"),
   fileSize: z.number().positive("Tamanho do arquivo deve ser positivo"),
-  mimeType: z.string().min(1, "Tipo MIME é obrigatório"),
-  notes: z.string().optional(),
+  changeNotes: z.string().optional(),
 })
 
 const paginationSchema = z.object({
@@ -48,7 +52,6 @@ const paginationSchema = z.object({
 })
 
 const documentFilterSchema = z.object({
-  projectId: z.string().uuid().optional(),
   folderId: z.string().uuid().optional(),
   category: z.string().optional(),
   search: z.string().optional(),
@@ -65,20 +68,20 @@ export async function createFolder(data: z.infer<typeof folderSchema>) {
   try {
     const validated = folderSchema.parse(data)
 
-    const folder = await (prisma as any).documentFolder.create({
+    const folder = await prisma.documentFolder.create({
       data: {
         name: validated.name,
+        companyId: session.user.companyId!,
         projectId: validated.projectId || null,
         parentId: validated.parentId || null,
-        createdBy: session.user.id,
       },
       include: {
         project: { select: { id: true, name: true } },
         parent: { select: { id: true, name: true } },
-        creator: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logCreate('DocumentFolder', folder.id, folder.name, validated)
 
     revalidatePath('/documents')
     return { success: true, data: folder }
@@ -95,19 +98,18 @@ export async function getFolders(projectId?: string) {
   try {
     const where = projectId ? { projectId } : {}
 
-    const folders = await (prisma as any).documentFolder.findMany({
+    const folders = await prisma.documentFolder.findMany({
       where,
       include: {
         project: { select: { id: true, name: true } },
         parent: { select: { id: true, name: true } },
-        creator: { select: { id: true, name: true } },
         _count: {
-          select: { documents: true, subFolders: true },
+          select: { documents: true, children: true },
         },
       },
       orderBy: { name: 'asc' },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     return { success: true, data: folders }
   } catch (error) {
@@ -133,15 +135,14 @@ export async function uploadDocument(
   try {
     const validated = documentSchema.parse(data)
 
-    const document = await (prisma as any).document.create({
+    const document = await prisma.documentFile.create({
       data: {
         name: validated.name,
         description: validated.description || null,
         category: validated.category,
+        companyId: session.user.companyId!,
         folderId: validated.folderId || null,
-        projectId: validated.projectId || null,
-        uploadedBy: session.user.id,
-        uploadedAt: new Date(),
+        uploadedById: session.user.id,
         filePath: validated.filePath,
         fileSize: validated.fileSize,
         mimeType: validated.mimeType,
@@ -149,11 +150,11 @@ export async function uploadDocument(
       },
       include: {
         folder: { select: { id: true, name: true } },
-        project: { select: { id: true, name: true } },
-        uploader: { select: { id: true, name: true } },
+        uploadedBy: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logCreate('DocumentFile', document.id, document.name, validated)
 
     revalidatePath('/documents')
     return { success: true, data: document }
@@ -179,31 +180,29 @@ export async function getDocuments(
     const skip = (pagination.page - 1) * pagination.limit
 
     const where = {
-      ...(filters.projectId && { projectId: filters.projectId }),
       ...(filters.folderId && { folderId: filters.folderId }),
-      ...(filters.category && { category: filters.category }),
+      ...(filters.category && { category: filters.category as DocumentFileCategory }),
       ...(filters.search && {
         OR: [
-          { name: { contains: filters.search, mode: 'insensitive' } },
-          { description: { contains: filters.search, mode: 'insensitive' } },
+          { name: { contains: filters.search, mode: 'insensitive' as const } },
+          { description: { contains: filters.search, mode: 'insensitive' as const } },
         ],
       }),
     }
 
     const [data, total] = await Promise.all([
-      (prisma as any).document.findMany({
+      prisma.documentFile.findMany({
         where,
         include: {
           folder: { select: { id: true, name: true } },
-          project: { select: { id: true, name: true } },
-          uploader: { select: { id: true, name: true } },
+          uploadedBy: { select: { id: true, name: true } },
         },
-        orderBy: { uploadedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: pagination.limit,
       }),
-      // TODO: Remove 'as any' after running prisma generate
-      (prisma as any).document.count({ where }),
+
+      prisma.documentFile.count({ where }),
     ])
 
     return {
@@ -230,21 +229,20 @@ export async function getDocuments(
 
 export async function getDocumentById(id: string) {
   try {
-    const document = await (prisma as any).document.findUnique({
+    const document = await prisma.documentFile.findUnique({
       where: { id },
       include: {
         folder: { select: { id: true, name: true } },
-        project: { select: { id: true, name: true } },
-        uploader: { select: { id: true, name: true } },
+        uploadedBy: { select: { id: true, name: true } },
         versions: {
           orderBy: { createdAt: 'desc' },
           include: {
-            creator: { select: { id: true, name: true } },
+            uploadedBy: { select: { id: true, name: true } },
           },
         },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!document) {
       return { success: false, error: "Documento não encontrado" }
@@ -270,39 +268,38 @@ export async function createVersion(
   try {
     const validated = documentVersionSchema.parse(data)
 
-    const document = await (prisma as any).document.findUnique({
+    const document = await prisma.documentFile.findUnique({
       where: { id: documentId },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!document) {
       return { success: false, error: "Documento não encontrado" }
     }
 
-    const version = await (prisma as any).documentVersion.create({
+    const version = await prisma.documentVersion.create({
       data: {
         documentId,
         version: (document.version || 1) + 1,
         filePath: validated.filePath,
         fileSize: validated.fileSize,
-        mimeType: validated.mimeType,
-        notes: validated.notes || null,
-        createdBy: session.user.id,
-        createdAt: new Date(),
+        changeNotes: validated.changeNotes || null,
+        uploadedById: session.user.id,
       },
       include: {
         document: { select: { id: true, name: true } },
-        creator: { select: { id: true, name: true } },
+        uploadedBy: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logCreate('DocumentVersion', version.id, `${document.name} v${version.version}`, validated)
 
     // Update document version number
-    await (prisma as any).document.update({
+    await prisma.documentFile.update({
       where: { id: documentId },
       data: { version: version.version },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     revalidatePath('/documents')
     return { success: true, data: version }
@@ -320,25 +317,26 @@ export async function deleteDocument(id: string) {
   if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
 
   try {
-    const document = await (prisma as any).document.findUnique({
+    const document = await prisma.documentFile.findUnique({
       where: { id },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!document) {
       return { success: false, error: "Documento não encontrado" }
     }
 
-    // Delete all versions first
-    await (prisma as any).documentVersion.deleteMany({
+    // Delete all versions first (also cascades via onDelete, but explicit for clarity)
+    await prisma.documentVersion.deleteMany({
       where: { documentId: id },
     })
-    // TODO: Remove 'as any' after running prisma generate
 
-    await (prisma as any).document.delete({
+
+    await prisma.documentFile.delete({
       where: { id },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logDelete('DocumentFile', id, document.name, document)
 
     revalidatePath('/documents')
     return { success: true }
@@ -361,22 +359,20 @@ export async function searchDocuments(query: string) {
       return { success: false, error: "Termo de busca é obrigatório" }
     }
 
-    const documents = await (prisma as any).document.findMany({
+    const documents = await prisma.documentFile.findMany({
       where: {
         OR: [
           { name: { contains: query, mode: 'insensitive' } },
           { description: { contains: query, mode: 'insensitive' } },
-          { category: { contains: query, mode: 'insensitive' } },
         ],
       },
       include: {
         folder: { select: { id: true, name: true } },
-        project: { select: { id: true, name: true } },
       },
-      orderBy: { uploadedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: 50,
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     return {
       success: true,
@@ -396,19 +392,19 @@ export async function searchDocuments(query: string) {
   }
 }
 
-export async function getDocumentStats(projectId?: string) {
+export async function getDocumentStats(folderId?: string) {
   try {
-    const where = projectId ? { projectId } : {}
+    const where = folderId ? { folderId } : {}
 
-    const documents = await (prisma as any).document.findMany({
+    const documents = await prisma.documentFile.findMany({
       where,
     })
-    // TODO: Remove 'as any' after running prisma generate
 
-    const versions = await (prisma as any).documentVersion.findMany({
-      where: projectId ? { document: { projectId } } : undefined,
+
+    const versions = await prisma.documentVersion.findMany({
+      where: folderId ? { document: { folderId } } : undefined,
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     const byCategory = documents.reduce((acc: any, doc: any) => {
       acc[doc.category] = (acc[doc.category] || 0) + 1
@@ -422,7 +418,7 @@ export async function getDocumentStats(projectId?: string) {
 
     const recentDocuments = documents.sort(
       (a: any, b: any) =>
-        new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     ).slice(0, 10)
 
     return {

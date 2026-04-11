@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Printer, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { formatDate, formatDateTime } from "@/lib/formatters"
 
 // ============================================================
 // TIPOS
@@ -108,7 +109,7 @@ const fmtQty = (n: number) =>
 
 const fmtDate = (d: Date | string | null | undefined): string => {
     if (!d) return '—'
-    return new Date(d).toLocaleDateString('pt-BR')
+    return formatDate(d)
 }
 
 const fmtPct = (n: number) =>
@@ -388,7 +389,7 @@ export function PrintBulletinClient({ bulletin, company }: PrintBulletinClientPr
                                 <div key={c.id} className="text-[10px] border-l-2 border-gray-300 pl-3">
                                     <span className="font-semibold">{c.author?.name ?? 'Sistema'}</span>
                                     <span className="text-gray-400 ml-2">
-                                        ({new Date(c.createdAt).toLocaleString('pt-BR')})
+                                        ({formatDateTime(c.createdAt)})
                                     </span>
                                     <span className="ml-2 text-gray-400">
                                         [{c.commentType}]

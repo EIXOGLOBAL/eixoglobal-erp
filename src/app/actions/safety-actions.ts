@@ -2,8 +2,10 @@
 
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
+import type { SafetyIncidentType } from "@/lib/generated/prisma/client"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS
@@ -13,13 +15,14 @@ const incidentSchema = z.object({
   code: z.string().min(1, "Código é obrigatório"),
   title: z.string().min(2, "Título deve ter no mínimo 2 caracteres"),
   description: z.string().min(1, "Descrição é obrigatória"),
-  type: z.enum(['ACCIDENT', 'NEAR_MISS', 'HAZARD', 'INJURY', 'OTHER']),
+  type: z.enum(['ACCIDENT', 'NEAR_MISS', 'UNSAFE_CONDITION', 'UNSAFE_ACT', 'ENVIRONMENTAL', 'FIRST_AID', 'PPE_VIOLATION']),
   severity: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']),
   projectId: z.string().uuid().optional(),
   location: z.string().optional(),
   involvedPersons: z.array(z.string()).optional(),
   witnesses: z.array(z.string()).optional(),
   photosEvidence: z.array(z.string()).optional(),
+  createNonConformity: z.boolean().optional(),
 })
 
 const incidentCloseSchema = z.object({
@@ -58,7 +61,7 @@ const filterSchema = z.object({
   projectId: z.string().uuid().optional(),
   type: z.string().optional(),
   severity: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']).optional(),
-  status: z.enum(['OPEN', 'IN_INVESTIGATION', 'CLOSED']).optional(),
+  status: z.enum(['OPEN', 'CLOSED']).optional(),
 })
 
 // ============================================================================
@@ -72,31 +75,53 @@ export async function reportIncident(data: z.infer<typeof incidentSchema>) {
   try {
     const validated = incidentSchema.parse(data)
 
-    const incident = await (prisma as any).safetyIncident.create({
+    const incident = await prisma.safetyIncident.create({
       data: {
-        code: validated.code,
-        title: validated.title,
         description: validated.description,
         type: validated.type,
         severity: validated.severity,
-        projectId: validated.projectId || null,
+        date: new Date(),
+        projectId: validated.projectId,
+        companyId: session.user.companyId!,
         location: validated.location || null,
-        involvedPersons: validated.involvedPersons || null,
-        witnesses: validated.witnesses || null,
-        photosEvidence: validated.photosEvidence || null,
-        reportedBy: session.user.id,
-        reportedAt: new Date(),
+        witnesses: validated.witnesses || [],
+        photos: validated.photosEvidence || [],
+        reportedById: session.user.id,
         status: 'OPEN',
       },
       include: {
         project: { select: { id: true, name: true } },
-        reporter: { select: { id: true, name: true } },
+        reportedBy: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logCreate('SafetyIncident', incident.id, validated.title || validated.description, validated)
+
+    // Auto-gerar Não Conformidade vinculada ao incidente
+    let nonConformity = null
+    if (validated.createNonConformity) {
+      nonConformity = await prisma.qualityNonConformity.create({
+        data: {
+          safetyIncidentId: incident.id,
+          description: `[Incidente de Segurança] ${validated.description}`,
+          severity: validated.severity,
+          status: 'OPEN',
+          photos: validated.photosEvidence || [],
+        },
+      })
+
+      await logCreate(
+        'QualityNonConformity',
+        nonConformity.id,
+        `NC gerada do incidente ${incident.id}`,
+        { safetyIncidentId: incident.id, severity: validated.severity }
+      )
+    }
 
     revalidatePath('/safety')
-    return { success: true, data: incident }
+    revalidatePath('/seguranca-trabalho')
+    revalidatePath('/qualidade')
+    return { success: true, data: { ...incident, nonConformity } }
   } catch (error) {
     console.error("Erro ao reportar incidente:", error)
     return {
@@ -111,7 +136,9 @@ export async function updateIncident(
   data: Partial<z.infer<typeof incidentSchema>>
 ) {
   try {
-    const incident = await (prisma as any).safetyIncident.update({
+    const oldData = await prisma.safetyIncident.findUnique({ where: { id } })
+
+    const incident = await prisma.safetyIncident.update({
       where: { id },
       data: {
         ...(data.title && { title: data.title }),
@@ -127,9 +154,11 @@ export async function updateIncident(
         project: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logUpdate('SafetyIncident', id, incident.description || 'N/A', oldData, incident)
 
     revalidatePath('/safety')
+    revalidatePath('/seguranca-trabalho')
     return { success: true, data: incident }
   } catch (error) {
     console.error("Erro ao atualizar incidente:", error)
@@ -152,26 +181,25 @@ export async function getIncidents(
 
     const skip = (pagination.page - 1) * pagination.limit
 
-    const where = {
-      ...(filters.projectId && { projectId: filters.projectId }),
-      ...(filters.type && { type: filters.type }),
-      ...(filters.severity && { severity: filters.severity }),
-      ...(filters.status && { status: filters.status }),
-    }
+    const where: Record<string, unknown> = {}
+    if (filters.projectId) where.projectId = filters.projectId
+    if (filters.type) where.type = filters.type as SafetyIncidentType
+    if (filters.severity) where.severity = filters.severity
+    if (filters.status) where.status = filters.status
 
     const [data, total] = await Promise.all([
-      (prisma as any).safetyIncident.findMany({
+      prisma.safetyIncident.findMany({
         where,
         include: {
           project: { select: { id: true, name: true } },
-          reporter: { select: { id: true, name: true } },
+          reportedBy: { select: { id: true, name: true } },
         },
-        orderBy: { reportedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: pagination.limit,
       }),
-      // TODO: Remove 'as any' after running prisma generate
-      (prisma as any).safetyIncident.count({ where }),
+  
+      prisma.safetyIncident.count({ where }),
     ])
 
     return {
@@ -198,15 +226,14 @@ export async function getIncidents(
 
 export async function getIncidentById(id: string) {
   try {
-    const incident = await (prisma as any).safetyIncident.findUnique({
+    const incident = await prisma.safetyIncident.findUnique({
       where: { id },
       include: {
         project: { select: { id: true, name: true } },
-        reporter: { select: { id: true, name: true } },
-        investigations: true,
+        reportedBy: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!incident) {
       return { success: false, error: "Incidente não encontrado" }
@@ -232,24 +259,23 @@ export async function closeIncident(
   try {
     const validated = incidentCloseSchema.parse(data)
 
-    const incident = await (prisma as any).safetyIncident.update({
+    const incident = await prisma.safetyIncident.update({
       where: { id },
       data: {
         status: 'CLOSED',
         rootCause: validated.rootCause,
         correctiveAction: validated.correctiveAction,
         preventiveAction: validated.preventiveAction || null,
-        actionOwner: validated.actionOwner || null,
-        closedBy: session.user.id,
-        closedAt: new Date(),
       },
       include: {
         project: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logAction('CLOSE', 'SafetyIncident', id, incident.description || 'N/A', `Root cause: ${validated.rootCause}`)
 
     revalidatePath('/safety')
+    revalidatePath('/seguranca-trabalho')
     return { success: true, data: incident }
   } catch (error) {
     console.error("Erro ao encerrar incidente:", error)
@@ -271,23 +297,25 @@ export async function createInspection(data: z.infer<typeof inspectionSchema>) {
   try {
     const validated = inspectionSchema.parse(data)
 
-    const inspection = await (prisma as any).safetyInspection.create({
+    const inspection = await prisma.safetyInspection.create({
       data: {
-        name: validated.name,
-        description: validated.description || null,
-        projectId: validated.projectId || null,
-        checklistTemplate: validated.checklistTemplate || null,
-        createdBy: session.user.id,
-        status: 'PENDING',
+        type: validated.name,
+        projectId: validated.projectId,
+        companyId: session.user.companyId!,
+        date: new Date(),
+        inspectorId: session.user.id,
+        status: 'DRAFT',
       },
       include: {
         project: { select: { id: true, name: true } },
-        creator: { select: { id: true, name: true } },
+        inspector: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logCreate('SafetyInspection', inspection.id, validated.name, validated)
 
     revalidatePath('/safety')
+    revalidatePath('/seguranca-trabalho')
     return { success: true, data: inspection }
   } catch (error) {
     console.error("Erro ao criar inspeção:", error)
@@ -308,34 +336,34 @@ export async function completeInspection(
   try {
     const validated = completeInspectionSchema.parse(data)
 
-    const inspection = await (prisma as any).safetyInspection.findUnique({
+    const inspection = await prisma.safetyInspection.findUnique({
       where: { id: inspectionId },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!inspection) {
       return { success: false, error: "Inspeção não encontrada" }
     }
 
-    const updated = await (prisma as any).safetyInspection.update({
+    const updated = await prisma.safetyInspection.update({
       where: { id: inspectionId },
       data: {
         status: 'COMPLETED',
         checklist: validated.checklist,
-        score: validated.score,
-        findings: validated.findings || null,
-        photosEvidence: validated.photos || null,
-        completedBy: session.user.id,
-        completedAt: new Date(),
+        overallScore: validated.score,
+        findings: validated.findings ? JSON.stringify(validated.findings) : null,
+        photos: validated.photos || [],
       },
       include: {
         project: { select: { id: true, name: true } },
-        creator: { select: { id: true, name: true } },
+        inspector: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logAction('COMPLETE', 'SafetyInspection', inspectionId, inspection.type || 'N/A', `Score: ${validated.score}`)
 
     revalidatePath('/safety')
+    revalidatePath('/seguranca-trabalho')
     return { success: true, data: updated }
   } catch (error) {
     console.error("Erro ao completar inspeção:", error)
@@ -367,18 +395,18 @@ export async function getInspections(
     }
 
     const [data, total] = await Promise.all([
-      (prisma as any).safetyInspection.findMany({
+      prisma.safetyInspection.findMany({
         where,
         include: {
           project: { select: { id: true, name: true } },
-          creator: { select: { id: true, name: true } },
+          inspector: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
         take: pagination.limit,
       }),
-      // TODO: Remove 'as any' after running prisma generate
-      (prisma as any).safetyInspection.count({ where }),
+  
+      prisma.safetyInspection.count({ where }),
     ])
 
     return {
@@ -412,14 +440,14 @@ export async function getSafetyDashboard(projectId?: string) {
     const where = projectId ? { projectId } : {}
 
     const [incidents, inspections] = await Promise.all([
-      (prisma as any).safetyIncident.findMany({ where }),
-      // TODO: Remove 'as any' after running prisma generate
-      (prisma as any).safetyInspection.findMany({
+      prisma.safetyIncident.findMany({ where }),
+  
+      prisma.safetyInspection.findMany({
         where: projectId
           ? { projectId }
           : undefined,
       }),
-      // TODO: Remove 'as any' after running prisma generate
+  
     ])
 
     const openIncidents = incidents.filter((i: any) => i.status === 'OPEN')

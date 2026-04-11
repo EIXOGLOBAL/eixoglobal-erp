@@ -18,9 +18,10 @@ import { NotificationBell } from "./notification-bell"
 
 interface HeaderProps {
     user: {
-        name: string | null
-        email: string
-        role: string
+        name?: string | null
+        username: string
+        email?: string | null
+        role?: string | null
     } | null
 }
 
@@ -45,7 +46,7 @@ export function Header({ user }: HeaderProps) {
                 <div className="flex items-center gap-2">
                     <NotificationBell />
                     <div className="hidden flex-col items-end md:flex">
-                        <span className="text-sm font-medium">{user.name || user.email}</span>
+                        <span className="text-sm font-medium">{user.name || user.username}</span>
                         <span className="text-xs text-muted-foreground">{user.role}</span>
                     </div>
                     <DropdownMenu>

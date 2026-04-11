@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { FileEdit, TrendingUp, Calendar, AlertCircle } from 'lucide-react'
+import { formatDate } from "@/lib/formatters"
 
 interface Amendment {
   id: string
@@ -147,7 +148,7 @@ export function AmendmentsTimeline({ amendments }: AmendmentsTimelineProps) {
                               <span className="text-muted-foreground">Prazo Anterior:</span>
                               <p className="font-medium">
                                 {amendment.oldEndDate
-                                  ? new Date(amendment.oldEndDate).toLocaleDateString('pt-BR')
+                                  ? formatDate(amendment.oldEndDate)
                                   : '-'}
                               </p>
                             </div>
@@ -155,7 +156,7 @@ export function AmendmentsTimeline({ amendments }: AmendmentsTimelineProps) {
                               <span className="text-muted-foreground">Novo Prazo:</span>
                               <p className="font-medium text-blue-700">
                                 {amendment.newEndDate
-                                  ? new Date(amendment.newEndDate).toLocaleDateString('pt-BR')
+                                  ? formatDate(amendment.newEndDate)
                                   : '-'}
                               </p>
                             </div>
@@ -167,7 +168,7 @@ export function AmendmentsTimeline({ amendments }: AmendmentsTimelineProps) {
                     {/* Date */}
                     <div className="text-right text-xs">
                       <p className="text-muted-foreground">
-                        {new Date(amendment.createdAt).toLocaleDateString('pt-BR')}
+                        {formatDate(amendment.createdAt)}
                       </p>
                     </div>
                   </div>

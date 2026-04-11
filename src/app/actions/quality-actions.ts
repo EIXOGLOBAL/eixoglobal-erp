@@ -4,34 +4,37 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS
 // ============================================================================
 
 const checkpointSchema = z.object({
-  code: z.string().min(1, "Código é obrigatório"),
   name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
   description: z.string().optional(),
   projectId: z.string().uuid(),
-  phase: z.string().optional(),
-  checklistTemplate: z.record(z.string(), z.any()).optional(),
-  successCriteria: z.string().optional(),
+  companyId: z.string().uuid(),
+  category: z.string().optional(),
+  inspectorId: z.string().uuid().optional(),
+  inspectionDate: z.string().datetime().optional(),
+  notes: z.string().optional(),
 })
 
 const inspectionSchema = z.object({
-  result: z.enum(['PASS', 'FAIL', 'CONDITIONAL']),
+  result: z.enum(['PASSED', 'FAILED', 'CONDITIONAL']),
   notes: z.string().optional(),
   photos: z.array(z.string()).optional(),
   inspectorId: z.string().uuid().optional(),
 })
 
 const nonConformitySchema = z.object({
-  code: z.string().min(1, "Código é obrigatório"),
   description: z.string().min(1, "Descrição é obrigatória"),
-  severity: z.enum(['CRITICAL', 'MAJOR', 'MINOR']),
-  evidence: z.string().optional(),
-  affectedAreas: z.array(z.string()).optional(),
+  severity: z.string().min(1, "Severidade é obrigatória"),
+  correctiveAction: z.string().optional(),
+  responsibleId: z.string().uuid().optional(),
+  dueDate: z.string().datetime().optional(),
+  photos: z.array(z.string()).optional(),
 })
 
 const paginationSchema = z.object({
@@ -41,7 +44,7 @@ const paginationSchema = z.object({
 
 const filterSchema = z.object({
   projectId: z.string().uuid().optional(),
-  status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED']).optional(),
+  status: z.enum(['PENDING', 'IN_PROGRESS', 'PASSED', 'FAILED', 'CONDITIONAL']).optional(),
 })
 
 // ============================================================================
@@ -55,41 +58,27 @@ export async function createCheckpoint(data: z.infer<typeof checkpointSchema>) {
   try {
     const validated = checkpointSchema.parse(data)
 
-    const existing = await (prisma as any).qualityCheckpoint.findFirst({
-      where: {
-        code: validated.code,
-        projectId: validated.projectId,
-      },
-    })
-    // TODO: Remove 'as any' after running prisma generate
-
-    if (existing) {
-      return {
-        success: false,
-        error: "Já existe um ponto de controle com este código neste projeto",
-      }
-    }
-
-    const checkpoint = await (prisma as any).qualityCheckpoint.create({
+    const checkpoint = await prisma.qualityCheckpoint.create({
       data: {
-        code: validated.code,
         name: validated.name,
         description: validated.description || null,
         projectId: validated.projectId,
-        phase: validated.phase || null,
-        checklistTemplate: validated.checklistTemplate || null,
-        successCriteria: validated.successCriteria || null,
+        companyId: validated.companyId,
+        category: validated.category || null,
+        inspectorId: validated.inspectorId || null,
+        inspectionDate: validated.inspectionDate ? new Date(validated.inspectionDate) : null,
+        notes: validated.notes || null,
         status: 'PENDING',
-        createdBy: session.user.id,
       },
       include: {
         project: { select: { id: true, name: true } },
-        inspections: true,
+        inspector: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
 
-    revalidatePath('/quality')
+    await logCreate('QualityCheckpoint', checkpoint.id, checkpoint.name, validated)
+
+    revalidatePath('/qualidade')
     return { success: true, data: checkpoint }
   } catch (error) {
     console.error("Erro ao criar ponto de controle:", error)
@@ -107,24 +96,27 @@ export async function updateCheckpoint(
   try {
     const validated = checkpointSchema.parse(data)
 
-    const checkpoint = await (prisma as any).qualityCheckpoint.update({
+    const oldData = await prisma.qualityCheckpoint.findUnique({ where: { id } })
+
+    const checkpoint = await prisma.qualityCheckpoint.update({
       where: { id },
       data: {
-        code: validated.code,
         name: validated.name,
         description: validated.description,
-        phase: validated.phase,
-        checklistTemplate: validated.checklistTemplate,
-        successCriteria: validated.successCriteria,
+        category: validated.category,
+        inspectorId: validated.inspectorId,
+        inspectionDate: validated.inspectionDate ? new Date(validated.inspectionDate) : undefined,
+        notes: validated.notes,
       },
       include: {
         project: { select: { id: true, name: true } },
-        inspections: true,
+        inspector: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
 
-    revalidatePath('/quality')
+    await logUpdate('QualityCheckpoint', id, checkpoint.name, oldData, checkpoint)
+
+    revalidatePath('/qualidade')
     return { success: true, data: checkpoint }
   } catch (error) {
     console.error("Erro ao atualizar ponto de controle:", error)
@@ -140,12 +132,15 @@ export async function deleteCheckpoint(id: string) {
   if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
 
   try {
-    await (prisma as any).qualityCheckpoint.delete({
+    const old = await prisma.qualityCheckpoint.findUnique({ where: { id } })
+
+    await prisma.qualityCheckpoint.delete({
       where: { id },
     })
-    // TODO: Remove 'as any' after running prisma generate
 
-    revalidatePath('/quality')
+    await logDelete('QualityCheckpoint', id, old?.name || 'N/A', old)
+
+    revalidatePath('/qualidade')
     return { success: true }
   } catch (error) {
     console.error("Erro ao deletar ponto de controle:", error)
@@ -174,19 +169,19 @@ export async function getCheckpoints(
     }
 
     const [data, total] = await Promise.all([
-      (prisma as any).qualityCheckpoint.findMany({
+      prisma.qualityCheckpoint.findMany({
         where,
         include: {
           project: { select: { id: true, name: true } },
-          inspections: true,
+          inspector: { select: { id: true, name: true } },
           nonConformities: true,
         },
         orderBy: { createdAt: 'desc' },
         skip,
         take: pagination.limit,
       }),
-      // TODO: Remove 'as any' after running prisma generate
-      (prisma as any).qualityCheckpoint.count({ where }),
+  
+      prisma.qualityCheckpoint.count({ where }),
     ])
 
     return {
@@ -213,22 +208,17 @@ export async function getCheckpoints(
 
 export async function getCheckpointById(id: string) {
   try {
-    const checkpoint = await (prisma as any).qualityCheckpoint.findUnique({
+    const checkpoint = await prisma.qualityCheckpoint.findUnique({
       where: { id },
       include: {
         project: { select: { id: true, name: true } },
-        inspections: {
-          include: {
-            inspector: { select: { id: true, name: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-        },
+        inspector: { select: { id: true, name: true } },
         nonConformities: {
           orderBy: { createdAt: 'desc' },
         },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!checkpoint) {
       return { success: false, error: "Ponto de controle não encontrado" }
@@ -258,41 +248,35 @@ export async function performInspection(
   try {
     const validated = inspectionSchema.parse(data)
 
-    const checkpoint = await (prisma as any).qualityCheckpoint.findUnique({
+    const checkpoint = await prisma.qualityCheckpoint.findUnique({
       where: { id: checkpointId },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!checkpoint) {
       return { success: false, error: "Ponto de controle não encontrado" }
     }
 
-    const inspection = await (prisma as any).qualityInspection.create({
+    const updatedCheckpoint = await prisma.qualityCheckpoint.update({
+      where: { id: checkpointId },
       data: {
-        checkpointId,
         result: validated.result,
         notes: validated.notes || null,
-        photos: validated.photos || null,
+        photos: validated.photos || [],
         inspectorId: validated.inspectorId || session.user.id,
-        performedAt: new Date(),
+        inspectionDate: new Date(),
+        status: validated.result === 'PASSED' ? 'PASSED' : validated.result === 'FAILED' ? 'FAILED' : 'CONDITIONAL',
       },
       include: {
-        checkpoint: { select: { id: true, name: true } },
+        project: { select: { id: true, name: true } },
         inspector: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
 
-    // Update checkpoint status based on inspection result
-    const newStatus = validated.result === 'PASS' ? 'COMPLETED' : 'IN_PROGRESS'
-    await (prisma as any).qualityCheckpoint.update({
-      where: { id: checkpointId },
-      data: { status: newStatus },
-    })
-    // TODO: Remove 'as any' after running prisma generate
+    await logAction('INSPECT', 'QualityCheckpoint', checkpointId, updatedCheckpoint.name, `Result: ${validated.result}`)
 
-    revalidatePath('/quality')
-    return { success: true, data: inspection }
+    revalidatePath('/qualidade')
+    return { success: true, data: updatedCheckpoint }
   } catch (error) {
     console.error("Erro ao realizar inspeção:", error)
     return {
@@ -316,35 +300,35 @@ export async function createNonConformity(
   try {
     const validated = nonConformitySchema.parse(data)
 
-    const checkpoint = await (prisma as any).qualityCheckpoint.findUnique({
+    const checkpoint = await prisma.qualityCheckpoint.findUnique({
       where: { id: checkpointId },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!checkpoint) {
       return { success: false, error: "Ponto de controle não encontrado" }
     }
 
-    const nonConformity = await (prisma as any).nonConformity.create({
+    const nonConformity = await prisma.qualityNonConformity.create({
       data: {
-        code: validated.code,
         description: validated.description,
         severity: validated.severity,
-        evidence: validated.evidence || null,
-        affectedAreas: validated.affectedAreas || null,
+        correctiveAction: validated.correctiveAction || null,
+        responsibleId: validated.responsibleId || null,
+        dueDate: validated.dueDate ? new Date(validated.dueDate) : null,
+        photos: validated.photos || [],
         checkpointId,
-        reportedBy: session.user.id,
-        reportedAt: new Date(),
         status: 'OPEN',
       },
       include: {
         checkpoint: { select: { id: true, name: true } },
-        reporter: { select: { id: true, name: true } },
+        responsible: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
 
-    revalidatePath('/quality')
+    await logCreate('QualityNonConformity', nonConformity.id, validated.description, validated)
+
+    revalidatePath('/qualidade')
     return { success: true, data: nonConformity }
   } catch (error) {
     console.error("Erro ao criar não conformidade:", error)
@@ -370,21 +354,21 @@ export async function resolveNonConformity(
       }
     }
 
-    const nonConformity = await (prisma as any).nonConformity.update({
+    const nonConformity = await prisma.qualityNonConformity.update({
       where: { id },
       data: {
         status: 'RESOLVED',
-        resolution,
-        resolvedBy: session.user.id,
+        correctiveAction: resolution,
         resolvedAt: new Date(),
       },
       include: {
         checkpoint: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
 
-    revalidatePath('/quality')
+    await logAction('RESOLVE', 'QualityNonConformity', id, nonConformity.description || 'N/A', `Resolved: ${resolution}`)
+
+    revalidatePath('/qualidade')
     return { success: true, data: nonConformity }
   } catch (error) {
     console.error("Erro ao resolver não conformidade:", error)
@@ -403,51 +387,40 @@ export async function getQualityDashboard(projectId?: string) {
   try {
     const where = projectId ? { projectId } : {}
 
-    const [checkpoints, inspections, nonConformities] = await Promise.all([
-      (prisma as any).qualityCheckpoint.findMany({ where }),
-      // TODO: Remove 'as any' after running prisma generate
-      (prisma as any).qualityInspection.findMany({
+    const [checkpoints, nonConformities] = await Promise.all([
+      prisma.qualityCheckpoint.findMany({ where }),
+
+      prisma.qualityNonConformity.findMany({
         where: projectId
           ? { checkpoint: { projectId } }
           : undefined,
       }),
-      // TODO: Remove 'as any' after running prisma generate
-      (prisma as any).nonConformity.findMany({
-        where: projectId
-          ? { checkpoint: { projectId } }
-          : undefined,
-      }),
-      // TODO: Remove 'as any' after running prisma generate
     ])
 
     const totalCheckpoints = checkpoints.length
-    const completedCheckpoints = checkpoints.filter(
-      (c: any) => c.status === 'COMPLETED'
+    const passedCheckpoints = checkpoints.filter(
+      (c) => c.status === 'PASSED'
     ).length
     const failedCheckpoints = checkpoints.filter(
-      (c: any) => c.status === 'FAILED'
+      (c) => c.status === 'FAILED'
     ).length
-
-    const passedInspections = inspections.filter(
-      (i: any) => i.result === 'PASS'
+    const conditionalCheckpoints = checkpoints.filter(
+      (c) => c.status === 'CONDITIONAL'
     ).length
-    const failedInspections = inspections.filter(
-      (i: any) => i.result === 'FAIL'
-    ).length
-    const conditionalInspections = inspections.filter(
-      (i: any) => i.result === 'CONDITIONAL'
+    const inProgressCheckpoints = checkpoints.filter(
+      (c) => c.status === 'IN_PROGRESS'
     ).length
 
     const openNonConformities = nonConformities.filter(
-      (nc: any) => nc.status === 'OPEN'
+      (nc) => nc.status === 'OPEN'
     ).length
     const criticalNCs = nonConformities.filter(
-      (nc: any) => nc.severity === 'CRITICAL'
+      (nc) => nc.severity === 'CRITICAL'
     ).length
 
     const qualityScore =
       totalCheckpoints > 0
-        ? Math.round((completedCheckpoints / totalCheckpoints) * 100)
+        ? Math.round((passedCheckpoints / totalCheckpoints) * 100)
         : 0
 
     return {
@@ -455,21 +428,17 @@ export async function getQualityDashboard(projectId?: string) {
       data: {
         checkpoints: {
           total: totalCheckpoints,
-          completed: completedCheckpoints,
+          passed: passedCheckpoints,
           failed: failedCheckpoints,
-          pending: totalCheckpoints - completedCheckpoints - failedCheckpoints,
-        },
-        inspections: {
-          total: inspections.length,
-          passed: passedInspections,
-          failed: failedInspections,
-          conditional: conditionalInspections,
+          conditional: conditionalCheckpoints,
+          inProgress: inProgressCheckpoints,
+          pending: totalCheckpoints - passedCheckpoints - failedCheckpoints - conditionalCheckpoints - inProgressCheckpoints,
         },
         nonConformities: {
           total: nonConformities.length,
           open: openNonConformities,
           resolved: nonConformities.filter(
-            (nc: any) => nc.status === 'RESOLVED'
+            (nc) => nc.status === 'RESOLVED'
           ).length,
           critical: criticalNCs,
         },

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { formatDate } from "@/lib/formatters"
 
 interface BulletinPrintSummaryProps {
     bulletinNumber: string
@@ -55,13 +56,6 @@ export function BulletinPrintSummary({
             currency: 'BRL',
             minimumFractionDigits: 2,
         }).format(value)
-
-    const formatDate = (date: Date) =>
-        new Date(date).toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-        })
 
     const executionPercentage = contractValue && accumulatedValue
         ? (accumulatedValue / contractValue) * 100

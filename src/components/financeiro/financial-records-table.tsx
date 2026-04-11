@@ -15,6 +15,7 @@ import { MoreHorizontal, Pencil, Trash2, CheckCircle2, TrendingUp, TrendingDown,
 import { deleteFinancialRecord, markAsPaid } from "@/app/actions/financial-actions"
 import { useToast } from "@/hooks/use-toast"
 import { FinancialRecordDialog } from "./financial-record-dialog"
+import { formatDate } from "@/lib/formatters"
 
 const STATUS_COLORS: Record<string, string> = {
     PENDING: 'bg-orange-100 text-orange-800',
@@ -190,7 +191,7 @@ export function FinancialRecordsTable({ records, companyId, bankAccounts }: Fina
                                             : '—'}
                                     </TableCell>
                                     <TableCell>
-                                        {new Date(record.dueDate).toLocaleDateString('pt-BR')}
+                                        {formatDate(record.dueDate)}
                                     </TableCell>
                                     <TableCell className={`text-right font-medium ${record.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}>
                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(record.amount)}

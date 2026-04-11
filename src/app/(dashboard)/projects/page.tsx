@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { ProjectDialog } from "@/components/projects/project-dialog"
 import { ProjectsTable } from "@/components/projects/projects-table"
+import { CreateShortcut } from '@/components/ui/page-keyboard-shortcuts'
 import {
     Card,
     CardContent,
@@ -55,7 +56,11 @@ export default async function ProjectsPage() {
                         Gerencie todos os projetos e acompanhe seu progresso.
                     </p>
                 </div>
-                <ProjectDialog companies={companies} clients={clients} />
+                <CreateShortcut label="Novo Projeto">
+                    {({ open, onOpenChange }) => (
+                        <ProjectDialog companies={companies} clients={clients} open={open} onOpenChange={onOpenChange} />
+                    )}
+                </CreateShortcut>
             </div>
 
             {/* KPI Cards */}

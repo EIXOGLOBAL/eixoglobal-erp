@@ -37,9 +37,10 @@ import {
 const formSchema = z.object({
     id: z.string(),
     name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-    email: z.string().email("Email inválido"),
+    username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres").regex(/^[a-zA-Z0-9._-]+$/, "Apenas letras, números, pontos, hífens e underscores"),
+    email: z.string().email("Email inválido").optional().or(z.literal("")),
     password: z.string().optional(),
-    role: z.enum(["ADMIN", "MANAGER", "USER", "ENGINEER", "SUPERVISOR", "SAFETY_OFFICER", "ACCOUNTANT", "HR_ANALYST"]),
+    role: z.enum(["ADMIN", "MANAGER", "USER", "ENGINEER"]),
     companyId: z.string().optional(),
 })
 
@@ -47,8 +48,9 @@ interface EditUserDialogProps {
     user: {
         id: string;
         name: string | null;
-        email: string;
-        role: "ADMIN" | "MANAGER" | "USER" | "ENGINEER" | "SUPERVISOR" | "SAFETY_OFFICER" | "ACCOUNTANT" | "HR_ANALYST";
+        username: string;
+        email: string | null;
+        role: "ADMIN" | "MANAGER" | "USER" | "ENGINEER";
         companyId: string | null;
     };
     companies: { id: string; name: string }[];
@@ -64,7 +66,8 @@ export function EditUserDialog({ user, companies }: EditUserDialogProps) {
         defaultValues: {
             id: user.id,
             name: user.name || "",
-            email: user.email,
+            username: user.username,
+            email: user.email || "",
             password: "",
             role: user.role,
             companyId: user.companyId || "none",
@@ -76,7 +79,8 @@ export function EditUserDialog({ user, companies }: EditUserDialogProps) {
             form.reset({
                 id: user.id,
                 name: user.name || "",
-                email: user.email,
+                username: user.username,
+                email: user.email || "",
                 password: "",
                 role: user.role,
                 companyId: user.companyId || "none",
@@ -89,7 +93,8 @@ export function EditUserDialog({ user, companies }: EditUserDialogProps) {
             const formData = new FormData()
             formData.append("id", values.id)
             formData.append("name", values.name)
-            formData.append("email", values.email)
+            formData.append("username", values.username)
+            if (values.email) formData.append("email", values.email)
             if (values.password) formData.append("password", values.password)
             formData.append("role", values.role)
             if (values.companyId && values.companyId !== "none") {
@@ -145,10 +150,23 @@ export function EditUserDialog({ user, companies }: EditUserDialogProps) {
                         />
                         <FormField
                             control={form.control}
+                            name="username"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Usuário</FormLabel>
+                                    <FormControl>
+                                        <Input {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
                             name="email"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Email</FormLabel>
+                                    <FormLabel>Email (opcional)</FormLabel>
                                     <FormControl>
                                         <Input {...field} />
                                     </FormControl>

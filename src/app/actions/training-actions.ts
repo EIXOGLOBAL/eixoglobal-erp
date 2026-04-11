@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 const trainingSchema = z.object({
     title: z.string().min(3, "Título deve ter no mínimo 3 caracteres"),
@@ -49,6 +50,8 @@ export async function createTraining(data: z.infer<typeof trainingSchema>) {
             },
         })
 
+        await logCreate('Training', training.id, training.title || 'N/A', validated)
+
         revalidatePath('/rh/treinamentos')
         return { success: true, data: training }
     } catch (error) {
@@ -68,7 +71,6 @@ export async function updateTraining(id: string, data: z.infer<typeof trainingSc
         // Verify training belongs to user's company
         const training = await prisma.training.findUnique({
             where: { id },
-            select: { companyId: true }
         })
         if (!training || training.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
@@ -92,6 +94,8 @@ export async function updateTraining(id: string, data: z.infer<typeof trainingSc
                 cost: validated.cost ?? null,
             },
         })
+
+        await logUpdate('Training', id, updated.title || 'N/A', training, updated)
 
         revalidatePath('/rh/treinamentos')
         return { success: true, data: updated }
@@ -117,7 +121,6 @@ export async function deleteTraining(id: string) {
         // Verify training belongs to user's company
         const training = await prisma.training.findUnique({
             where: { id },
-            select: { companyId: true }
         })
         if (!training || training.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
@@ -126,6 +129,8 @@ export async function deleteTraining(id: string) {
         await prisma.training.delete({
             where: { id },
         })
+
+        await logDelete('Training', id, training.title || 'N/A', training)
 
         revalidatePath('/rh/treinamentos')
         return { success: true }
@@ -191,6 +196,8 @@ export async function addParticipant(trainingId: string, employeeId: string) {
             },
         })
 
+        await logCreate('TrainingParticipant', participant.id, `Training:${trainingId} Employee:${employeeId}`, { trainingId, employeeId })
+
         revalidatePath('/rh/treinamentos')
         return { success: true, data: participant }
     } catch (error) {
@@ -221,6 +228,10 @@ export async function removeParticipant(trainingId: string, employeeId: string) 
             return { success: false, error: "Acesso negado" }
         }
 
+        const oldParticipant = await prisma.trainingParticipant.findUnique({
+            where: { trainingId_employeeId: { trainingId, employeeId } },
+        })
+
         await prisma.trainingParticipant.delete({
             where: {
                 trainingId_employeeId: {
@@ -229,6 +240,8 @@ export async function removeParticipant(trainingId: string, employeeId: string) 
                 },
             },
         })
+
+        await logDelete('TrainingParticipant', oldParticipant?.id || `${trainingId}-${employeeId}`, `Training:${trainingId} Employee:${employeeId}`, oldParticipant)
 
         revalidatePath('/rh/treinamentos')
         return { success: true }
@@ -260,6 +273,10 @@ export async function markAttendance(
             return { success: false, error: "Acesso negado" }
         }
 
+        const oldParticipant = await prisma.trainingParticipant.findUnique({
+            where: { trainingId_employeeId: { trainingId, employeeId } },
+        })
+
         const participant = await prisma.trainingParticipant.update({
             where: {
                 trainingId_employeeId: {
@@ -272,6 +289,8 @@ export async function markAttendance(
                 certified,
             },
         })
+
+        await logUpdate('TrainingParticipant', participant.id, `Training:${trainingId} Employee:${employeeId}`, oldParticipant, participant)
 
         revalidatePath('/rh/treinamentos')
         return { success: true, data: participant }
@@ -320,5 +339,72 @@ export async function getTrainingParticipants(trainingId: string) {
             error: error instanceof Error ? error.message : "Erro ao buscar participantes",
             data: [],
         }
+    }
+}
+
+// ============================================================================
+// CERTIFICAÇÕES DO FUNCIONÁRIO
+// ============================================================================
+
+/**
+ * Busca certificações e treinamentos de um funcionário.
+ * Retorna participações onde certified=true OU attended=true, com dados do treinamento.
+ */
+export async function getEmployeeCertifications(employeeId: string) {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return []
+
+        // Verify employee belongs to user's company
+        const employee = await prisma.employee.findUnique({
+            where: { id: employeeId },
+            select: { companyId: true },
+        })
+        if (!employee || employee.companyId !== session.user.companyId) {
+            return []
+        }
+
+        const participations = await prisma.trainingParticipant.findMany({
+            where: {
+                employeeId,
+                OR: [
+                    { certified: true },
+                    { attended: true },
+                ],
+            },
+            include: {
+                training: {
+                    select: {
+                        id: true,
+                        title: true,
+                        type: true,
+                        status: true,
+                        startDate: true,
+                        endDate: true,
+                        hours: true,
+                        instructor: true,
+                    },
+                },
+            },
+            orderBy: { training: { startDate: 'desc' } },
+        })
+
+        return participations.map(p => ({
+            id: p.id,
+            trainingId: p.training.id,
+            title: p.training.title,
+            type: p.training.type,
+            status: p.training.status,
+            startDate: p.training.startDate,
+            endDate: p.training.endDate,
+            hours: Number(p.training.hours),
+            instructor: p.training.instructor,
+            attended: p.attended,
+            certified: p.certified,
+            notes: p.notes,
+        }))
+    } catch (error) {
+        console.error("Erro ao buscar certificações do funcionário:", error)
+        return []
     }
 }

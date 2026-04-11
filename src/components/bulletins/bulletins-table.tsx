@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast"
 import { deleteBulletin, submitBulletinForApproval } from "@/app/actions/bulletin-actions"
 import { ExportExcelButton } from "@/components/ui/export-excel-button"
 import { StatusBadgeEnhanced } from "./status-badge-enhanced"
+import { formatDate } from "@/lib/formatters"
 
 interface BulletinsTableProps {
     data: any[]
@@ -86,7 +87,7 @@ export function BulletinsTable({ data, userId = '' }: BulletinsTableProps) {
     async function handleSubmitForApproval(bulletinId: string) {
         setLoading(bulletinId)
         try {
-            const result = await submitBulletinForApproval(bulletinId, userId)
+            const result = await submitBulletinForApproval(bulletinId)
             if (result.success) {
                 toast({ title: "Boletim enviado para aprovação com sucesso!" })
                 window.location.reload()
@@ -218,8 +219,8 @@ export function BulletinsTable({ data, userId = '' }: BulletinsTableProps) {
                                 <TableCell>
                                     <div className="text-sm font-medium">{bulletin.referenceMonth}</div>
                                     <div className="text-xs text-muted-foreground">
-                                        {new Date(bulletin.periodStart).toLocaleDateString('pt-BR')} —{' '}
-                                        {new Date(bulletin.periodEnd).toLocaleDateString('pt-BR')}
+                                        {formatDate(bulletin.periodStart)} —{' '}
+                                        {formatDate(bulletin.periodEnd)}
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-right font-semibold">

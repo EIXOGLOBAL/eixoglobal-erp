@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, Users, Clock, CheckCircle2, AlertCircle } from "lucide-react"
+import { formatDateTime } from "@/lib/formatters"
 
 interface BulletinMetadataPanelProps {
     referenceMonth: string
@@ -26,15 +27,6 @@ export function BulletinMetadataPanel({
     approvedByEngineerAt,
     rejectionReason,
 }: BulletinMetadataPanelProps) {
-    const formatDate = (date: Date) =>
-        new Date(date).toLocaleDateString('pt-BR', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        })
-
     return (
         <div className="grid gap-4 md:grid-cols-2">
             {/* Timeline Card */}
@@ -52,7 +44,7 @@ export function BulletinMetadataPanel({
                             <div>
                                 <p className="text-sm font-medium">Enviado para Aprovação</p>
                                 <p className="text-xs text-muted-foreground">
-                                    {formatDate(submittedAt)}
+                                    {formatDateTime(submittedAt)}
                                 </p>
                             </div>
                         </div>
@@ -63,7 +55,7 @@ export function BulletinMetadataPanel({
                             <div>
                                 <p className="text-sm font-medium">Aprovado</p>
                                 <p className="text-xs text-muted-foreground">
-                                    {formatDate(approvedByEngineerAt)}
+                                    {formatDateTime(approvedByEngineerAt)}
                                 </p>
                             </div>
                         </div>

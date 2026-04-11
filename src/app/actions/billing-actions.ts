@@ -4,6 +4,7 @@ import { z } from "zod";
 import { billingService } from "@/services/billing";
 import { revalidatePath } from "next/cache";
 import { getSession } from '@/lib/auth';
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 const CloseBillingSchema = z.object({
     measurementIds: z.array(z.string().uuid()),
@@ -21,6 +22,9 @@ export async function closeBillingAction(data: z.infer<typeof CloseBillingSchema
 
     try {
         const fiscalNote = await billingService.closeBilling(data.measurementIds, user.id, companyId);
+
+        await logAction('CLOSE_BILLING', 'FiscalNote', fiscalNote.id, fiscalNote.number || 'N/A', `Medições: ${data.measurementIds.join(', ')}`)
+
         revalidatePath("/dashboard/financeiro/faturamento");
         return { success: true, data: fiscalNote };
     } catch (error: any) {
@@ -40,6 +44,9 @@ export async function emitFiscalNoteAction(data: z.infer<typeof EmitNoteSchema>)
 
     try {
         const result = await billingService.emitFiscalNote(data.noteId, companyId);
+
+        await logAction('EMIT', 'FiscalNote', data.noteId, result.note?.number || 'N/A', 'Nota fiscal emitida')
+
         revalidatePath("/billing");
         return { success: true, data: result };
     } catch (error: any) {

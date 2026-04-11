@@ -16,7 +16,7 @@ export default async function OrcamentosPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
-    const result = await getBudgets(companyId)
+    const result = await getBudgets()
     const budgets = result.success ? (result.data ?? []) : []
 
     const projects = await prisma.project.findMany({

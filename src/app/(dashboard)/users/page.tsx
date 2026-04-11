@@ -22,7 +22,12 @@ import {
 } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Building2, Users, ShieldCheck, UserCheck, KeyRound } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { BlockUserDialog } from "@/components/users/block-user-dialog"
+import { ResetPasswordDialog } from "@/components/users/reset-password-dialog"
+import { UserStatusActions } from "@/components/users/user-status-actions"
+import { formatDateTime } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -33,10 +38,15 @@ export default async function UsersPage() {
         orderBy: { name: 'asc' },
         select: {
             id: true,
+            username: true,
             name: true,
             email: true,
             role: true,
             avatarUrl: true,
+            isActive: true,
+            isBlocked: true,
+            blockedReason: true,
+            lastLoginAt: true,
             companyId: true,
             createdAt: true,
             canDelete: true,
@@ -90,11 +100,11 @@ export default async function UsersPage() {
         },
     ]
 
-    function getInitials(name: string | null, email: string) {
+    function getInitials(name: string | null, username: string) {
         if (name) {
             return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
         }
-        return email.slice(0, 2).toUpperCase()
+        return username.slice(0, 2).toUpperCase()
     }
 
     return (
@@ -153,6 +163,8 @@ export default async function UsersPage() {
                                 <TableRow>
                                     <TableHead>Usuário</TableHead>
                                     <TableHead>Role</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Último Acesso</TableHead>
                                     <TableHead>Empresa</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
@@ -164,20 +176,34 @@ export default async function UsersPage() {
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="h-8 w-8">
                                                     {user.avatarUrl && (
-                                                        <AvatarImage src={user.avatarUrl} alt={user.name ?? user.email} />
+                                                        <AvatarImage src={user.avatarUrl} alt={user.name ?? user.username} />
                                                     )}
                                                     <AvatarFallback className="text-xs">
-                                                        {getInitials(user.name, user.email)}
+                                                        {getInitials(user.name, user.username)}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div>
                                                     <p className="font-medium text-sm">{user.name || '-'}</p>
-                                                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                                                    <p className="text-xs text-muted-foreground">@{user.username}</p>
                                                 </div>
                                             </div>
                                         </TableCell>
                                         <TableCell>
                                             <RoleBadge role={user.role} />
+                                        </TableCell>
+                                        <TableCell>
+                                            {!user.isActive ? (
+                                                <Badge variant="secondary" className="bg-gray-100 text-gray-600">Inativo</Badge>
+                                            ) : user.isBlocked ? (
+                                                <Badge variant="destructive">Bloqueado</Badge>
+                                            ) : (
+                                                <Badge className="bg-green-100 text-green-700 border-green-200">Ativo</Badge>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="text-xs text-muted-foreground">
+                                                {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Nunca'}
+                                            </span>
                                         </TableCell>
                                         <TableCell>
                                             {user.company ? (
@@ -190,10 +216,9 @@ export default async function UsersPage() {
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex justify-end gap-2">
+                                            <div className="flex justify-end gap-1">
                                                 <PermissionDialog
                                                     user={user}
-                                                    requestingUserId={session.user.id}
                                                     trigger={
                                                         <Button variant="outline" size="sm">
                                                             <ShieldCheck className="h-4 w-4 mr-1" />
@@ -201,17 +226,25 @@ export default async function UsersPage() {
                                                         </Button>
                                                     }
                                                 />
+                                                <UserStatusActions
+                                                    userId={user.id}
+                                                    username={user.username}
+                                                    isActive={user.isActive}
+                                                    isBlocked={user.isBlocked}
+                                                />
+                                                <ResetPasswordDialog userId={user.id} username={user.username} />
                                                 <EditUserDialog
                                                     user={{
                                                         id: user.id,
                                                         name: user.name,
+                                                        username: user.username,
                                                         email: user.email,
-                                                        role: user.role,
+                                                        role: user.role as any,
                                                         companyId: user.companyId
                                                     }}
                                                     companies={companies}
                                                 />
-                                                <DeleteUserDialog id={user.id} name={user.name || user.email} />
+                                                <DeleteUserDialog id={user.id} name={user.name || user.username} />
                                             </div>
                                         </TableCell>
                                     </TableRow>

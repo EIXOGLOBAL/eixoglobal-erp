@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowLeft, Users, Building2, Wrench, AlertTriangle, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatDate } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -51,7 +52,7 @@ export default async function RelatorioCapacidadePage() {
                 </Button>
                 <h1 className="text-3xl font-bold tracking-tight">Projecao de Capacidade</h1>
                 <p className="text-muted-foreground">
-                    Visao atual de ocupacao da equipe e equipamentos &mdash; {now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                    Visao atual de ocupacao da equipe e equipamentos &mdash; {formatDate(now)}
                 </p>
             </div>
             <section>

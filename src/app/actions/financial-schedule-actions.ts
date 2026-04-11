@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { toNumber } from "@/lib/formatters"
+import { assertAuthenticated } from "@/lib/auth-helpers"
 
 const financialScheduleItemSchema = z.object({
     contractId: z.string().uuid("ID do contrato inválido"),
@@ -15,6 +16,7 @@ const financialScheduleItemSchema = z.object({
 
 export async function createFinancialScheduleItem(data: z.infer<typeof financialScheduleItemSchema>) {
     try {
+        await assertAuthenticated()
         const validated = financialScheduleItemSchema.parse(data)
 
         // Verify contract exists
@@ -62,6 +64,7 @@ export async function createFinancialScheduleItem(data: z.infer<typeof financial
 
 export async function updateFinancialScheduleItem(id: string, data: z.infer<typeof financialScheduleItemSchema>) {
     try {
+        await assertAuthenticated()
         const validated = financialScheduleItemSchema.parse(data)
 
         // Verify contract exists
@@ -108,6 +111,7 @@ export async function updateFinancialScheduleItem(id: string, data: z.infer<type
 
 export async function deleteFinancialScheduleItem(id: string) {
     try {
+        await assertAuthenticated()
         const item = await prisma.financialScheduleItem.findUnique({
             where: { id },
             select: { contractId: true }
@@ -128,6 +132,7 @@ export async function deleteFinancialScheduleItem(id: string) {
 
 export async function getFinancialScheduleItemsByContract(contractId: string) {
     try {
+        await assertAuthenticated()
         // Verify contract exists
         const contract = await prisma.contract.findUnique({
             where: { id: contractId }
@@ -151,6 +156,7 @@ export async function getFinancialScheduleItemsByContract(contractId: string) {
 
 export async function getFinancialScheduleItemById(id: string) {
     try {
+        await assertAuthenticated()
         const item = await prisma.financialScheduleItem.findUnique({
             where: { id },
             include: { contract: { select: { id: true, identifier: true } } }
@@ -169,6 +175,7 @@ export async function getFinancialScheduleItemById(id: string) {
 
 export async function getFinancialScheduleSummary(contractId: string) {
     try {
+        await assertAuthenticated()
         const items = await prisma.financialScheduleItem.findMany({
             where: { contractId }
         })

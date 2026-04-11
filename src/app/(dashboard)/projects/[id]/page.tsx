@@ -43,6 +43,10 @@ import {
 } from "lucide-react"
 import { StatusHistory } from "@/components/projects/status-history"
 import { BudgetComparison } from "@/components/projects/budget-comparison"
+import { ProjectLaborCost } from "@/components/projects/project-labor-cost"
+import { EntityAuditTrail } from "@/components/audit/entity-audit-trail"
+import { CopyableValue } from '@/components/ui/copy-button'
+import { formatDate } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -186,7 +190,7 @@ const session = await getSession()
                     <CardContent>
                         <div className="text-xl font-bold">{project.company.name}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            CNPJ: {project.company.cnpj}
+                            CNPJ: {project.company.cnpj ? <CopyableValue value={project.company.cnpj} mono /> : '—'}
                         </p>
                     </CardContent>
                 </Card>
@@ -198,11 +202,11 @@ const session = await getSession()
                     </CardHeader>
                     <CardContent>
                         <div className="text-sm font-medium">
-                            {new Date(project.startDate).toLocaleDateString('pt-BR')}
+                            {formatDate(project.startDate)}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                             até {project.endDate
-                                ? new Date(project.endDate).toLocaleDateString('pt-BR')
+                                ? formatDate(project.endDate)
                                 : 'Indefinido'
                             }
                         </p>
@@ -365,7 +369,9 @@ const session = await getSession()
                     <TabsTrigger value="scurve">Curva S</TabsTrigger>
                     <TabsTrigger value="evm">EVM</TabsTrigger>
                     <TabsTrigger value="team">Equipe</TabsTrigger>
+                    <TabsTrigger value="custos-mo">Custo de Mão de Obra</TabsTrigger>
                     <TabsTrigger value="historico">Histórico</TabsTrigger>
+                    <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="measurements" className="space-y-4">
@@ -563,8 +569,8 @@ const session = await getSession()
                                                             {statusLabelsMap[task.status] || task.status}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-sm">{new Date(task.startDate).toLocaleDateString('pt-BR')}</TableCell>
-                                                    <TableCell className="text-sm">{new Date(task.endDate).toLocaleDateString('pt-BR')}</TableCell>
+                                                    <TableCell className="text-sm">{formatDate(task.startDate)}</TableCell>
+                                                    <TableCell className="text-sm">{formatDate(task.endDate)}</TableCell>
                                                     <TableCell className="text-right">
                                                         <span className="text-sm font-mono">{task.percentDone.toFixed(0)}%</span>
                                                     </TableCell>
@@ -659,11 +665,11 @@ const session = await getSession()
                                                 </TableCell>
                                                 <TableCell>{allocation.employee.jobTitle}</TableCell>
                                                 <TableCell>
-                                                    {new Date(allocation.startDate).toLocaleDateString('pt-BR')}
+                                                    {formatDate(allocation.startDate)}
                                                 </TableCell>
                                                 <TableCell className="text-muted-foreground">
                                                     {allocation.endDate
-                                                        ? new Date(allocation.endDate).toLocaleDateString('pt-BR')
+                                                        ? formatDate(allocation.endDate)
                                                         : 'Em andamento'}
                                                 </TableCell>
                                             </TableRow>
@@ -680,6 +686,11 @@ const session = await getSession()
                         </CardContent>
                     </Card>
                 </TabsContent>
+
+                <TabsContent value="custos-mo" className="space-y-4">
+                    <ProjectLaborCost projectId={project.id} />
+                </TabsContent>
+
                 <TabsContent value="historico" className="space-y-4">
                     <Card>
                         <CardHeader>
@@ -690,6 +701,14 @@ const session = await getSession()
                             <StatusHistory history={statusHistory} />
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="auditoria" className="space-y-4">
+                    <EntityAuditTrail
+                        entityType="project"
+                        entityId={project.id}
+                        title="Histórico de Alterações do Projeto"
+                    />
                 </TabsContent>
 
             </Tabs>

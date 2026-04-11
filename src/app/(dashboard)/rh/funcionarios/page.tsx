@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, UserCheck, UserMinus, Clock } from "lucide-react"
 import { EmployeeDialog } from "@/components/rh/employee-dialog"
 import { EmployeesTable } from "@/components/rh/employees-table"
+import { CreateShortcut } from '@/components/ui/page-keyboard-shortcuts'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +53,11 @@ export default async function FuncionariosPage() {
                         Gerencie sua equipe e recursos humanos
                     </p>
                 </div>
-                <EmployeeDialog companyId={companyId} salaryGrades={allGrades} />
+                <CreateShortcut label="Novo Funcionário">
+                    {({ open, onOpenChange }) => (
+                        <EmployeeDialog companyId={companyId} salaryGrades={allGrades} open={open} onOpenChange={onOpenChange} />
+                    )}
+                </CreateShortcut>
             </div>
 
             {/* KPIs */}

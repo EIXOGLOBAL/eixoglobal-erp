@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth'
 import { z } from 'zod'
 import { createNotificationForMany } from './notification-actions'
 import { notifyUsers } from '@/lib/sse-notifications'
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 const schema = z.object({
   title: z.string().min(1),
@@ -56,6 +57,8 @@ export async function createAnnouncement(data: z.infer<typeof schema>) {
       },
     })
 
+    await logCreate('Announcement', ann.id, ann.title || 'N/A', v)
+
     // Notify all company users (except the author)
     const allUsers = await prisma.user.findMany({
       where: { companyId: user.companyId, id: { not: user.id } },
@@ -83,6 +86,7 @@ export async function updateAnnouncement(id: string, data: z.infer<typeof schema
     const user = await getUser()
     if (!["ADMIN","MANAGER"].includes(user.role)) return { success: false as const, error: "Sem permissão" }
     const v = schema.parse(data)
+    const oldAnn = await prisma.announcement.findUnique({ where: { id } })
     const ann = await prisma.announcement.update({
       where: { id },
       data: {
@@ -93,6 +97,7 @@ export async function updateAnnouncement(id: string, data: z.infer<typeof schema
         expiresAt: v.expiresAt ? new Date(v.expiresAt) : null,
       },
     })
+    await logUpdate('Announcement', id, ann.title || 'N/A', oldAnn, ann)
     revalidatePath("/comunicados")
     return { success: true as const, data: ann }
   } catch (error) {
@@ -104,7 +109,9 @@ export async function deleteAnnouncement(id: string) {
   try {
     const user = await getUser()
     if (!["ADMIN","MANAGER"].includes(user.role)) return { success: false as const, error: "Sem permissão" }
+    const oldAnn = await prisma.announcement.findUnique({ where: { id } })
     await prisma.announcement.deleteMany({ where: { id, companyId: user.companyId } })
+    await logDelete('Announcement', id, oldAnn?.title || 'N/A', oldAnn)
     revalidatePath("/comunicados")
     return { success: true as const }
   } catch (error) {

@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { assertAuthenticated } from "@/lib/auth-helpers"
 
 // ============================================================================
 // SCHEMAS
@@ -23,6 +24,7 @@ export async function createDailyReportPhoto(
     data: z.infer<typeof photoSchema>
 ) {
     try {
+        await assertAuthenticated()
         const validated = photoSchema.parse(data)
 
         const photo = await prisma.dailyReportPhoto.create({
@@ -51,6 +53,7 @@ export async function updateDailyReportPhoto(
     data: Partial<z.infer<typeof photoSchema>>
 ) {
     try {
+        await assertAuthenticated()
         const photo = await prisma.dailyReportPhoto.findUnique({
             where: { id: photoId }
         })
@@ -82,6 +85,7 @@ export async function updateDailyReportPhoto(
 
 export async function deleteDailyReportPhoto(photoId: string) {
     try {
+        await assertAuthenticated()
         const photo = await prisma.dailyReportPhoto.findUnique({
             where: { id: photoId }
         })
@@ -106,6 +110,7 @@ export async function deleteDailyReportPhoto(photoId: string) {
 
 export async function getDailyReportPhotos(reportId: string) {
     try {
+        await assertAuthenticated()
         const photos = await prisma.dailyReportPhoto.findMany({
             where: { reportId },
             orderBy: { uploadedAt: 'desc' }
@@ -120,6 +125,7 @@ export async function getDailyReportPhotos(reportId: string) {
 
 export async function getDailyReportPhotoById(photoId: string) {
     try {
+        await assertAuthenticated()
         const photo = await prisma.dailyReportPhoto.findUnique({
             where: { id: photoId }
         })

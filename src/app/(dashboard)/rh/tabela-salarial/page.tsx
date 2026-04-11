@@ -22,6 +22,7 @@ import { SalaryGradeDialog } from "@/components/rh/salary-grade-dialog"
 import { DeleteSalaryTableButton, DeleteSalaryGradeButton } from "@/components/rh/salary-table-actions-client"
 import { LayoutList, Award, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { formatDate } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -128,7 +129,7 @@ export default async function TabelaSalarialPage() {
                                             </Badge>
                                         </div>
                                         <CardDescription className="mt-1">
-                                            Vigência: {new Date(table.effectiveDate).toLocaleDateString('pt-BR')}
+                                            Vigência: {formatDate(table.effectiveDate)}
                                             {table.description && ` — ${table.description}`}
                                         </CardDescription>
                                     </div>

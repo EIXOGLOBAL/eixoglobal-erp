@@ -4,10 +4,12 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
 import { assertCanDelete } from "@/lib/permissions"
 import { toNumber } from "@/lib/formatters"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS
@@ -86,6 +88,8 @@ export async function createEquipment(
             },
         })
 
+        await logCreate('Equipment', equipment.id, equipment.name, validated)
+
         revalidatePath('/equipamentos')
         return { success: true, data: equipment }
     } catch (error) {
@@ -104,6 +108,8 @@ export async function updateEquipment(
     try {
         const validated = equipmentSchema.parse(data)
 
+        const oldData = await prisma.equipment.findUnique({ where: { id } })
+
         const equipment = await prisma.equipment.update({
             where: { id },
             data: {
@@ -120,6 +126,8 @@ export async function updateEquipment(
                 notes: validated.notes,
             },
         })
+
+        await logUpdate('Equipment', id, equipment.name, oldData, equipment)
 
         revalidatePath('/equipamentos')
         revalidatePath(`/equipamentos/${id}`)
@@ -166,6 +174,8 @@ export async function deleteEquipment(id: string) {
         }
 
         await prisma.equipment.delete({ where: { id } })
+
+        await logDelete('Equipment', id, equipment.name, equipment)
 
         revalidatePath('/equipamentos')
         return { success: true }
@@ -218,6 +228,8 @@ export async function getEquipment(params?: {
 
 export async function getEquipmentById(id: string) {
     try {
+        const session = await assertAuthenticated()
+
         const equipment = await prisma.equipment.findUnique({
             where: { id },
             include: {
@@ -238,6 +250,10 @@ export async function getEquipmentById(id: string) {
 
         if (!equipment) return { success: false, error: "Equipamento não encontrado" }
 
+        if (equipment.companyId) {
+            await assertCompanyAccess(session, equipment.companyId)
+        }
+
         return { success: true, data: equipment }
     } catch (error) {
         console.error("Erro ao buscar equipamento:", error)
@@ -250,10 +266,14 @@ export async function updateEquipmentStatus(
     status: 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE' | 'INACTIVE' | 'RENTED_OUT'
 ) {
     try {
+        const oldEquipment = await prisma.equipment.findUnique({ where: { id }, select: { status: true, name: true } })
+
         const equipment = await prisma.equipment.update({
             where: { id },
             data: { status },
         })
+
+        await logAction('STATUS_CHANGE', 'Equipment', id, equipment.name, `Status alterado de ${oldEquipment?.status || 'N/A'} para ${status}`)
 
         revalidatePath('/equipamentos')
         revalidatePath(`/equipamentos/${id}`)
@@ -411,11 +431,40 @@ export async function addMaintenance(
             },
         })
 
+        await logCreate('EquipmentMaintenance', maintenance.id, maintenance.description, validated)
+
         // Change equipment status to MAINTENANCE
         await prisma.equipment.update({
             where: { id: equipmentId },
             data: { status: 'MAINTENANCE' },
         })
+
+        // Sync: create financial record (expense) when maintenance has cost > 0
+        if (validated.cost && validated.cost > 0) {
+            try {
+                const financialRecord = await prisma.financialRecord.create({
+                    data: {
+                        companyId: equipment.companyId,
+                        description: `Manutenção - ${equipment.name} - ${validated.description}`,
+                        amount: validated.cost,
+                        type: 'EXPENSE',
+                        status: 'PENDING',
+                        category: 'MANUTENCAO',
+                        dueDate: new Date(validated.scheduledAt),
+                    },
+                })
+
+                await logCreate('FinancialRecord', financialRecord.id, financialRecord.description, {
+                    maintenanceId: maintenance.id,
+                    equipmentId,
+                    amount: validated.cost,
+                })
+                revalidatePath('/financeiro')
+            } catch (finError) {
+                // Log but do not fail – the maintenance itself was already saved.
+                console.error('[addMaintenance] Failed to create FinancialRecord for maintenance', maintenance.id, finError)
+            }
+        }
 
         revalidatePath('/equipamentos')
         revalidatePath(`/equipamentos/${equipmentId}`)
@@ -448,6 +497,8 @@ export async function completeMaintenance(
                 cost: cost ?? maintenance.cost,
             },
         })
+
+        await logUpdate('EquipmentMaintenance', maintenanceId, updated.description, maintenance, updated)
 
         await prisma.equipment.update({
             where: { id: maintenance.equipmentId },

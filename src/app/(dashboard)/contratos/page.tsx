@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { ContractDialog } from "@/components/contracts/contract-dialog"
 import { ContractsTable } from "@/components/contracts/contracts-table"
+import { CreateShortcut } from '@/components/ui/page-keyboard-shortcuts'
 import {
     Card,
     CardContent,
@@ -12,6 +13,7 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import { FileText, DollarSign, Clock, FileEdit, AlertTriangle } from "lucide-react"
+import { formatDate } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -68,11 +70,17 @@ export default async function ContractsPage() {
                         Gerencie contratos, aditivos e reajustes.
                     </p>
                 </div>
-                <ContractDialog
-                    projects={projects}
-                    contractors={contractors}
-                    companyId={companyId}
-                />
+                <CreateShortcut label="Novo Contrato">
+                    {({ open, onOpenChange }) => (
+                        <ContractDialog
+                            projects={projects}
+                            contractors={contractors}
+                            companyId={companyId}
+                            open={open}
+                            onOpenChange={onOpenChange}
+                        />
+                    )}
+                </CreateShortcut>
             </div>
 
             {/* KPI Cards */}
@@ -161,7 +169,7 @@ export default async function ContractsPage() {
                                         {c.identifier} — {c.project?.name}
                                     </Link>
                                     <span className="text-amber-600 text-xs">
-                                        Vence em {new Date(c.endDate!).toLocaleDateString('pt-BR')}
+                                        Vence em {formatDate(c.endDate!)}
                                     </span>
                                 </div>
                             ))}

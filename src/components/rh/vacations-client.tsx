@@ -63,6 +63,7 @@ import {
     CalendarDays,
 } from "lucide-react"
 
+import { formatDate } from "@/lib/formatters"
 // ---- Types ----
 
 type LeaveType = 'VACATION' | 'SICK_LEAVE' | 'MATERNITY' | 'PATERNITY' | 'BEREAVEMENT' | 'PERSONAL' | 'ACCIDENT' | 'OTHER'
@@ -170,10 +171,6 @@ function calculateDays(startDate: string, endDate: string): number {
     const diff = new Date(endDate).getTime() - new Date(startDate).getTime()
     if (diff < 0) return 0
     return Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1
-}
-
-function formatDate(date: Date): string {
-    return new Date(date).toLocaleDateString('pt-BR')
 }
 
 // ---- Component ----

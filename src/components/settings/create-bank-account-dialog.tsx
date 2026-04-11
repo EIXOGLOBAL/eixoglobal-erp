@@ -39,7 +39,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-export function CreateBankAccountDialog({ companyId }: { companyId?: string }) {
+export function CreateBankAccountDialog({ companyId: _companyId }: { companyId?: string } = {}) {
     const [open, setOpen] = useState(false)
     const { toast } = useToast()
 
@@ -57,8 +57,10 @@ export function CreateBankAccountDialog({ companyId }: { companyId?: string }) {
 
     async function onSubmit(values: FormValues) {
         const res = await createBankAccount({
-            ...values,
-            companyId
+            name: values.name,
+            bankName: values.bankName,
+            agency: values.agency,
+            accountNumber: values.accountNumber,
         })
 
         if (res.success) {

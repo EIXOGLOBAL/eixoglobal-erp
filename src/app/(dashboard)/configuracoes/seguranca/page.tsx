@@ -37,7 +37,7 @@ export default async function SegurancaPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ChangePasswordForm userId={session.user!.id} />
+                    <ChangePasswordForm />
                 </CardContent>
             </Card>
 

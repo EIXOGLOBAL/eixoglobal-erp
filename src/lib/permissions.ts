@@ -10,13 +10,13 @@ export type UserPermissions = {
 }
 
 export type SessionUser = {
-  role: string
-  canDelete?: boolean
-  canApprove?: boolean
-  canManageFinancial?: boolean
-  canManageHR?: boolean
-  canManageSystem?: boolean
-  canViewReports?: boolean
+  role?: string | null
+  canDelete?: boolean | null
+  canApprove?: boolean | null
+  canManageFinancial?: boolean | null
+  canManageHR?: boolean | null
+  canManageSystem?: boolean | null
+  canViewReports?: boolean | null
 }
 
 /**
@@ -24,7 +24,8 @@ export type SessionUser = {
  * ADMIN sempre tem tudo. Para outros roles, combina defaults do role + overrides individuais.
  */
 export function resolvePermissions(user: SessionUser): UserPermissions {
-  const isAdmin = user.role === 'ADMIN'
+  const role = user.role ?? ''
+  const isAdmin = role === 'ADMIN'
 
   if (isAdmin) {
     return {
@@ -43,7 +44,7 @@ export function resolvePermissions(user: SessionUser): UserPermissions {
     USER: { canViewReports: true },
   }
 
-  const defaults = roleDefaults[user.role] ?? {}
+  const defaults = roleDefaults[role] ?? {}
 
   return {
     canDelete: user.canDelete ?? defaults.canDelete ?? false,

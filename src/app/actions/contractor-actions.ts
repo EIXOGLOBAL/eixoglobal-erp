@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { getNextCode } from "@/lib/sequence"
+import { assertAuthenticated } from "@/lib/auth-helpers"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 const contractorSchema = z.object({
   name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
@@ -13,6 +15,7 @@ const contractorSchema = z.object({
 
 export async function createContractor(data: z.infer<typeof contractorSchema>, companyId: string) {
   try {
+        await assertAuthenticated()
     const validated = contractorSchema.parse(data)
     const code = await getNextCode('contractor', companyId)
     const contractor = await prisma.contractor.create({
@@ -24,6 +27,7 @@ export async function createContractor(data: z.infer<typeof contractorSchema>, c
         companyId,
       },
     })
+    await logCreate('Contractor', contractor.id, contractor.name || 'N/A', validated)
     revalidatePath('/empreiteiras')
     return { success: true, data: contractor }
   } catch (error: any) {
@@ -34,7 +38,9 @@ export async function createContractor(data: z.infer<typeof contractorSchema>, c
 
 export async function updateContractor(id: string, data: z.infer<typeof contractorSchema>) {
   try {
+        await assertAuthenticated()
     const validated = contractorSchema.parse(data)
+    const oldContractor = await prisma.contractor.findUnique({ where: { id } })
     const contractor = await prisma.contractor.update({
       where: { id },
       data: {
@@ -43,6 +49,7 @@ export async function updateContractor(id: string, data: z.infer<typeof contract
         type: validated.type,
       },
     })
+    await logUpdate('Contractor', id, contractor.name || 'N/A', oldContractor, contractor)
     revalidatePath('/empreiteiras')
     return { success: true, data: contractor }
   } catch (error: any) {
@@ -53,6 +60,7 @@ export async function updateContractor(id: string, data: z.infer<typeof contract
 
 export async function deleteContractor(id: string) {
   try {
+        await assertAuthenticated()
     const contractor = await prisma.contractor.findUnique({
       where: { id },
       include: { _count: { select: { contracts: true } } }
@@ -62,6 +70,7 @@ export async function deleteContractor(id: string) {
       return { success: false, error: "Não é possível excluir empreiteira com contratos vinculados" }
     }
     await prisma.contractor.delete({ where: { id } })
+    await logDelete('Contractor', id, contractor.name || 'N/A', contractor)
     revalidatePath('/empreiteiras')
     return { success: true }
   } catch (error: any) {
@@ -71,6 +80,7 @@ export async function deleteContractor(id: string) {
 
 export async function getContractors(companyId: string) {
   try {
+        await assertAuthenticated()
     const contractors = await prisma.contractor.findMany({
       where: { companyId },
       include: {
@@ -86,10 +96,13 @@ export async function getContractors(companyId: string) {
 
 export async function changeContractorStatus(id: string, status: 'ACTIVE' | 'INACTIVE' | 'BLOCKED') {
   try {
+        await assertAuthenticated()
+    const oldContractor = await prisma.contractor.findUnique({ where: { id } })
     const contractor = await prisma.contractor.update({
       where: { id },
       data: { status },
     })
+    await logAction('STATUS_CHANGE', 'Contractor', id, contractor.name || 'N/A', `${oldContractor?.status || 'N/A'} -> ${status}`)
     revalidatePath('/empreiteiras')
     return { success: true, data: contractor }
   } catch (error: any) {
@@ -99,6 +112,7 @@ export async function changeContractorStatus(id: string, status: 'ACTIVE' | 'INA
 
 export async function getContractorById(id: string) {
     try {
+        await assertAuthenticated()
         const contractor = await prisma.contractor.findUnique({
             where: { id },
             include: {

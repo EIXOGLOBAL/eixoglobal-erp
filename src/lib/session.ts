@@ -1,23 +1,51 @@
 import { SignJWT, jwtVerify } from 'jose'
 
-const secretKey = process.env.SESSION_SECRET || 'super-secret-key-change-me'
+const secretKey = process.env.SESSION_SECRET
+if (!secretKey || secretKey.length < 32) {
+    // Fail fast: nunca aceitar fallback inseguro. Em prod, isso derruba o boot;
+    // em dev/test, força o desenvolvedor a configurar um .env local válido.
+    throw new Error(
+        'SESSION_SECRET environment variable is missing or too short (minimum 32 chars). ' +
+        'Generate one with: openssl rand -hex 64'
+    )
+}
 const key = new TextEncoder().encode(secretKey)
 
-export async function encrypt(payload: any) {
-    return await new SignJWT(payload)
+export type SessionPayload = {
+    user?: {
+        id: string
+        username: string
+        email?: string | null
+        name?: string | null
+        role?: string | null
+        companyId?: string | null
+        avatarUrl?: string | null
+        canDelete?: boolean | null
+        canApprove?: boolean | null
+        canManageFinancial?: boolean | null
+        canManageHR?: boolean | null
+        canManageSystem?: boolean | null
+        canViewReports?: boolean | null
+    } | null
+    expires?: Date | string
+    [key: string]: unknown
+}
+
+export async function encrypt(payload: SessionPayload): Promise<string> {
+    return await new SignJWT(payload as Record<string, unknown>)
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime('24h')
         .sign(key)
 }
 
-export async function decrypt(input: string): Promise<any> {
+export async function decrypt(input: string): Promise<SessionPayload | null> {
     try {
         const { payload } = await jwtVerify(input, key, {
             algorithms: ['HS256'],
         })
-        return payload
-    } catch (error) {
+        return payload as SessionPayload
+    } catch {
         return null
     }
 }

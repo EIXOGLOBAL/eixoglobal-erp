@@ -4,34 +4,42 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import type { Role } from "@/lib/generated/prisma/enums"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS
 // ============================================================================
 
+const approvalLevelSchema = z.object({
+  level: z.number().int().positive(),
+  roleRequired: z.enum(["ADMIN", "MANAGER", "USER", "ENGINEER", "SUPERVISOR", "SAFETY_OFFICER", "ACCOUNTANT", "HR_ANALYST"]).optional(),
+  specificUserId: z.string().optional(),
+  minAmount: z.number().optional(),
+  maxAmount: z.number().optional(),
+})
+
 const workflowSchema = z.object({
-  name: z.string().min(1, "Nome é obrigatório"),
+  name: z.string().min(1, "Nome e obrigatorio"),
   description: z.string().optional(),
-  entityType: z.string().min(1, "Tipo de entidade é obrigatório"),
-  approvers: z.array(z.string().uuid()),
-  requiresAllApprovals: z.boolean().default(false),
+  entityType: z.string().min(1, "Tipo de entidade e obrigatorio"),
+  levels: z.array(approvalLevelSchema).min(1, "Pelo menos um nivel de aprovacao e obrigatorio"),
 })
 
 const submitForApprovalSchema = z.object({
-  entityType: z.string().min(1, "Tipo de entidade é obrigatório"),
-  entityId: z.string().uuid().min(1, "ID da entidade é obrigatório"),
-  workflowId: z.string().uuid().optional(),
+  entityType: z.string().min(1, "Tipo de entidade e obrigatorio"),
+  entityId: z.string().min(1, "ID da entidade e obrigatorio"),
   comments: z.string().optional(),
 })
 
 const approveRequestSchema = z.object({
-  requestId: z.string().uuid(),
+  requestId: z.string(),
   comments: z.string().optional(),
 })
 
 const rejectRequestSchema = z.object({
-  requestId: z.string().uuid(),
-  comments: z.string().min(1, "Comentários são obrigatórios ao rejeitar"),
+  requestId: z.string(),
+  comments: z.string().min(1, "Comentarios sao obrigatorios ao rejeitar"),
 })
 
 const paginationSchema = z.object({
@@ -45,25 +53,38 @@ const paginationSchema = z.object({
 
 export async function createWorkflow(data: z.infer<typeof workflowSchema>) {
   const session = await getSession()
-  if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+  if (!session?.user?.id) return { success: false, error: 'Nao autenticado' }
 
   try {
     const validated = workflowSchema.parse(data)
 
-    const workflow = await (prisma as any).approvalWorkflow.create({
+    const workflow = await prisma.approvalWorkflow.create({
       data: {
+        companyId: session.user.companyId!,
         name: validated.name,
         description: validated.description || null,
         entityType: validated.entityType,
-        approvers: validated.approvers,
-        requiresAllApprovals: validated.requiresAllApprovals,
-        createdBy: session.user.id,
+        levels: {
+          create: validated.levels.map((lvl) => ({
+            level: lvl.level,
+            roleRequired: (lvl.roleRequired as Role) || null,
+            specificUserId: lvl.specificUserId || null,
+            minAmount: lvl.minAmount ?? null,
+            maxAmount: lvl.maxAmount ?? null,
+          })),
+        },
       },
       include: {
-        creator: { select: { id: true, name: true } },
+        levels: {
+          include: {
+            specificUser: { select: { id: true, name: true } },
+          },
+          orderBy: { level: 'asc' },
+        },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logCreate('ApprovalWorkflow', workflow.id, workflow.name || 'N/A', validated)
 
     revalidatePath('/workflows')
     return { success: true, data: workflow }
@@ -81,22 +102,38 @@ export async function updateWorkflow(
   data: Partial<z.infer<typeof workflowSchema>>
 ) {
   try {
-    const workflow = await (prisma as any).approvalWorkflow.update({
+    const oldWorkflow = await prisma.approvalWorkflow.findUnique({ where: { id } })
+
+    const workflow = await prisma.approvalWorkflow.update({
       where: { id },
       data: {
         ...(data.name && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.entityType && { entityType: data.entityType }),
-        ...(data.approvers && { approvers: data.approvers }),
-        ...(data.requiresAllApprovals !== undefined && {
-          requiresAllApprovals: data.requiresAllApprovals,
+        ...(data.levels && {
+          levels: {
+            deleteMany: {},
+            create: data.levels.map((lvl) => ({
+              level: lvl.level,
+              roleRequired: (lvl.roleRequired as Role) || null,
+              specificUserId: lvl.specificUserId || null,
+              minAmount: lvl.minAmount ?? null,
+              maxAmount: lvl.maxAmount ?? null,
+            })),
+          },
         }),
       },
       include: {
-        creator: { select: { id: true, name: true } },
+        levels: {
+          include: {
+            specificUser: { select: { id: true, name: true } },
+          },
+          orderBy: { level: 'asc' },
+        },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logUpdate('ApprovalWorkflow', id, workflow.name || 'N/A', oldWorkflow, workflow)
 
     revalidatePath('/workflows')
     return { success: true, data: workflow }
@@ -111,13 +148,16 @@ export async function updateWorkflow(
 
 export async function deleteWorkflow(id: string) {
   const session = await getSession()
-  if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+  if (!session?.user?.id) return { success: false, error: 'Nao autenticado' }
 
   try {
-    await (prisma as any).approvalWorkflow.delete({
+    const oldWorkflow = await prisma.approvalWorkflow.findUnique({ where: { id } })
+
+    await prisma.approvalWorkflow.delete({
       where: { id },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logDelete('ApprovalWorkflow', id, oldWorkflow?.name || 'N/A', oldWorkflow)
 
     revalidatePath('/workflows')
     return { success: true }
@@ -140,16 +180,21 @@ export async function getWorkflows(
     const skip = (pagination.page - 1) * pagination.limit
 
     const [data, total] = await Promise.all([
-      (prisma as any).approvalWorkflow.findMany({
+      prisma.approvalWorkflow.findMany({
         include: {
-          creator: { select: { id: true, name: true } },
+          levels: {
+            include: {
+              specificUser: { select: { id: true, name: true } },
+            },
+            orderBy: { level: 'asc' },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
         take: pagination.limit,
       }),
-      // TODO: Remove 'as any' after running prisma generate
-      (prisma as any).approvalWorkflow.count(),
+
+      prisma.approvalWorkflow.count(),
     ])
 
     return {
@@ -182,53 +227,48 @@ export async function submitForApproval(
   data: z.infer<typeof submitForApprovalSchema>
 ) {
   const session = await getSession()
-  if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+  if (!session?.user?.id) return { success: false, error: 'Nao autenticado' }
 
   try {
     const validated = submitForApprovalSchema.parse(data)
 
-    let approvers: string[] = []
-
-    if (validated.workflowId) {
-      const workflow = await (prisma as any).approvalWorkflow.findUnique({
-        where: { id: validated.workflowId },
-      })
-      // TODO: Remove 'as any' after running prisma generate
-
-      if (!workflow) {
-        return { success: false, error: "Workflow não encontrado" }
-      }
-      approvers = workflow.approvers
-    }
-
-    if (approvers.length === 0) {
-      return {
-        success: false,
-        error: "Nenhum aprovador configurado para este workflow",
-      }
-    }
-
-    const request = await (prisma as any).approvalRequest.create({
+    const request = await prisma.approvalRequest.create({
       data: {
+        companyId: session.user.companyId!,
         entityType: validated.entityType,
         entityId: validated.entityId,
-        workflowId: validated.workflowId || null,
-        submittedBy: session.user.id,
-        submittedAt: new Date(),
+        requestedById: session.user.id,
         status: 'PENDING',
-        comments: validated.comments || null,
-        approvers,
+        currentLevel: 1,
+      },
+      include: {
+        requestedBy: { select: { id: true, name: true } },
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logCreate('ApprovalRequest', request.id, `${validated.entityType}:${validated.entityId}`, validated)
+
+    // Record initial submission in history
+    if (validated.comments) {
+      await prisma.approvalHistory.create({
+        data: {
+          requestId: request.id,
+          level: 1,
+          action: 'SUBMITTED',
+          userId: session.user.id,
+          comments: validated.comments,
+        },
+      })
+    }
+
 
     revalidatePath('/approvals')
     return { success: true, data: request }
   } catch (error) {
-    console.error("Erro ao submeter para aprovação:", error)
+    console.error("Erro ao submeter para aprovacao:", error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Erro ao submeter para aprovação",
+      error: error instanceof Error ? error.message : "Erro ao submeter para aprovacao",
     }
   }
 }
@@ -238,44 +278,45 @@ export async function approveRequest(
   comments?: string
 ) {
   const session = await getSession()
-  if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+  if (!session?.user?.id) return { success: false, error: 'Nao autenticado' }
 
   try {
-    const request = await (prisma as any).approvalRequest.findUnique({
+    const request = await prisma.approvalRequest.findUnique({
       where: { id: requestId },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!request) {
-      return { success: false, error: "Solicitação de aprovação não encontrada" }
+      return { success: false, error: "Solicitacao de aprovacao nao encontrada" }
     }
 
-    const updatedApprovers = request.approvers
-      ? (request.approvers as string[]).filter((id: string) => id !== session.user.id)
-      : []
-
-    const isFullyApproved =
-      updatedApprovers.length === 0 || !request.workflow?.requiresAllApprovals
-
-    const updated = await (prisma as any).approvalRequest.update({
-      where: { id: requestId },
+    // Record approval action in history
+    await prisma.approvalHistory.create({
       data: {
-        approvers: updatedApprovers,
-        status: isFullyApproved ? 'APPROVED' : 'PENDING',
-        approvedBy: isFullyApproved ? session.user.id : null,
-        approvedAt: isFullyApproved ? new Date() : null,
-        approvalComments: comments || null,
+        requestId: request.id,
+        level: request.currentLevel,
+        action: 'APPROVED',
+        userId: session.user.id,
+        comments: comments || null,
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    const updated = await prisma.approvalRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'APPROVED',
+      },
+    })
+
+    await logAction('APPROVE', 'ApprovalRequest', requestId, `${request.entityType}:${request.entityId}`, comments || 'Aprovado')
 
     revalidatePath('/approvals')
     return { success: true, data: updated }
   } catch (error) {
-    console.error("Erro ao aprovar solicitação:", error)
+    console.error("Erro ao aprovar solicitacao:", error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Erro ao aprovar solicitação",
+      error: error instanceof Error ? error.message : "Erro ao aprovar solicitacao",
     }
   }
 }
@@ -285,7 +326,7 @@ export async function rejectRequest(
   comments: string
 ) {
   const session = await getSession()
-  if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+  if (!session?.user?.id) return { success: false, error: 'Nao autenticado' }
 
   try {
     const validated = rejectRequestSchema.parse({
@@ -293,33 +334,42 @@ export async function rejectRequest(
       comments,
     })
 
-    const request = await (prisma as any).approvalRequest.findUnique({
+    const request = await prisma.approvalRequest.findUnique({
       where: { id: validated.requestId },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     if (!request) {
-      return { success: false, error: "Solicitação de aprovação não encontrada" }
+      return { success: false, error: "Solicitacao de aprovacao nao encontrada" }
     }
 
-    const updated = await (prisma as any).approvalRequest.update({
+    // Record rejection in history
+    await prisma.approvalHistory.create({
+      data: {
+        requestId: request.id,
+        level: request.currentLevel,
+        action: 'REJECTED',
+        userId: session.user.id,
+        comments: validated.comments,
+      },
+    })
+
+    const updated = await prisma.approvalRequest.update({
       where: { id: validated.requestId },
       data: {
         status: 'REJECTED',
-        rejectedBy: session.user.id,
-        rejectedAt: new Date(),
-        rejectionComments: validated.comments,
       },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
+    await logAction('REJECT', 'ApprovalRequest', validated.requestId, `${request.entityType}:${request.entityId}`, validated.comments)
 
     revalidatePath('/approvals')
     return { success: true, data: updated }
   } catch (error) {
-    console.error("Erro ao rejeitar solicitação:", error)
+    console.error("Erro ao rejeitar solicitacao:", error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Erro ao rejeitar solicitação",
+      error: error instanceof Error ? error.message : "Erro ao rejeitar solicitacao",
     }
   }
 }
@@ -331,34 +381,37 @@ export async function rejectRequest(
 export async function getMyPendingApprovals() {
   const session = await getSession()
   if (!session?.user?.id) {
-    return { success: false, error: 'Não autenticado', data: null }
+    return { success: false, error: 'Nao autenticado', data: null }
   }
 
   try {
-    const requests = await (prisma as any).approvalRequest.findMany({
+    const requests = await prisma.approvalRequest.findMany({
       where: {
         status: 'PENDING',
-        approvers: {
-          has: session.user.id,
-        },
+        companyId: session.user.companyId!,
       },
       include: {
-        submitter: { select: { id: true, name: true } },
-        workflow: { select: { id: true, name: true } },
+        requestedBy: { select: { id: true, name: true } },
+        history: {
+          include: {
+            user: { select: { id: true, name: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
-      orderBy: { submittedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     return {
       success: true,
       data: requests,
     }
   } catch (error) {
-    console.error("Erro ao buscar aprovações pendentes:", error)
+    console.error("Erro ao buscar aprovacoes pendentes:", error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Erro ao buscar aprovações pendentes",
+      error: error instanceof Error ? error.message : "Erro ao buscar aprovacoes pendentes",
       data: null,
     }
   }
@@ -369,28 +422,33 @@ export async function getApprovalHistory(
   entityId: string
 ) {
   try {
-    const requests = await (prisma as any).approvalRequest.findMany({
+    const requests = await prisma.approvalRequest.findMany({
       where: {
         entityType,
         entityId,
       },
       include: {
-        submitter: { select: { id: true, name: true } },
-        workflow: { select: { id: true, name: true } },
+        requestedBy: { select: { id: true, name: true } },
+        history: {
+          include: {
+            user: { select: { id: true, name: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
-      orderBy: { submittedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
     })
-    // TODO: Remove 'as any' after running prisma generate
+
 
     return {
       success: true,
       data: requests,
     }
   } catch (error) {
-    console.error("Erro ao buscar histórico de aprovações:", error)
+    console.error("Erro ao buscar historico de aprovacoes:", error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Erro ao buscar histórico",
+      error: error instanceof Error ? error.message : "Erro ao buscar historico",
       data: null,
     }
   }

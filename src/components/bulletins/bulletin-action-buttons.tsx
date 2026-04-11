@@ -19,11 +19,10 @@ import { submitBulletinForApproval, approveByEngineer, rejectBulletin } from "@/
 import { useRouter } from "next/navigation"
 
 interface BulletinActionButtonsProps {
-    bulletin: any
-    userId: string
+    bulletin: { id: string; status: string }
 }
 
-export function BulletinActionButtons({ bulletin, userId }: BulletinActionButtonsProps) {
+export function BulletinActionButtons({ bulletin }: BulletinActionButtonsProps) {
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
     const router = useRouter()
@@ -37,7 +36,7 @@ export function BulletinActionButtons({ bulletin, userId }: BulletinActionButton
     async function handleSubmit() {
         setLoading(true)
         try {
-            const result = await submitBulletinForApproval(bulletin.id, userId)
+            const result = await submitBulletinForApproval(bulletin.id)
             if (result.success) {
                 toast({
                     title: "Sucesso",
@@ -64,7 +63,7 @@ export function BulletinActionButtons({ bulletin, userId }: BulletinActionButton
             const result = await approveByEngineer({
                 bulletinId: bulletin.id,
                 comment: comment
-            }, userId)
+            })
 
             if (result.success) {
                 toast({
@@ -91,7 +90,7 @@ export function BulletinActionButtons({ bulletin, userId }: BulletinActionButton
             const result = await rejectBulletin({
                 bulletinId: bulletin.id,
                 reason: rejectionReason
-            }, userId)
+            })
 
             if (result.success) {
                 toast({

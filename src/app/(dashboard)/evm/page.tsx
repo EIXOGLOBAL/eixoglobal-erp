@@ -25,9 +25,10 @@ export default async function EVMPage() {
   const isManager = user.role === 'ADMIN' || user.role === 'MANAGER'
 
   // Fetch data in parallel using new EVM actions with real database integration
+  // companyId agora é derivado da sessão dentro das actions
   const [projects, summary] = await Promise.all([
-    getAllProjectsEVMData(companyId),
-    getPortfolioEVMSummary(companyId),
+    getAllProjectsEVMData(),
+    getPortfolioEVMSummary(),
   ])
 
   return (

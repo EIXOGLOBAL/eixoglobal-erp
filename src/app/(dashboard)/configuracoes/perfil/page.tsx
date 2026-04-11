@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { UpdateProfileForm } from "@/components/configuracoes/update-profile-form"
+import { formatDate } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -61,11 +62,11 @@ export default async function PerfilPage() {
                         </div>
                         <div>
                             <p className="text-muted-foreground">Conta criada em</p>
-                            <p className="font-medium mt-1">{new Date(user.createdAt).toLocaleDateString('pt-BR')}</p>
+                            <p className="font-medium mt-1">{formatDate(user.createdAt)}</p>
                         </div>
                         <div>
                             <p className="text-muted-foreground">Última atualização</p>
-                            <p className="font-medium mt-1">{new Date(user.updatedAt).toLocaleDateString('pt-BR')}</p>
+                            <p className="font-medium mt-1">{formatDate(user.updatedAt)}</p>
                         </div>
                     </div>
                 </CardContent>
@@ -79,9 +80,8 @@ export default async function PerfilPage() {
                 </CardHeader>
                 <CardContent>
                     <UpdateProfileForm
-                        userId={user.id}
                         currentName={user.name || ''}
-                        currentEmail={user.email}
+                        currentEmail={user.email || ''}
                     />
                 </CardContent>
             </Card>

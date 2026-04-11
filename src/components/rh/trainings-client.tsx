@@ -67,6 +67,7 @@ import {
     UserPlus,
     UserMinus,
 } from "lucide-react"
+import { formatDate } from "@/lib/formatters"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -396,10 +397,6 @@ export function TrainingsClient({ companyId, trainings, employees }: TrainingsCl
     const formatCurrency = (value: number | null) => {
         if (value == null) return '—'
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-    }
-
-    const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('pt-BR')
     }
 
     // ─── Render ───────────────────────────────────────────────────────────────

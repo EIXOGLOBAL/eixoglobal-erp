@@ -36,9 +36,10 @@ import {
 
 const formSchema = z.object({
     name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-    email: z.string().email("Email inválido"),
-    password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-    role: z.enum(["ADMIN", "MANAGER", "USER", "ENGINEER", "SUPERVISOR", "SAFETY_OFFICER", "ACCOUNTANT", "HR_ANALYST"]),
+    username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres").regex(/^[a-zA-Z0-9._-]+$/, "Apenas letras, números, pontos, hífens e underscores"),
+    email: z.string().email("Email inválido").optional().or(z.literal("")),
+    password: z.string().min(8, "Senha deve ter pelo menos 8 caracteres"),
+    role: z.enum(["ADMIN", "MANAGER", "USER", "ENGINEER"]),
     companyId: z.string().optional(),
 })
 
@@ -55,6 +56,7 @@ export function CreateUserDialog({ companies }: CreateUserDialogProps) {
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: "",
+            username: "",
             email: "",
             password: "",
             role: "USER",
@@ -66,7 +68,8 @@ export function CreateUserDialog({ companies }: CreateUserDialogProps) {
         startTransition(async () => {
             const formData = new FormData()
             formData.append("name", values.name)
-            formData.append("email", values.email)
+            formData.append("username", values.username)
+            if (values.email) formData.append("email", values.email)
             formData.append("password", values.password)
             formData.append("role", values.role)
             if (values.companyId && values.companyId !== "none") {
@@ -123,10 +126,23 @@ export function CreateUserDialog({ companies }: CreateUserDialogProps) {
                         />
                         <FormField
                             control={form.control}
+                            name="username"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Usuário</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="nome.usuario" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
                             name="email"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Email</FormLabel>
+                                    <FormLabel>Email (opcional)</FormLabel>
                                     <FormControl>
                                         <Input placeholder="email@exemplo.com" {...field} />
                                     </FormControl>

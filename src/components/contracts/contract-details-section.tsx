@@ -18,6 +18,7 @@ import {
     AlertCircle,
 } from "lucide-react"
 
+import { formatDate } from "@/lib/formatters"
 interface ContractDetailsProps {
     contract: any
     statusVariants: Record<string, any>
@@ -119,14 +120,14 @@ export function ContractDetailsSection({
                         <div>
                             <p className="text-xs text-muted-foreground">Início</p>
                             <p className="text-sm font-medium">
-                                {new Date(contract.startDate).toLocaleDateString('pt-BR')}
+                                {formatDate(contract.startDate)}
                             </p>
                         </div>
                         <div>
                             <p className="text-xs text-muted-foreground">Término</p>
                             <p className={`text-sm font-medium ${isExpired() ? 'text-red-700 dark:text-red-400' : isExpiring() ? 'text-amber-700 dark:text-amber-400' : ''}`}>
                                 {contract.endDate
-                                    ? new Date(contract.endDate).toLocaleDateString('pt-BR')
+                                    ? formatDate(contract.endDate)
                                     : 'Indeterminado'
                                 }
                             </p>

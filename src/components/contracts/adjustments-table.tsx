@@ -9,6 +9,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { formatDate } from "@/lib/formatters"
 
 export interface Adjustment {
     id: string
@@ -19,10 +20,6 @@ export interface Adjustment {
     newIndex: number
     percentage: number
     createdAt: Date | string
-}
-
-function formatDate(value: Date | string): string {
-    return new Date(value).toLocaleDateString("pt-BR")
 }
 
 interface AdjustmentsTableProps {

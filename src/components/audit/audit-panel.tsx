@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { formatDistanceToNow } from 'date-fns'
+import { format, formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale/pt-BR'
 import {
   Search,
@@ -18,7 +18,11 @@ import {
   Filter,
   X,
   Shield,
-  Loader2,
+  Globe,
+  Monitor,
+  Clock,
+  Info,
+  FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -51,14 +55,19 @@ interface AuditUser {
 interface AuditLogEntry {
   id: string
   action: string
-  entity: string
+  entity: string | null
   entityId: string | null
   entityName: string | null
   oldData: string | null
   newData: string | null
-  userId: string
-  user: AuditUser
-  companyId: string
+  details: string | null
+  reason: string | null
+  email: string | null
+  ipAddress: string | null
+  userAgent: string | null
+  userId: string | null
+  user: AuditUser | null
+  companyId: string | null
   createdAt: string | Date
 }
 
@@ -68,15 +77,6 @@ type SeverityFilter = 'HIGH' | 'MEDIUM' | 'LOW'
 // Constants
 // ---------------------------------------------------------------------------
 
-const ACTION_LABELS: Record<string, string> = {
-  CREATE: 'Criação',
-  UPDATE: 'Atualização',
-  DELETE: 'Exclusão',
-  APPROVE: 'Aprovação',
-  REJECT: 'Rejeição',
-  LOGIN: 'Login',
-}
-
 const ACTION_VERBS: Record<string, string> = {
   CREATE: 'criou',
   UPDATE: 'atualizou',
@@ -84,21 +84,71 @@ const ACTION_VERBS: Record<string, string> = {
   APPROVE: 'aprovou',
   REJECT: 'rejeitou',
   LOGIN: 'fez login',
+  LOGIN_SUCCESS: 'fez login',
+  LOGIN_FAILED: 'tentou fazer login',
+  LOGOUT: 'fez logout',
+  BLOCK: 'bloqueou',
+}
+
+const ACTION_BADGE_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  CREATE: { bg: 'bg-green-100 dark:bg-green-950/40', text: 'text-green-700 dark:text-green-400', label: 'Criação' },
+  UPDATE: { bg: 'bg-blue-100 dark:bg-blue-950/40', text: 'text-blue-700 dark:text-blue-400', label: 'Atualização' },
+  DELETE: { bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', label: 'Exclusão' },
+  APPROVE: { bg: 'bg-purple-100 dark:bg-purple-950/40', text: 'text-purple-700 dark:text-purple-400', label: 'Aprovação' },
+  REJECT: { bg: 'bg-orange-100 dark:bg-orange-950/40', text: 'text-orange-700 dark:text-orange-400', label: 'Rejeição' },
+  LOGIN: { bg: 'bg-gray-100 dark:bg-gray-800/40', text: 'text-gray-600 dark:text-gray-400', label: 'Login' },
+  LOGIN_SUCCESS: { bg: 'bg-gray-100 dark:bg-gray-800/40', text: 'text-gray-600 dark:text-gray-400', label: 'Login' },
+  LOGIN_FAILED: { bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', label: 'Login falhou' },
+  LOGOUT: { bg: 'bg-gray-100 dark:bg-gray-800/40', text: 'text-gray-600 dark:text-gray-400', label: 'Logout' },
+  BLOCK: { bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', label: 'Bloqueio' },
 }
 
 const ACTION_ICON_MAP: Record<string, { icon: typeof PlusCircle; color: string; dot: string }> = {
   CREATE: { icon: PlusCircle, color: 'text-green-600', dot: 'bg-green-500' },
   UPDATE: { icon: Pencil, color: 'text-blue-600', dot: 'bg-blue-500' },
   DELETE: { icon: Trash2, color: 'text-red-600', dot: 'bg-red-500' },
-  APPROVE: { icon: CheckCircle, color: 'text-green-600', dot: 'bg-green-500' },
-  REJECT: { icon: XCircle, color: 'text-red-600', dot: 'bg-red-500' },
+  APPROVE: { icon: CheckCircle, color: 'text-purple-600', dot: 'bg-purple-500' },
+  REJECT: { icon: XCircle, color: 'text-orange-600', dot: 'bg-orange-500' },
   LOGIN: { icon: LogIn, color: 'text-gray-500', dot: 'bg-gray-400' },
+  LOGIN_SUCCESS: { icon: LogIn, color: 'text-gray-500', dot: 'bg-gray-400' },
+  LOGIN_FAILED: { icon: XCircle, color: 'text-red-500', dot: 'bg-red-400' },
+  LOGOUT: { icon: LogIn, color: 'text-gray-500', dot: 'bg-gray-400' },
+  BLOCK: { icon: XCircle, color: 'text-red-600', dot: 'bg-red-500' },
+}
+
+const ENTITY_LABELS: Record<string, string> = {
+  Client: 'Cliente',
+  Project: 'Projeto',
+  Contract: 'Contrato',
+  Employee: 'Funcionário',
+  Bulletin: 'Boletim',
+  Measurement: 'Medição',
+  Equipment: 'Equipamento',
+  Supplier: 'Fornecedor',
+  Contractor: 'Empreiteiro',
+  CostCenter: 'Centro de Custo',
+  Task: 'Tarefa',
+  Schedule: 'Cronograma',
+  Document: 'Documento',
+  User: 'Usuário',
+  Company: 'Empresa',
+  Budget: 'Orçamento',
+  Invoice: 'Fatura',
+  Purchase: 'Compra',
+  Inventory: 'Estoque',
+  Training: 'Treinamento',
+  SafetyIncident: 'Incidente de Segurança',
+  QualityInspection: 'Inspeção de Qualidade',
+  FiscalNote: 'Nota Fiscal',
+  Rental: 'Locação',
+  Timesheet: 'Ponto',
+  Vacation: 'Férias',
 }
 
 const SEVERITY_TO_ACTIONS: Record<SeverityFilter, string[]> = {
-  HIGH: ['DELETE', 'REJECT'],
+  HIGH: ['DELETE', 'REJECT', 'BLOCK', 'LOGIN_FAILED'],
   MEDIUM: ['UPDATE', 'APPROVE'],
-  LOW: ['CREATE', 'LOGIN'],
+  LOW: ['CREATE', 'LOGIN', 'LOGIN_SUCCESS', 'LOGOUT'],
 }
 
 const PAGE_SIZE = 25
@@ -117,10 +167,33 @@ function safeParseJSON(str: string | null): Record<string, unknown> | null {
 }
 
 function formatFieldValue(value: unknown): string {
-  if (value === null || value === undefined) return '—'
+  if (value === null || value === undefined) return '\u2014'
   if (typeof value === 'boolean') return value ? 'Sim' : 'Não'
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
+}
+
+function getEntityLabel(entity: string | null): string {
+  if (!entity) return 'Sistema'
+  return ENTITY_LABELS[entity] ?? entity
+}
+
+function getActionBadgeStyle(action: string) {
+  return ACTION_BADGE_STYLES[action] ?? {
+    bg: 'bg-gray-100 dark:bg-gray-800/40',
+    text: 'text-gray-600 dark:text-gray-400',
+    label: action,
+  }
+}
+
+function parseUserAgent(ua: string | null): string {
+  if (!ua) return ''
+  // Extract browser name from UA string
+  if (ua.includes('Chrome') && !ua.includes('Edg')) return 'Chrome'
+  if (ua.includes('Edg')) return 'Edge'
+  if (ua.includes('Firefox')) return 'Firefox'
+  if (ua.includes('Safari') && !ua.includes('Chrome')) return 'Safari'
+  return 'Navegador'
 }
 
 // ---------------------------------------------------------------------------
@@ -147,6 +220,26 @@ function LoadingSkeleton() {
   )
 }
 
+function ActionBadge({ action }: { action: string }) {
+  const style = getActionBadgeStyle(action)
+  const iconMeta = ACTION_ICON_MAP[action]
+  const Icon = iconMeta?.icon
+
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        'border-0 gap-1 font-medium text-[11px] px-2 py-0.5',
+        style.bg,
+        style.text
+      )}
+    >
+      {Icon && <Icon className="h-3 w-3" />}
+      {style.label}
+    </Badge>
+  )
+}
+
 function DiffView({ oldData, newData }: { oldData: string | null; newData: string | null }) {
   const oldObj = safeParseJSON(oldData)
   const newObj = safeParseJSON(newData)
@@ -163,6 +256,17 @@ function DiffView({ oldData, newData }: { oldData: string | null; newData: strin
     new Set([...Object.keys(oldObj ?? {}), ...Object.keys(newObj ?? {})])
   )
 
+  // Filter out unchanged fields if both exist
+  const changedKeys = oldObj && newObj
+    ? allKeys.filter((key) => {
+        const oldVal = formatFieldValue(oldObj[key])
+        const newVal = formatFieldValue(newObj[key])
+        return oldVal !== newVal || !(key in oldObj) || !(key in newObj)
+      })
+    : allKeys
+
+  const keysToShow = changedKeys.length > 0 ? changedKeys : allKeys
+
   return (
     <div className="grid grid-cols-2 gap-4 mt-3">
       {/* ANTES */}
@@ -172,7 +276,7 @@ function DiffView({ oldData, newData }: { oldData: string | null; newData: strin
         </p>
         <div className="rounded-md border text-sm divide-y">
           {oldObj ? (
-            allKeys.map((key) => {
+            keysToShow.map((key) => {
               const oldVal = oldObj[key]
               const newVal = newObj?.[key]
               const removed = newObj !== null && !(key in (newObj ?? {}))
@@ -182,7 +286,7 @@ function DiffView({ oldData, newData }: { oldData: string | null; newData: strin
               if (added) {
                 return (
                   <div key={key} className="px-3 py-1.5 text-muted-foreground/40">
-                    <span className="font-medium">{key}:</span> —
+                    <span className="font-medium">{key}:</span> {'\u2014'}
                   </div>
                 )
               }
@@ -215,7 +319,7 @@ function DiffView({ oldData, newData }: { oldData: string | null; newData: strin
         </p>
         <div className="rounded-md border text-sm divide-y">
           {newObj ? (
-            allKeys.map((key) => {
+            keysToShow.map((key) => {
               const oldVal = oldObj?.[key]
               const newVal = newObj[key]
               const added = oldObj !== null && !(key in (oldObj ?? {}))
@@ -225,7 +329,7 @@ function DiffView({ oldData, newData }: { oldData: string | null; newData: strin
               if (removed) {
                 return (
                   <div key={key} className="px-3 py-1.5 text-muted-foreground/40">
-                    <span className="font-medium">{key}:</span> —
+                    <span className="font-medium">{key}:</span> {'\u2014'}
                   </div>
                 )
               }
@@ -244,7 +348,7 @@ function DiffView({ oldData, newData }: { oldData: string | null; newData: strin
                   {modified ? (
                     <>
                       <span className="line-through opacity-60">{formatFieldValue(oldVal)}</span>
-                      {' → '}
+                      {' \u2192 '}
                       {formatFieldValue(newVal)}
                     </>
                   ) : (
@@ -262,21 +366,36 @@ function DiffView({ oldData, newData }: { oldData: string | null; newData: strin
   )
 }
 
+function MetadataRow({ icon: Icon, label, value }: { icon: typeof Globe; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <Icon className="h-3 w-3 shrink-0" />
+      <span className="font-medium">{label}:</span>
+      <span className="truncate">{value}</span>
+    </div>
+  )
+}
+
 function TimelineItem({ log }: { log: AuditLogEntry }) {
   const [expanded, setExpanded] = useState(false)
 
   const actionMeta = ACTION_ICON_MAP[log.action] ?? ACTION_ICON_MAP.LOGIN!
-  const Icon = actionMeta!.icon
-  const userName = log.user.name ?? log.user.email
+  const userName = log.user?.name ?? log.user?.email ?? log.email ?? 'Sistema'
   const initial = (userName ?? '?')[0]!.toUpperCase()
   const verb = ACTION_VERBS[log.action] ?? log.action.toLowerCase()
   const entityLabel = log.entityName
-    ? `${log.entity} "${log.entityName}"`
+    ? `${getEntityLabel(log.entity)} "${log.entityName}"`
     : log.entityId
-    ? `${log.entity} #${log.entityId.slice(0, 8)}`
+    ? `${getEntityLabel(log.entity)} #${log.entityId.slice(0, 8)}`
     : log.entity
+    ? getEntityLabel(log.entity)
+    : ''
 
   const hasDiff = log.oldData || log.newData
+  const hasMetadata = log.details || log.ipAddress || log.userAgent || log.reason
+  const hasExpandableContent = hasDiff || hasMetadata
+
+  const createdAt = new Date(log.createdAt)
 
   return (
     <div className="flex gap-4">
@@ -309,23 +428,44 @@ function TimelineItem({ log }: { log: AuditLogEntry }) {
             {/* Header line */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-sm">{userName}</span>
-              <Icon className={cn('h-3.5 w-3.5', actionMeta!.color)} />
-              <span className="text-sm text-muted-foreground">
-                {verb}{' '}
-                <span className="font-medium text-foreground">{entityLabel}</span>
-              </span>
+              <ActionBadge action={log.action} />
+              {entityLabel && (
+                <span className="text-sm text-muted-foreground">
+                  {verb}{' '}
+                  <span className="font-medium text-foreground">{entityLabel}</span>
+                </span>
+              )}
             </div>
 
+            {/* Details text */}
+            {log.details && (
+              <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+                <FileText className="h-3 w-3 mt-0.5 shrink-0" />
+                <span>{log.details}</span>
+              </p>
+            )}
+
             {/* Timestamp */}
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {formatDistanceToNow(new Date(log.createdAt), {
-                addSuffix: true,
-                locale: ptBR,
-              })}
-            </p>
+            <div className="flex items-center gap-3 mt-1">
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {format(createdAt, "dd/MM/yyyy '\u00e0s' HH:mm", { locale: ptBR })}
+                <span className="text-muted-foreground/60">
+                  ({formatDistanceToNow(createdAt, {
+                    addSuffix: true,
+                    locale: ptBR,
+                  })})
+                </span>
+              </p>
+              {log.entity && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+                  {getEntityLabel(log.entity)}
+                </Badge>
+              )}
+            </div>
 
             {/* Expand button */}
-            {hasDiff && (
+            {hasExpandableContent && (
               <button
                 onClick={() => setExpanded(!expanded)}
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2 transition-colors"
@@ -333,20 +473,45 @@ function TimelineItem({ log }: { log: AuditLogEntry }) {
                 {expanded ? (
                   <>
                     <ChevronUp className="h-3 w-3" />
-                    Ocultar alterações
+                    Ocultar detalhes
                   </>
                 ) : (
                   <>
                     <ChevronDown className="h-3 w-3" />
-                    Ver alterações
+                    Ver detalhes
+                    {hasDiff && ' e alterações'}
                   </>
                 )}
               </button>
             )}
 
-            {/* Diff view */}
-            {expanded && hasDiff && (
-              <DiffView oldData={log.oldData} newData={log.newData} />
+            {/* Expanded content */}
+            {expanded && hasExpandableContent && (
+              <div className="mt-3 space-y-3">
+                {/* Metadata section */}
+                {hasMetadata && (
+                  <div className="rounded-md border bg-muted/30 p-3 space-y-1.5">
+                    {log.reason && (
+                      <MetadataRow icon={Info} label="Motivo" value={log.reason} />
+                    )}
+                    {log.ipAddress && (
+                      <MetadataRow icon={Globe} label="IP" value={log.ipAddress} />
+                    )}
+                    {log.userAgent && (
+                      <MetadataRow
+                        icon={Monitor}
+                        label="Navegador"
+                        value={parseUserAgent(log.userAgent)}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {/* Diff view */}
+                {hasDiff && (
+                  <DiffView oldData={log.oldData} newData={log.newData} />
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -410,8 +575,6 @@ export function AuditPanel({ companyId }: { companyId: string }) {
   const getEffectiveActionFilter = useCallback(() => {
     if (action) return action
     if (severityFilters.size > 0) {
-      // Combine severity filter actions — but we cannot filter by multiple actions in one query easily
-      // We'll return undefined and filter client-side, OR we won't combine severity with action
       return undefined
     }
     return undefined
@@ -488,14 +651,26 @@ export function AuditPanel({ companyId }: { companyId: string }) {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
+  // Count of active filters for the badge
+  const activeFilterCount = [
+    entity, action, userId, startDate, endDate,
+  ].filter(Boolean).length + severityFilters.size + (search ? 1 : 0)
+
   return (
     <div className="flex gap-6">
-      {/* ========== LEFT PANEL — Filters ========== */}
+      {/* ========== LEFT PANEL -- Filters ========== */}
       <Card className="w-72 shrink-0 h-fit sticky top-6">
         <CardContent className="p-4 space-y-4">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Filter className="h-4 w-4" />
-            Filtros
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Filter className="h-4 w-4" />
+              Filtros
+            </div>
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                {activeFilterCount} {activeFilterCount === 1 ? 'ativo' : 'ativos'}
+              </Badge>
+            )}
           </div>
 
           {/* Search */}
@@ -520,7 +695,7 @@ export function AuditPanel({ companyId }: { companyId: string }) {
                 <SelectItem value="__all__">Todas</SelectItem>
                 {entities.map((e) => (
                   <SelectItem key={e} value={e}>
-                    {e}
+                    {getEntityLabel(e)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -536,12 +711,42 @@ export function AuditPanel({ companyId }: { companyId: string }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Todas</SelectItem>
-                <SelectItem value="CREATE">Criação</SelectItem>
-                <SelectItem value="UPDATE">Atualização</SelectItem>
-                <SelectItem value="DELETE">Exclusão</SelectItem>
-                <SelectItem value="APPROVE">Aprovação</SelectItem>
-                <SelectItem value="REJECT">Rejeição</SelectItem>
-                <SelectItem value="LOGIN">Login</SelectItem>
+                <SelectItem value="CREATE">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    Criação
+                  </span>
+                </SelectItem>
+                <SelectItem value="UPDATE">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    Atualização
+                  </span>
+                </SelectItem>
+                <SelectItem value="DELETE">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-500" />
+                    Exclusão
+                  </span>
+                </SelectItem>
+                <SelectItem value="APPROVE">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-purple-500" />
+                    Aprovação
+                  </span>
+                </SelectItem>
+                <SelectItem value="REJECT">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-orange-500" />
+                    Rejeição
+                  </span>
+                </SelectItem>
+                <SelectItem value="LOGIN">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-gray-400" />
+                    Login
+                  </span>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -557,7 +762,12 @@ export function AuditPanel({ companyId }: { companyId: string }) {
                 <SelectItem value="__all__">Todos</SelectItem>
                 {users.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
-                    {u.name ?? u.email}
+                    <span className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                        {(u.name ?? u.email)[0]?.toUpperCase()}
+                      </span>
+                      {u.name ?? u.email}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -655,7 +865,7 @@ export function AuditPanel({ companyId }: { companyId: string }) {
         </CardContent>
       </Card>
 
-      {/* ========== RIGHT PANEL — Timeline ========== */}
+      {/* ========== RIGHT PANEL -- Timeline ========== */}
       <div className="flex-1 min-w-0">
         {loading ? (
           <LoadingSkeleton />
@@ -691,10 +901,69 @@ export function AuditPanel({ companyId }: { companyId: string }) {
                 Anterior
               </Button>
 
-              <span className="text-sm text-muted-foreground">
-                Página <span className="font-medium text-foreground">{page + 1}</span> de{' '}
-                <span className="font-medium text-foreground">{totalPages}</span>
-              </span>
+              <div className="flex items-center gap-2">
+                {/* Page number buttons */}
+                {totalPages <= 7 ? (
+                  Array.from({ length: totalPages }).map((_, i) => (
+                    <Button
+                      key={i}
+                      variant={page === i ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-8 w-8 p-0 text-xs"
+                      onClick={() => setPage(i)}
+                    >
+                      {i + 1}
+                    </Button>
+                  ))
+                ) : (
+                  <>
+                    {/* First page */}
+                    <Button
+                      variant={page === 0 ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-8 w-8 p-0 text-xs"
+                      onClick={() => setPage(0)}
+                    >
+                      1
+                    </Button>
+
+                    {page > 2 && (
+                      <span className="text-muted-foreground text-xs px-1">...</span>
+                    )}
+
+                    {/* Pages around current */}
+                    {Array.from({ length: 3 }).map((_, i) => {
+                      const pageNum = Math.max(1, Math.min(totalPages - 2, page)) - 1 + i
+                      if (pageNum <= 0 || pageNum >= totalPages - 1) return null
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={page === pageNum ? 'default' : 'ghost'}
+                          size="sm"
+                          className="h-8 w-8 p-0 text-xs"
+                          onClick={() => setPage(pageNum)}
+                        >
+                          {pageNum + 1}
+                        </Button>
+                      )
+                    })}
+
+                    {page < totalPages - 3 && (
+                      <span className="text-muted-foreground text-xs px-1">...</span>
+                    )}
+
+                    {/* Last page */}
+                    <Button
+                      variant={page === totalPages - 1 ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-8 w-8 p-0 text-xs"
+                      onClick={() => setPage(totalPages - 1)}
+                    >
+                      {totalPages}
+                    </Button>
+                  </>
+                )}
+              </div>
 
               <Button
                 variant="outline"

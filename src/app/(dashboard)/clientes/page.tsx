@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, Building2, CheckCircle2, CalendarDays } from 'lucide-react'
 import { ClientsTable } from '@/components/clients/clients-table'
 import { ClientDialog } from '@/components/clients/client-dialog'
+import { CreateShortcut } from '@/components/ui/page-keyboard-shortcuts'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +53,11 @@ export default async function ClientesPage() {
             Gerencie os clientes que contratam a Eixo Global
           </p>
         </div>
-        <ClientDialog companyId={companyId} />
+        <CreateShortcut label="Novo Cliente">
+          {({ open, onOpenChange }) => (
+            <ClientDialog companyId={companyId} open={open} onOpenChange={onOpenChange} />
+          )}
+        </CreateShortcut>
       </div>
 
       {/* KPI Cards */}

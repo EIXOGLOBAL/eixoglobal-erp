@@ -32,6 +32,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import { CopyableValue } from "@/components/ui/copy-button"
 import {
     ArrowLeft,
     Star,
@@ -74,6 +75,7 @@ import {
     evaluateSupplier,
 } from "@/app/actions/supplier-actions"
 
+import { formatDate } from "@/lib/formatters"
 // ============================================================
 // Types
 // ============================================================
@@ -211,10 +213,6 @@ const STATUS_LABELS: Record<string, string> = {
 
 function formatCurrency(value: number): string {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-}
-
-function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('pt-BR')
 }
 
 // ============================================================
@@ -413,7 +411,7 @@ function TabInfo({ supplier }: { supplier: SupplierData }) {
                         </div>
                         <div>
                             <Label className="text-muted-foreground text-xs">CNPJ / CPF</Label>
-                            <p className="font-medium font-mono">{supplier.cnpj || "\u2014"}</p>
+                            <p className="font-medium">{supplier.cnpj ? <CopyableValue value={supplier.cnpj} mono /> : "\u2014"}</p>
                         </div>
                         <div>
                             <Label className="text-muted-foreground text-xs">Categoria</Label>

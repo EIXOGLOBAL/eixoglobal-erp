@@ -11,7 +11,7 @@ import { getPurchaseOrderById } from "@/app/actions/purchase-actions"
 import { OrderItemsClient } from "@/components/compras/order-items-client"
 import { OrderStatusDialog } from "@/components/compras/order-status-dialog"
 import { PurchaseOrderDialog } from "@/components/compras/purchase-order-dialog"
-import { formatCurrency, toNumber } from "@/lib/formatters"
+import { formatCurrency, toNumber, formatDate} from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -79,7 +79,7 @@ export default async function PurchaseOrderDetailPage({ params }: PageProps) {
 
     const fmtDate = (d: Date | null | undefined) => {
         if (!d) return "—"
-        return new Date(d).toLocaleDateString('pt-BR')
+        return formatDate(d)
     }
 
     const STATUS_WORKFLOW: Record<string, string[]> = {

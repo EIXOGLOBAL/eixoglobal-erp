@@ -5,9 +5,11 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getNextCode } from '@/lib/sequence'
 import { getSession } from '@/lib/auth'
+import { assertAuthenticated, assertCompanyAccess } from '@/lib/auth-helpers'
 import { assertCanDelete } from '@/lib/permissions'
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from '@/lib/pagination'
 import { buildWhereClause, type FilterParams } from '@/lib/filters'
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 const clientSchema = z.object({
   type: z.enum(['COMPANY', 'INDIVIDUAL']).default('COMPANY'),
@@ -77,6 +79,8 @@ export async function getClients(params?: {
 
 export async function getClientById(id: string) {
   try {
+    const session = await assertAuthenticated()
+
     const client = await prisma.client.findUnique({
       where: { id },
       include: {
@@ -95,6 +99,10 @@ export async function getClientById(id: string) {
 
     if (!client) {
       return { success: false, error: 'Cliente não encontrado' }
+    }
+
+    if (client.companyId) {
+      await assertCompanyAccess(session, client.companyId)
     }
 
     // Serialize Decimal fields from projects
@@ -146,6 +154,8 @@ export async function createClient(data: unknown) {
       },
     })
 
+    await logCreate('Client', client.id, client.displayName, validated)
+
     revalidatePath('/clientes')
     return { success: true, data: client }
   } catch (error: any) {
@@ -185,10 +195,14 @@ export async function updateClient(id: string, data: unknown) {
       ...(validated.status !== undefined && { status: validated.status }),
     }
 
+    const oldData = await prisma.client.findUnique({ where: { id } })
+
     const client = await prisma.client.update({
       where: { id },
       data: updateData,
     })
+
+    await logUpdate('Client', id, client.displayName, oldData, client)
 
     revalidatePath('/clientes')
     revalidatePath(`/clientes/${id}`)
@@ -207,6 +221,8 @@ export async function changeClientStatus(id: string, status: 'ACTIVE' | 'INACTIV
       where: { id },
       data: { status },
     })
+
+    await logAction(status === 'BLOCKED' ? 'BLOCK' : 'STATUS_CHANGE', 'Client', id, client.displayName, `Status alterado para ${status}`)
 
     revalidatePath('/clientes')
     revalidatePath(`/clientes/${id}`)
@@ -237,9 +253,15 @@ export async function deleteClient(id: string) {
       return { success: false, error: `Não é possível deletar um cliente com ${activeProjects.length} projeto(s) ativo(s)` }
     }
 
+    const old = await prisma.client.findUnique({ where: { id } })
+
     await prisma.client.delete({
       where: { id }
     })
+
+    if (old) {
+      await logDelete('Client', id, old.displayName, old)
+    }
 
     revalidatePath('/clientes')
     return { success: true }

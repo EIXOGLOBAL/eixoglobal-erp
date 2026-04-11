@@ -30,6 +30,9 @@ import {
   FileText,
 } from 'lucide-react'
 import { ClientDialog } from '@/components/clients/client-dialog'
+import { CopyableValue } from '@/components/ui/copy-button'
+import { EntityAuditTrail } from '@/components/audit/entity-audit-trail'
+import { formatDateTime } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -102,9 +105,7 @@ export default async function ClientDetailPage({
         <div className="flex-1">
           <div className="flex items-center gap-2">
             {client.code && (
-              <span className="text-sm font-mono text-muted-foreground">
-                #{client.code}
-              </span>
+              <CopyableValue value={client.code} display={`#${client.code}`} mono />
             )}
             <h1 className="text-3xl font-bold tracking-tight">
               {client.displayName}
@@ -135,8 +136,8 @@ export default async function ClientDetailPage({
           <CardContent>
             <div className="text-sm font-medium">
               {client.type === 'COMPANY'
-                ? client.cnpj || '—'
-                : client.cpf || '—'}
+                ? (client.cnpj ? <CopyableValue value={client.cnpj} mono /> : '—')
+                : (client.cpf ? <CopyableValue value={client.cpf} mono /> : '—')}
             </div>
             {client.type === 'COMPANY' && client.tradeName && (
               <p className="text-xs text-muted-foreground mt-1">
@@ -350,36 +351,11 @@ export default async function ClientDetailPage({
 
         {/* Histórico Tab */}
         <TabsContent value="historico" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Histórico</CardTitle>
-              <CardDescription>Registro de alterações do cliente</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 pb-3 border-b">
-                  <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium">Cliente cadastrado</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(client.createdAt).toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                </div>
-                {client.updatedAt.toString() !== client.createdAt.toString() && (
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium">Última atualização</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(client.updatedAt).toLocaleString('pt-BR')}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <EntityAuditTrail
+            entityType="client"
+            entityId={client.id}
+            title="Histórico de Alterações do Cliente"
+          />
         </TabsContent>
       </Tabs>
     </div>

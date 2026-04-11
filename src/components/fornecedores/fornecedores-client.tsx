@@ -63,6 +63,8 @@ import {
 import { createSupplier, updateSupplier, toggleSupplierStatus } from "@/app/actions/supplier-actions"
 import { CepInput } from "@/components/ui/cep-input"
 import { CnpjInput } from "@/components/ui/cnpj-input"
+import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcuts"
+import { KeyboardShortcutHint } from "@/components/ui/keyboard-shortcut-hint"
 
 const CATEGORY_LABELS: Record<string, string> = {
     MATERIALS: "Materiais",
@@ -216,7 +218,7 @@ function SupplierDialog({
                                     <FormItem className="col-span-2">
                                         <FormLabel>Razao Social *</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Ex: Fornecedora ABC Ltda" {...field} />
+                                            <Input autoFocus placeholder="Ex: Fornecedora ABC Ltda" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -411,6 +413,8 @@ export function FornecedoresClient({ suppliers, companyId }: FornecedoresClientP
     const [createOpen, setCreateOpen] = useState(false)
     const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
 
+    useKeyboardShortcut('n', 'ctrl', () => setCreateOpen(true), !createOpen && !editingSupplier)
+
     // Filters
     const [search, setSearch] = useState("")
     const [filterCategory, setFilterCategory] = useState<string>("ALL")
@@ -502,6 +506,7 @@ export function FornecedoresClient({ suppliers, companyId }: FornecedoresClientP
                 <Button onClick={() => setCreateOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Novo Fornecedor
+                    <KeyboardShortcutHint keys={['Ctrl', 'N']} />
                 </Button>
             </div>
 

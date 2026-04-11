@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { assertAuthenticated } from "@/lib/auth-helpers"
 
 const workCalendarSchema = z.object({
     name: z.string().min(1, "Nome é obrigatório"),
@@ -12,6 +13,7 @@ const workCalendarSchema = z.object({
 
 export async function createWorkCalendar(data: z.infer<typeof workCalendarSchema>) {
     try {
+        await assertAuthenticated()
         const validated = workCalendarSchema.parse(data)
 
         // Validate that at least one association exists
@@ -44,6 +46,7 @@ export async function createWorkCalendar(data: z.infer<typeof workCalendarSchema
 
 export async function updateWorkCalendar(id: string, data: z.infer<typeof workCalendarSchema>) {
     try {
+        await assertAuthenticated()
         const validated = workCalendarSchema.parse(data)
 
         // Validate that at least one association exists
@@ -74,6 +77,7 @@ export async function updateWorkCalendar(id: string, data: z.infer<typeof workCa
 
 export async function deleteWorkCalendar(id: string) {
     try {
+        await assertAuthenticated()
         await prisma.workCalendar.delete({ where: { id } })
         revalidatePath('/configuracoes')
         return { success: true }
@@ -85,6 +89,7 @@ export async function deleteWorkCalendar(id: string) {
 
 export async function getWorkCalendars(companyId?: string, projectId?: string) {
     try {
+        await assertAuthenticated()
         const workCalendars = await prisma.workCalendar.findMany({
             where: {
                 ...(companyId ? { companyId } : {}),
@@ -105,6 +110,7 @@ export async function getWorkCalendars(companyId?: string, projectId?: string) {
 
 export async function getWorkCalendarById(id: string) {
     try {
+        await assertAuthenticated()
         const workCalendar = await prisma.workCalendar.findUnique({
             where: { id },
             include: {
@@ -126,6 +132,7 @@ export async function getWorkCalendarById(id: string) {
 
 export async function getCompanyWorkCalendars(companyId: string) {
     try {
+        await assertAuthenticated()
         const workCalendars = await prisma.workCalendar.findMany({
             where: { companyId },
             include: {
@@ -143,6 +150,7 @@ export async function getCompanyWorkCalendars(companyId: string) {
 
 export async function getProjectWorkCalendars(projectId: string) {
     try {
+        await assertAuthenticated()
         const workCalendars = await prisma.workCalendar.findMany({
             where: { projectId },
             include: {

@@ -33,7 +33,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { createPurchaseOrder, updatePurchaseOrder } from "@/app/actions/purchase-actions"
-import { Plus, Loader2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Plus, Loader2, AlertTriangle, Star } from "lucide-react"
 
 const formSchema = z.object({
     supplierId: z.string().optional().or(z.literal('')),
@@ -48,6 +49,7 @@ type FormValues = z.infer<typeof formSchema>
 interface Supplier {
     id: string
     name: string
+    lastScore?: number | null
 }
 
 interface Project {
@@ -186,30 +188,60 @@ export function PurchaseOrderDialog({
                         <FormField
                             control={form.control}
                             name="supplierId"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Fornecedor</FormLabel>
-                                    <Select
-                                        onValueChange={field.onChange}
-                                        value={field.value || ""}
-                                    >
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Selecione um fornecedor..." />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="">Nenhum</SelectItem>
-                                            {suppliers.map(s => (
-                                                <SelectItem key={s.id} value={s.id}>
-                                                    {s.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
+                            render={({ field }) => {
+                                const selectedSupplier = suppliers.find(s => s.id === field.value)
+                                const selectedScore = selectedSupplier?.lastScore ?? null
+                                return (
+                                    <FormItem>
+                                        <FormLabel>Fornecedor</FormLabel>
+                                        <Select
+                                            onValueChange={field.onChange}
+                                            value={field.value || ""}
+                                        >
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Selecione um fornecedor..." />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="">Nenhum</SelectItem>
+                                                {suppliers.map(s => (
+                                                    <SelectItem key={s.id} value={s.id}>
+                                                        <span className="flex items-center gap-2">
+                                                            {s.name}
+                                                            {s.lastScore != null ? (
+                                                                <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${s.lastScore < 3.0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                                                                    <Star className="h-3 w-3" />
+                                                                    {s.lastScore.toFixed(1)}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-xs text-muted-foreground italic">Sem avaliacao</span>
+                                                            )}
+                                                        </span>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {selectedSupplier && selectedScore != null && selectedScore < 3.0 && (
+                                            <div className="flex items-center gap-1.5 mt-1">
+                                                <Badge variant="destructive" className="text-xs">
+                                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                                    Avaliacao Baixa
+                                                </Badge>
+                                                <span className="text-xs text-muted-foreground">
+                                                    Score: {selectedScore.toFixed(1)} / 5.0
+                                                </span>
+                                            </div>
+                                        )}
+                                        {selectedSupplier && selectedScore == null && (
+                                            <p className="text-xs text-muted-foreground mt-1 italic">
+                                                Este fornecedor ainda nao possui avaliacao registrada.
+                                            </p>
+                                        )}
+                                        <FormMessage />
+                                    </FormItem>
+                                )
+                            }}
                         />
 
                         <FormField

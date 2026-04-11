@@ -6,6 +6,8 @@ import { z } from "zod"
 import { createNotificationForMany, createNotification } from "./notification-actions"
 import { notifyUser, notifyUsers } from "@/lib/sse-notifications"
 import { getSession } from "@/lib/auth"
+import { assertAuthenticated } from "@/lib/auth-helpers"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ========================================
 // SCHEMAS DE VALIDAÇÃO
@@ -15,6 +17,7 @@ const bulletinItemSchema = z.object({
     contractItemId: z.string().uuid(),
     currentMeasured: z.number().min(0, "Quantidade deve ser positiva"),
     description: z.string().optional(),
+    budgetItemId: z.string().uuid().optional().nullable(),
 })
 
 const createBulletinSchema = z.object({
@@ -104,62 +107,64 @@ export async function createMeasurementBulletin(
             }))
         }
 
-        // Calcular valores dos itens
-        const bulletinItemsData = await Promise.all(
-            itemsToProcess.map(async (item) => {
-                const contractItem = await prisma.contractItem.findUnique({
-                    where: { id: item.contractItemId }
-                })
+        // Batch: busca todos os contractItems e medições anteriores em 2 queries
+        const contractItemIds = itemsToProcess.map(i => i.contractItemId)
 
-                if (!contractItem) {
-                    throw new Error(`Item de contrato ${item.contractItemId} não encontrado`)
-                }
+        const [contractItemsRaw, previousItemsRaw] = await Promise.all([
+            prisma.contractItem.findMany({ where: { id: { in: contractItemIds } } }),
+            prisma.measurementBulletinItem.findMany({
+                where: {
+                    contractItemId: { in: contractItemIds },
+                    bulletin: { contractId: validated.contractId, status: { not: 'REJECTED' } },
+                },
+                select: { contractItemId: true, currentMeasured: true },
+            }),
+        ])
 
-                // Buscar medições anteriores deste item
-                const previousBulletinItems = await prisma.measurementBulletinItem.findMany({
-                    where: {
-                        contractItemId: item.contractItemId,
-                        bulletin: {
-                            contractId: validated.contractId,
-                            status: { not: 'REJECTED' } // Use enum values in schema
-                        }
-                    }
-                })
+        const contractItemById = new Map(contractItemsRaw.map(ci => [ci.id, ci]))
+        const previousByItem = new Map<string, number>()
+        for (const prev of previousItemsRaw) {
+            previousByItem.set(
+                prev.contractItemId,
+                (previousByItem.get(prev.contractItemId) ?? 0) + Number(prev.currentMeasured),
+            )
+        }
 
-                const previousMeasured = previousBulletinItems.reduce(
-                    (sum, bi) => sum + Number(bi.currentMeasured),
-                    0
-                )
+        const bulletinItemsData = itemsToProcess.map(item => {
+            const contractItem = contractItemById.get(item.contractItemId)
+            if (!contractItem) {
+                throw new Error(`Item de contrato ${item.contractItemId} não encontrado`)
+            }
+            const previousMeasured = previousByItem.get(item.contractItemId) ?? 0
+            const currentMeasured = item.currentMeasured
+            const accumulatedMeasured = previousMeasured + currentMeasured
+            const contractedQuantity = Number(contractItem.quantity)
+            const balanceQuantity = contractedQuantity - accumulatedMeasured
+            const unitPrice = Number(contractItem.unitPrice)
 
-                const currentMeasured = item.currentMeasured
-                const accumulatedMeasured = previousMeasured + currentMeasured
-                const contractedQuantity = Number(contractItem.quantity)
-                const balanceQuantity = contractedQuantity - accumulatedMeasured
-                const unitPrice = Number(contractItem.unitPrice)
+            const currentValue = currentMeasured * unitPrice
+            const accumulatedValue = accumulatedMeasured * unitPrice
+            const percentageExecuted = contractedQuantity > 0
+                ? (accumulatedMeasured / contractedQuantity) * 100
+                : 0
 
-                const currentValue = currentMeasured * unitPrice
-                const accumulatedValue = accumulatedMeasured * unitPrice
-                const percentageExecuted = contractedQuantity > 0
-                    ? (accumulatedMeasured / contractedQuantity) * 100
-                    : 0
-
-                return {
-                    contractItemId: item.contractItemId,
-                    itemCode: item.description || contractItem.description,
-                    description: contractItem.description,
-                    unit: contractItem.unit,
-                    unitPrice,
-                    contractedQuantity,
-                    previousMeasured,
-                    currentMeasured,
-                    accumulatedMeasured,
-                    balanceQuantity,
-                    currentValue,
-                    accumulatedValue,
-                    percentageExecuted,
-                }
-            })
-        )
+            return {
+                contractItemId: item.contractItemId,
+                itemCode: item.description || contractItem.description,
+                description: contractItem.description,
+                unit: contractItem.unit,
+                unitPrice,
+                contractedQuantity,
+                previousMeasured,
+                currentMeasured,
+                accumulatedMeasured,
+                balanceQuantity,
+                currentValue,
+                accumulatedValue,
+                percentageExecuted,
+                budgetItemId: item.budgetItemId || null,
+            }
+        })
 
         // Calcular valor total do boletim
         const totalValue = bulletinItemsData.reduce(
@@ -196,6 +201,8 @@ export async function createMeasurementBulletin(
             }
         })
 
+        await logCreate('MeasurementBulletin', bulletin.id, bulletin.number, validated)
+
         revalidatePath('/measurements')
         revalidatePath(`/projects/${validated.projectId}`)
 
@@ -211,37 +218,65 @@ export async function createMeasurementBulletin(
 // SUBMIT FOR APPROVAL - ENVIAR PARA APROVAÇÃO
 // ========================================
 
-export async function submitBulletinForApproval(bulletinId: string, userId: string) {
+export async function submitBulletinForApproval(bulletinId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verifica empresa e que é o autor (apenas o autor pode submeter)
+        const existing = await prisma.measurementBulletin.findUnique({
+            where: { id: bulletinId },
+            select: { createdById: true, status: true, project: { select: { companyId: true } } }
+        })
+        if (!existing) return { success: false, error: "Boletim não encontrado" }
+        if (existing.project.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+        if (existing.status !== 'DRAFT' && existing.status !== 'REJECTED') {
+            return { success: false, error: `Boletim em status ${existing.status} não pode ser submetido` }
+        }
+        if (existing.createdById !== session.user.id && session.user.role !== 'ADMIN') {
+            return { success: false, error: "Apenas o autor (ou ADMIN) pode submeter o boletim" }
+        }
+
         const bulletin = await prisma.measurementBulletin.update({
             where: { id: bulletinId },
             data: {
-                status: 'SUBMITTED', // Changed from PENDING_APPROVAL to SUBMITTED
+                status: 'SUBMITTED',
                 submittedAt: new Date(),
             },
             select: { id: true, number: true, project: { select: { companyId: true } } }
         })
 
-        // Notify ADMIN/MANAGER about the submission
-        const managers = await prisma.user.findMany({
-            where: { companyId: bulletin.project.companyId, role: { in: ['ADMIN', 'MANAGER'] } },
+        await logAction('SUBMIT', 'MeasurementBulletin', bulletinId, bulletin.number, 'Submitted for approval')
+
+        // Notifica engineers, managers e admins (exceto o próprio autor)
+        const approvers = await prisma.user.findMany({
+            where: {
+                companyId: bulletin.project.companyId,
+                role: { in: ['ADMIN', 'MANAGER', 'ENGINEER'] },
+            },
             select: { id: true },
         })
-        const managerIds = managers.map(m => m.id)
+        const approverIds = approvers.map(a => a.id).filter(id => id !== session.user!.id)
         const notifData = {
             type: 'BULLETIN_SUBMITTED',
             title: 'Boletim enviado para aprovação',
             message: `Boletim ${bulletin.number} aguarda aprovação.`,
             link: `/measurements/${bulletin.id}`,
         }
-        await createNotificationForMany(managerIds, notifData)
-        notifyUsers(managerIds, notifData)
+        if (approverIds.length > 0) {
+            await createNotificationForMany(approverIds, notifData)
+            notifyUsers(approverIds, notifData)
+        }
 
         revalidatePath('/measurements')
         return { success: true, data: bulletin }
 
-    } catch (error: any) {
-        return { success: false, error: error.message || 'Erro ao enviar para aprovação' }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Erro ao enviar para aprovação'
+        console.error('[submitBulletinForApproval]', error)
+        return { success: false, error: message }
     }
 }
 
@@ -249,38 +284,69 @@ export async function submitBulletinForApproval(bulletinId: string, userId: stri
 // APPROVE BY ENGINEER
 // ========================================
 
-export async function approveByEngineer(data: z.infer<typeof approveBulletinSchema>, userId: string) {
+/**
+ * Aprovação por engenheiro. SEMPRE deriva o userId da sessão (não confia em
+ * input do cliente) e BLOQUEIA auto-aprovação (o autor do boletim não pode
+ * aprová-lo).
+ */
+export async function approveByEngineer(data: z.infer<typeof approveBulletinSchema>) {
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
 
-        // Verify role is ENGINEER or ADMIN
+        // Role: ENGINEER ou ADMIN
         if (session.user.role !== "ENGINEER" && session.user.role !== "ADMIN") {
             return { success: false, error: "Role necessária: ENGINEER ou ADMIN" }
         }
 
-        const validated = approveBulletinSchema.parse(data)
+        const parsed = approveBulletinSchema.safeParse(data)
+        if (!parsed.success) return { success: false, error: "Dados inválidos" }
+        const validated = parsed.data
 
-        // Verify bulletin belongs to user's company
+        // Verifica boletim, empresa e autoria
         const existingBulletin = await prisma.measurementBulletin.findUnique({
             where: { id: validated.bulletinId },
-            select: { project: { select: { companyId: true } } }
+            select: {
+                createdById: true,
+                status: true,
+                project: { select: { companyId: true } },
+            }
         })
-        if (!existingBulletin || existingBulletin.project.companyId !== session.user.companyId) {
+        if (!existingBulletin) return { success: false, error: "Boletim não encontrado" }
+        if (existingBulletin.project.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
         }
+
+        // BLOQUEIO: autor não pode auto-aprovar (segregação de funções)
+        if (existingBulletin.createdById === session.user.id) {
+            return {
+                success: false,
+                error: "Você não pode aprovar um boletim que você mesmo criou. Outro engenheiro deve aprovar.",
+            }
+        }
+
+        // Status válido para aprovação de engenheiro
+        if (existingBulletin.status !== 'SUBMITTED') {
+            return {
+                success: false,
+                error: `Boletim deve estar em status SUBMITTED para aprovação do engenheiro (atual: ${existingBulletin.status})`,
+            }
+        }
+
+        const userId = session.user.id
 
         const bulletin = await prisma.measurementBulletin.update({
             where: { id: validated.bulletinId },
             data: {
                 approvedByEngineerAt: new Date(),
                 engineerId: userId,
-                status: 'ENGINEER_APPROVED', // Changed from APPROVED to ENGINEER_APPROVED
+                status: 'ENGINEER_APPROVED',
             },
             select: { id: true, number: true, createdById: true, project: { select: { companyId: true } } }
         })
 
-        // Adicionar comentário se fornecido
+        await logAction('APPROVE_ENGINEER', 'MeasurementBulletin', validated.bulletinId, bulletin.number, 'Approved by engineer')
+
         if (validated.comment) {
             await prisma.bulletinComment.create({
                 data: {
@@ -292,21 +358,178 @@ export async function approveByEngineer(data: z.infer<typeof approveBulletinSche
             })
         }
 
-        // Notify the bulletin creator
         const notifData = {
             type: 'BULLETIN_APPROVED',
-            title: 'Boletim aprovado',
-            message: `Boletim ${bulletin.number} foi aprovado.`,
+            title: 'Boletim aprovado pelo engenheiro',
+            message: `Boletim ${bulletin.number} foi aprovado pelo engenheiro e aguarda aprovação do gerente.`,
             link: `/measurements/${bulletin.id}`,
         }
         await createNotification({ userId: bulletin.createdById, ...notifData })
         notifyUser(bulletin.createdById, notifData)
 
+        // Notificar gerentes que precisam aprovar
+        const managers = await prisma.user.findMany({
+            where: { companyId: bulletin.project.companyId, role: { in: ['ADMIN', 'MANAGER'] } },
+            select: { id: true },
+        })
+        const managerIds = managers.map(m => m.id).filter(id => id !== userId)
+        if (managerIds.length > 0) {
+            await createNotificationForMany(managerIds, {
+                type: 'BULLETIN_AWAITING_MANAGER',
+                title: 'Boletim aguardando sua aprovação',
+                message: `Boletim ${bulletin.number} foi aprovado pelo engenheiro e aguarda sua aprovação.`,
+                link: `/measurements/${bulletin.id}`,
+            })
+            notifyUsers(managerIds, {
+                type: 'BULLETIN_AWAITING_MANAGER',
+                title: 'Boletim aguardando sua aprovação',
+                message: `Boletim ${bulletin.number} foi aprovado pelo engenheiro e aguarda sua aprovação.`,
+                link: `/measurements/${bulletin.id}`,
+            })
+        }
+
         revalidatePath('/measurements')
         return { success: true, data: bulletin }
 
-    } catch (error: any) {
-        return { success: false, error: error.message || 'Erro ao aprovar boletim' }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Erro ao aprovar boletim'
+        console.error('[approveByEngineer]', error)
+        return { success: false, error: message }
+    }
+}
+
+// ========================================
+// APPROVE BY MANAGER (segunda etapa do workflow)
+// ========================================
+
+/**
+ * Aprovação final por gerente. Bloqueia auto-aprovação E também impede que
+ * o mesmo usuário que aprovou como engenheiro aprove novamente como gerente
+ * (segregação de funções).
+ */
+export async function approveByManager(data: z.infer<typeof approveBulletinSchema>) {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
+            return { success: false, error: "Role necessária: MANAGER ou ADMIN" }
+        }
+
+        const parsed = approveBulletinSchema.safeParse(data)
+        if (!parsed.success) return { success: false, error: "Dados inválidos" }
+        const validated = parsed.data
+
+        const existingBulletin = await prisma.measurementBulletin.findUnique({
+            where: { id: validated.bulletinId },
+            select: {
+                createdById: true,
+                engineerId: true,
+                status: true,
+                project: { select: { companyId: true } },
+            }
+        })
+        if (!existingBulletin) return { success: false, error: "Boletim não encontrado" }
+        if (existingBulletin.project.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
+        // BLOQUEIO: autor não pode auto-aprovar
+        if (existingBulletin.createdById === session.user.id) {
+            return {
+                success: false,
+                error: "Você não pode aprovar um boletim que você mesmo criou.",
+            }
+        }
+        // BLOQUEIO: quem aprovou como engenheiro não pode também aprovar como gerente
+        if (existingBulletin.engineerId === session.user.id) {
+            return {
+                success: false,
+                error: "Você já aprovou este boletim como engenheiro. Outro gerente deve aprovar.",
+            }
+        }
+
+        if (existingBulletin.status !== 'ENGINEER_APPROVED') {
+            return {
+                success: false,
+                error: `Boletim deve estar em status ENGINEER_APPROVED (atual: ${existingBulletin.status})`,
+            }
+        }
+
+        const userId = session.user.id
+
+        const bulletin = await prisma.measurementBulletin.update({
+            where: { id: validated.bulletinId },
+            data: {
+                approvedByManagerAt: new Date(),
+                managerId: userId,
+                status: 'MANAGER_APPROVED',
+            },
+            select: {
+                id: true,
+                number: true,
+                createdById: true,
+                totalValue: true,
+                projectId: true,
+                project: { select: { companyId: true, name: true } },
+            }
+        })
+
+        await logAction('APPROVE_MANAGER', 'MeasurementBulletin', validated.bulletinId, bulletin.number, 'Approved by manager (final approval)')
+
+        if (validated.comment) {
+            await prisma.bulletinComment.create({
+                data: {
+                    bulletinId: validated.bulletinId,
+                    authorId: userId,
+                    text: validated.comment,
+                    commentType: 'APPROVAL',
+                }
+            })
+        }
+
+        const notifData = {
+            type: 'BULLETIN_FULLY_APPROVED',
+            title: 'Boletim totalmente aprovado',
+            message: `Boletim ${bulletin.number} foi totalmente aprovado e está pronto para faturamento.`,
+            link: `/measurements/${bulletin.id}`,
+        }
+        await createNotification({ userId: bulletin.createdById, ...notifData })
+        notifyUser(bulletin.createdById, notifData)
+
+        // ── Auto-create FinancialRecord (Contas a Receber) ──
+        // Failure here must NOT revert the approval already persisted above.
+        try {
+            const dueDate = new Date()
+            dueDate.setDate(dueDate.getDate() + 30) // Prazo comercial padrão: 30 dias
+
+            const financialRecord = await prisma.financialRecord.create({
+                data: {
+                    companyId: bulletin.project.companyId,
+                    projectId: bulletin.projectId,
+                    description: `Medição ${bulletin.number} - ${bulletin.project.name}`,
+                    amount: bulletin.totalValue,
+                    type: 'INCOME',
+                    status: 'PENDING',
+                    category: 'MEDICAO',
+                    dueDate,
+                },
+            })
+
+            await logCreate('FinancialRecord', financialRecord.id, `Medição ${bulletin.number}`, { bulletinId: bulletin.id, amount: bulletin.totalValue })
+            revalidatePath('/financeiro')
+        } catch (finError) {
+            // Log but do not fail – the approval itself was already saved.
+            console.error('[approveByManager] Failed to create FinancialRecord for bulletin', bulletin.number, finError)
+        }
+
+        revalidatePath('/measurements')
+        return { success: true, data: bulletin }
+
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Erro ao aprovar boletim'
+        console.error('[approveByManager]', error)
+        return { success: false, error: message }
     }
 }
 
@@ -314,38 +537,59 @@ export async function approveByEngineer(data: z.infer<typeof approveBulletinSche
 // REJECT BULLETIN
 // ========================================
 
-export async function rejectBulletin(data: z.infer<typeof rejectBulletinSchema>, userId: string) {
+export async function rejectBulletin(data: z.infer<typeof rejectBulletinSchema>) {
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
 
-        // Verify role is MANAGER or ADMIN
-        if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
-            return { success: false, error: "Role necessária: MANAGER ou ADMIN" }
+        // ENGINEER, MANAGER ou ADMIN podem rejeitar
+        if (!['ENGINEER', 'MANAGER', 'ADMIN'].includes(session.user.role || '')) {
+            return { success: false, error: "Role necessária: ENGINEER, MANAGER ou ADMIN" }
         }
 
-        const validated = rejectBulletinSchema.parse(data)
+        const parsed = rejectBulletinSchema.safeParse(data)
+        if (!parsed.success) return { success: false, error: "Dados inválidos" }
+        const validated = parsed.data
 
-        // Verify bulletin belongs to user's company
         const existingBulletin = await prisma.measurementBulletin.findUnique({
             where: { id: validated.bulletinId },
-            select: { project: { select: { companyId: true } } }
+            select: { createdById: true, status: true, project: { select: { companyId: true } } }
         })
-        if (!existingBulletin || existingBulletin.project.companyId !== session.user.companyId) {
+        if (!existingBulletin) return { success: false, error: "Boletim não encontrado" }
+        if (existingBulletin.project.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
         }
+
+        // Bloqueio: autor não pode auto-rejeitar (use deletar/editar)
+        if (existingBulletin.createdById === session.user.id) {
+            return {
+                success: false,
+                error: "Você não pode rejeitar um boletim que você mesmo criou. Edite ou exclua o rascunho.",
+            }
+        }
+
+        // Só faz sentido rejeitar boletins em fluxo de aprovação
+        if (!['SUBMITTED', 'ENGINEER_APPROVED'].includes(existingBulletin.status)) {
+            return {
+                success: false,
+                error: `Boletim em status ${existingBulletin.status} não pode ser rejeitado`,
+            }
+        }
+
+        const userId = session.user.id
 
         const bulletin = await prisma.measurementBulletin.update({
             where: { id: validated.bulletinId },
             data: {
-                status: 'REJECTED', // BulletinStatus.REJECTED
+                status: 'REJECTED',
                 rejectedAt: new Date(),
                 rejectionReason: validated.reason,
             },
             select: { id: true, number: true, createdById: true, project: { select: { companyId: true } } }
         })
 
-        // Adicionar comentário de rejeição
+        await logAction('REJECT', 'MeasurementBulletin', validated.bulletinId, bulletin.number, `Rejected: ${validated.reason}`)
+
         await prisma.bulletinComment.create({
             data: {
                 bulletinId: validated.bulletinId,
@@ -355,7 +599,6 @@ export async function rejectBulletin(data: z.infer<typeof rejectBulletinSchema>,
             }
         })
 
-        // Notify the bulletin creator
         const notifData = {
             type: 'BULLETIN_REJECTED',
             title: 'Boletim rejeitado',
@@ -368,8 +611,10 @@ export async function rejectBulletin(data: z.infer<typeof rejectBulletinSchema>,
         revalidatePath('/measurements')
         return { success: true, data: bulletin }
 
-    } catch (error: any) {
-        return { success: false, error: error.message || 'Erro ao rejeitar boletim' }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Erro ao rejeitar boletim'
+        console.error('[rejectBulletin]', error)
+        return { success: false, error: message }
     }
 }
 
@@ -547,7 +792,7 @@ export async function deleteBulletin(bulletinId: string) {
 
         const bulletin = await prisma.measurementBulletin.findUnique({
             where: { id: bulletinId },
-            select: { status: true, project: { select: { companyId: true } } }
+            include: { project: { select: { companyId: true } } }
         })
 
         if (!bulletin) {
@@ -566,6 +811,8 @@ export async function deleteBulletin(bulletinId: string) {
         await prisma.measurementBulletin.delete({
             where: { id: bulletinId }
         })
+
+        await logDelete('MeasurementBulletin', bulletinId, bulletin.number, bulletin)
 
         revalidatePath('/measurements')
         return { success: true }
@@ -626,6 +873,8 @@ export async function updateBulletinItem(itemId: string, currentMeasured: number
             })
         })
 
+        await logUpdate('MeasurementBulletinItem', itemId, item.description || 'N/A', { currentMeasured: Number(item.currentMeasured) }, { currentMeasured })
+
         revalidatePath(`/measurements/${item.bulletinId}`)
         return { success: true }
     } catch (error: any) {
@@ -639,10 +888,10 @@ export async function updateBulletinItem(itemId: string, currentMeasured: number
 
 export async function addBulletinComment(
     bulletinId: string,
-    authorId: string,
     data: { text: string; commentType: 'OBSERVATION' | 'QUESTION' | 'APPROVAL' | 'REJECTION'; isInternal?: boolean }
 ) {
     try {
+        const session = await assertAuthenticated()
         if (!data.text || data.text.trim().length < 3) {
             return { success: false, error: 'Comentário deve ter no mínimo 3 caracteres' }
         }
@@ -653,7 +902,7 @@ export async function addBulletinComment(
                 commentType: data.commentType,
                 isInternal: data.isInternal ?? false,
                 bulletinId,
-                authorId,
+                authorId: session.user.id,
             },
             include: {
                 author: { select: { name: true } }
@@ -669,8 +918,12 @@ export async function addBulletinComment(
 
 export async function deleteBulletinComment(commentId: string) {
     try {
+        const session = await assertAuthenticated()
         const comment = await prisma.bulletinComment.findUnique({ where: { id: commentId } })
         if (!comment) return { success: false, error: 'Comentário não encontrado' }
+        if (comment.authorId !== session.user.id && session.user.role !== 'ADMIN') {
+            return { success: false, error: 'Apenas o autor ou ADMIN pode remover' }
+        }
 
         await prisma.bulletinComment.delete({ where: { id: commentId } })
         revalidatePath(`/measurements/${comment.bulletinId}`)
@@ -754,6 +1007,8 @@ export async function updateBulletin(
             },
         })
 
+        await logUpdate('MeasurementBulletin', bulletinId, updated.number, bulletin, updated)
+
         revalidatePath('/medicoes/boletins')
         revalidatePath(`/medicoes/boletins/${bulletinId}`)
         return { success: true, data: updated }
@@ -820,7 +1075,7 @@ export async function initD4SignProcess(bulletinId: string) {
             documentType: 'PDF',
             signers: [
                 {
-                    email: session.user.email || 'system@example.com',
+                    email: session.user.email || session.user.username || 'system',
                     name: session.user.name || 'System',
                     role: 'APPROVER'
                 }
@@ -915,5 +1170,110 @@ export async function checkD4SignStatus(bulletinId: string) {
     } catch (error: any) {
         console.error('Error checking D4Sign status:', error)
         return { success: false, error: error.message || 'Erro ao verificar status de assinatura' }
+    }
+}
+
+// ========================================
+// PUXAR QUANTIDADES DOS DIÁRIOS DE OBRA
+// ========================================
+
+/**
+ * Consulta atividades dos Diários de Obra (RDOs) aprovados no período do
+ * boletim que possuem vinculação com itens de contrato. Retorna as
+ * quantidades agrupadas por contractItemId para facilitar o preenchimento
+ * do boletim de medição.
+ *
+ * Fluxo esperado na UI:
+ *  1. Usuário cria/abre um boletim e clica "Importar do RDO"
+ *  2. Front chama esta action com projectId, contractId e período
+ *  3. Retorna mapa { contractItemId -> totalQuantity } + detalhes
+ *  4. Usuário revisa e confirma; front atualiza os itens do boletim
+ */
+export async function getDailyReportQuantitiesForBulletin(params: {
+    projectId: string
+    contractId: string
+    periodStart: string // ISO date
+    periodEnd: string   // ISO date
+}) {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: 'Nao autenticado' }
+        const user = session.user as { id: string; role: string; companyId: string }
+
+        // Buscar atividades de RDOs aprovados no período que tenham contractItemId
+        const activities = await prisma.dailyReportActivity.findMany({
+            where: {
+                contractItemId: { not: null },
+                quantity: { not: null },
+                report: {
+                    projectId: params.projectId,
+                    companyId: user.companyId,
+                    status: 'APPROVED',
+                    date: {
+                        gte: new Date(params.periodStart),
+                        lte: new Date(params.periodEnd),
+                    },
+                },
+                // Filtrar apenas itens que pertencem ao contrato informado
+                contractItem: {
+                    contractId: params.contractId,
+                },
+            },
+            include: {
+                contractItem: {
+                    select: { id: true, description: true, unit: true, unitPrice: true, quantity: true },
+                },
+                report: {
+                    select: { id: true, date: true, reportNumber: true },
+                },
+            },
+            orderBy: { report: { date: 'asc' } },
+        })
+
+        // Agrupar por contractItemId
+        const grouped: Record<string, {
+            contractItemId: string
+            description: string
+            unit: string
+            totalQuantity: number
+            details: Array<{
+                reportId: string
+                reportDate: string
+                reportNumber: string | null
+                activityDescription: string
+                quantity: number
+            }>
+        }> = {}
+
+        for (const act of activities) {
+            const ciId = act.contractItemId!
+            if (!grouped[ciId]) {
+                grouped[ciId] = {
+                    contractItemId: ciId,
+                    description: act.contractItem?.description ?? '',
+                    unit: act.contractItem?.unit ?? '',
+                    totalQuantity: 0,
+                    details: [],
+                }
+            }
+            const qty = Number(act.quantity)
+            grouped[ciId].totalQuantity += qty
+            grouped[ciId].details.push({
+                reportId: act.report.id,
+                reportDate: act.report.date.toISOString(),
+                reportNumber: act.report.reportNumber,
+                activityDescription: act.description,
+                quantity: qty,
+            })
+        }
+
+        return {
+            success: true,
+            data: Object.values(grouped),
+        }
+
+    } catch (error: any) {
+        console.error('[getDailyReportQuantitiesForBulletin]', error)
+        return { success: false, error: error.message || 'Erro ao buscar quantidades dos RDOs' }
     }
 }

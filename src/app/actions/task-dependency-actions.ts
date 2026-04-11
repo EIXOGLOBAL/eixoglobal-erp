@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { assertAuthenticated } from "@/lib/auth-helpers"
 
 const DEPENDENCY_TYPES = ['FS', 'SS', 'FF', 'SF'] as const
 
@@ -48,6 +49,7 @@ async function hasCircularDependency(predecessorId: string, successorId: string)
 
 export async function createTaskDependency(data: z.infer<typeof taskDependencySchema>) {
     try {
+        await assertAuthenticated()
         const validated = taskDependencySchema.parse(data)
 
         // Prevent self-referencing
@@ -111,6 +113,7 @@ export async function createTaskDependency(data: z.infer<typeof taskDependencySc
 
 export async function updateTaskDependency(id: string, data: z.infer<typeof taskDependencySchema>) {
     try {
+        await assertAuthenticated()
         const validated = taskDependencySchema.parse(data)
 
         // Prevent self-referencing
@@ -181,6 +184,7 @@ export async function updateTaskDependency(id: string, data: z.infer<typeof task
 
 export async function deleteTaskDependency(id: string) {
     try {
+        await assertAuthenticated()
         await prisma.taskDependency.delete({ where: { id } })
         revalidatePath('/cronograma')
         return { success: true }
@@ -192,6 +196,7 @@ export async function deleteTaskDependency(id: string) {
 
 export async function getTaskDependencies(taskId: string) {
     try {
+        await assertAuthenticated()
         const [predecessors, successors] = await Promise.all([
             prisma.taskDependency.findMany({
                 where: { successorId: taskId },
@@ -218,6 +223,7 @@ export async function getTaskDependencies(taskId: string) {
 
 export async function getTaskDependencyById(id: string) {
     try {
+        await assertAuthenticated()
         const dependency = await prisma.taskDependency.findUnique({
             where: { id },
             include: {
@@ -239,6 +245,7 @@ export async function getTaskDependencyById(id: string) {
 
 export async function getTaskPredecessors(taskId: string) {
     try {
+        await assertAuthenticated()
         const predecessors = await prisma.taskDependency.findMany({
             where: { successorId: taskId },
             include: {
@@ -256,6 +263,7 @@ export async function getTaskPredecessors(taskId: string) {
 
 export async function getTaskSuccessors(taskId: string) {
     try {
+        await assertAuthenticated()
         const successors = await prisma.taskDependency.findMany({
             where: { predecessorId: taskId },
             include: {

@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { assertAuthenticated } from "@/lib/auth-helpers"
 
 const compositionVersionSchema = z.object({
     compositionId: z.string().uuid("ID da composição inválido"),
@@ -11,6 +12,7 @@ const compositionVersionSchema = z.object({
 
 export async function createCompositionVersion(data: z.infer<typeof compositionVersionSchema>) {
     try {
+        await assertAuthenticated()
         const validated = compositionVersionSchema.parse(data)
 
         // Verify composition exists
@@ -55,6 +57,7 @@ export async function createCompositionVersion(data: z.infer<typeof compositionV
 
 export async function deleteCompositionVersion(id: string) {
     try {
+        await assertAuthenticated()
         const version = await prisma.compositionVersion.findUnique({
             where: { id },
             select: { compositionId: true }
@@ -84,6 +87,7 @@ export async function deleteCompositionVersion(id: string) {
 
 export async function getCompositionVersions(compositionId: string) {
     try {
+        await assertAuthenticated()
         // Verify composition exists
         const composition = await prisma.costComposition.findUnique({
             where: { id: compositionId }
@@ -110,6 +114,7 @@ export async function getCompositionVersions(compositionId: string) {
 
 export async function getCompositionVersionById(id: string) {
     try {
+        await assertAuthenticated()
         const version = await prisma.compositionVersion.findUnique({
             where: { id },
             include: {
@@ -130,6 +135,7 @@ export async function getCompositionVersionById(id: string) {
 
 export async function getLatestCompositionVersion(compositionId: string) {
     try {
+        await assertAuthenticated()
         // Verify composition exists
         const composition = await prisma.costComposition.findUnique({
             where: { id: compositionId }
@@ -160,6 +166,7 @@ export async function getLatestCompositionVersion(compositionId: string) {
 
 export async function getCompositionVersionByNumber(compositionId: string, versionNumber: number) {
     try {
+        await assertAuthenticated()
         // Verify composition exists
         const composition = await prisma.costComposition.findUnique({
             where: { id: compositionId }
@@ -192,6 +199,7 @@ export async function getCompositionVersionByNumber(compositionId: string, versi
 
 export async function getCompositionVersionCount(compositionId: string) {
     try {
+        await assertAuthenticated()
         const count = await prisma.compositionVersion.count({
             where: { compositionId }
         })

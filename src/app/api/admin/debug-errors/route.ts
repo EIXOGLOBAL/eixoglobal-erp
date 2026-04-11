@@ -3,10 +3,13 @@ import { getDebugErrors } from "@/lib/debug-errors"
 
 export const dynamic = "force-dynamic"
 
+// Endpoint de diagnóstico — usado para inspecionar erros capturados em memória.
+// Protegido por DEBUG_TOKEN dedicado (não compartilhar com outros tokens).
 function authorized(req: NextRequest) {
-  const token = req.headers.get("x-admin-token")
-  const expected = process.env.ADMIN_RESET_TOKEN
-  return !!expected && token === expected
+  const token = req.headers.get("x-debug-token")
+  const expected = process.env.DEBUG_TOKEN
+  if (!expected) return false
+  return token === expected
 }
 
 export async function GET(req: NextRequest) {

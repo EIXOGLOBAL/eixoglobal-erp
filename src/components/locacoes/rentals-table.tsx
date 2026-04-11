@@ -49,6 +49,7 @@ import {
   RENTAL_STATUS_LABELS,
 } from '@/lib/rental-icons'
 
+import { formatDate } from "@/lib/formatters"
 interface RentalProject {
   id: string
   name: string
@@ -87,11 +88,6 @@ function statusBadge(status: string) {
       {RENTAL_STATUS_LABELS[status] ?? status}
     </span>
   )
-}
-
-function formatDate(date: Date | string | null | undefined) {
-  if (!date) return '-'
-  return new Date(date).toLocaleDateString('pt-BR')
 }
 
 function formatCurrency(value: number | { toString(): string }) {

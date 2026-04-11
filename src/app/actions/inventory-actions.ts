@@ -4,11 +4,13 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
 import { assertCanDelete } from "@/lib/permissions"
 import { createNotificationForMany } from "./notification-actions"
 import { notifyUsers } from "@/lib/sse-notifications"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS
@@ -74,6 +76,8 @@ export async function createMaterial(data: z.infer<typeof materialSchema>) {
             }
         })
 
+        await logCreate('Material', material.id, material.name, validated)
+
         revalidatePath('/estoque')
         return { success: true, data: material }
     } catch (error) {
@@ -89,6 +93,8 @@ export async function updateMaterial(id: string, data: z.infer<typeof materialSc
     try {
         const validated = materialSchema.parse(data)
 
+        const oldMaterial = await prisma.material.findUnique({ where: { id } })
+
         const material = await prisma.material.update({
             where: { id },
             data: {
@@ -103,6 +109,8 @@ export async function updateMaterial(id: string, data: z.infer<typeof materialSc
                 supplier: validated.supplier,
             }
         })
+
+        await logUpdate('Material', id, material.name, oldMaterial, material)
 
         revalidatePath('/estoque')
         return { success: true, data: material }
@@ -151,6 +159,8 @@ export async function deleteMaterial(id: string) {
         await prisma.material.delete({
             where: { id }
         })
+
+        await logDelete('Material', id, material.name, material)
 
         revalidatePath('/estoque')
         return { success: true }
@@ -213,6 +223,8 @@ export async function getMaterials(params?: {
 
 export async function getMaterialById(id: string) {
     try {
+        const session = await assertAuthenticated()
+
         const material = await prisma.material.findUnique({
             where: { id },
             include: {
@@ -238,6 +250,10 @@ export async function getMaterialById(id: string) {
 
         if (!material) return null
 
+        if (material.companyId) {
+            await assertCompanyAccess(session, material.companyId)
+        }
+
         return {
             ...material,
             minStock: Number(material.minStock),
@@ -261,6 +277,7 @@ export async function changeMaterialStatus(id: string, isActive: boolean) {
             where: { id },
             data: { isActive },
         })
+        await logAction(isActive ? 'ACTIVATE' : 'DEACTIVATE', 'Material', id, material.name, `Material ${isActive ? 'activated' : 'deactivated'}`)
         revalidatePath('/estoque')
         return { success: true, data: material }
     } catch (error) {
@@ -337,6 +354,8 @@ export async function createMovement(data: z.infer<typeof movementSchema>) {
 
             return mov
         })
+
+        await logCreate('InventoryMovement', movement.id, `${validated.type} - ${material.name}`, validated)
 
         // Low stock alert
         const minStock = Number(material.minStock)

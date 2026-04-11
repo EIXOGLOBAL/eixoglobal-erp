@@ -9,6 +9,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { formatDate } from "@/lib/formatters"
 
 export interface Amendment {
     id: string
@@ -46,11 +47,6 @@ const brl = new Intl.NumberFormat("pt-BR", {
 function formatCurrency(value: number | null): string {
     if (value === null || value === undefined) return "—"
     return brl.format(value)
-}
-
-function formatDate(value: Date | string | null): string {
-    if (value === null || value === undefined) return "—"
-    return new Date(value).toLocaleDateString("pt-BR")
 }
 
 interface AmendmentsTableProps {

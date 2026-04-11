@@ -48,6 +48,7 @@ import {
 } from "@/app/actions/schedule-actions"
 import { Plus, Pencil, Trash2, BarChart2, List } from "lucide-react"
 import { HolidayDatePicker } from "@/components/ui/holiday-date-picker"
+import { formatDate } from "@/lib/formatters"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -141,11 +142,6 @@ function StatusBadge({ status }: { status: TaskStatus }) {
     }
     // CANCELLED
     return <Badge variant="destructive">{statusLabels[status]}</Badge>
-}
-
-function formatDate(date: Date | string | null | undefined): string {
-    if (!date) return "—"
-    return new Date(date).toLocaleDateString("pt-BR")
 }
 
 // ---------------------------------------------------------------------------

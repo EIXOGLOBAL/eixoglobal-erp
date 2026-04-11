@@ -4,6 +4,8 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { toNumber } from "@/lib/formatters"
+import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 const costCenterSchema = z.object({
     code: z.string().min(1, "Código é obrigatório"),
@@ -18,6 +20,7 @@ const costCenterSchema = z.object({
 
 export async function createCostCenter(data: z.infer<typeof costCenterSchema>) {
     try {
+        await assertAuthenticated()
         const validated = costCenterSchema.parse(data)
 
         const costCenter = await prisma.costCenter.create({
@@ -33,6 +36,8 @@ export async function createCostCenter(data: z.infer<typeof costCenterSchema>) {
             },
         })
 
+        await logCreate('CostCenter', costCenter.id, costCenter.name, validated)
+
         revalidatePath('/financeiro/centros-de-custo')
         return { success: true, data: costCenter }
     } catch (error) {
@@ -46,12 +51,15 @@ export async function createCostCenter(data: z.infer<typeof costCenterSchema>) {
 
 export async function updateCostCenter(id: string, data: z.infer<typeof costCenterSchema>) {
     try {
+        await assertAuthenticated()
         const validated = costCenterSchema.parse(data)
 
         // Prevent setting itself as its own parent
         if (validated.parentId === id) {
             return { success: false, error: "Um centro de custo não pode ser seu próprio pai." }
         }
+
+        const oldData = await prisma.costCenter.findUnique({ where: { id } })
 
         const costCenter = await prisma.costCenter.update({
             where: { id },
@@ -66,6 +74,8 @@ export async function updateCostCenter(id: string, data: z.infer<typeof costCent
             },
         })
 
+        await logUpdate('CostCenter', id, costCenter.name, oldData, costCenter)
+
         revalidatePath('/financeiro/centros-de-custo')
         return { success: true, data: costCenter }
     } catch (error) {
@@ -76,6 +86,7 @@ export async function updateCostCenter(id: string, data: z.infer<typeof costCent
 
 export async function deleteCostCenter(id: string) {
     try {
+        await assertAuthenticated()
         // Check if the cost center has children
         const childrenCount = await prisma.costCenter.count({
             where: { parentId: id },
@@ -88,7 +99,12 @@ export async function deleteCostCenter(id: string) {
             }
         }
 
+        const old = await prisma.costCenter.findUnique({ where: { id } })
+
         await prisma.costCenter.delete({ where: { id } })
+
+        await logDelete('CostCenter', id, old?.name || 'N/A', old)
+
         revalidatePath('/financeiro/centros-de-custo')
         return { success: true }
     } catch (error) {
@@ -99,6 +115,7 @@ export async function deleteCostCenter(id: string) {
 
 export async function getCostCenters(companyId: string) {
     try {
+        await assertAuthenticated()
         const costCenters = await prisma.costCenter.findMany({
             where: { companyId },
             include: {
@@ -117,6 +134,7 @@ export async function getCostCenters(companyId: string) {
 
 export async function getCostCentersByProject(projectId: string, companyId: string) {
     try {
+        await assertAuthenticated()
         const costCenters = await prisma.costCenter.findMany({
             where: {
                 companyId,
@@ -137,6 +155,7 @@ export async function getCostCentersByProject(projectId: string, companyId: stri
 
 export async function getCostCenterReport(companyId: string, projectId?: string) {
     try {
+        await assertAuthenticated()
         const costCenters = await prisma.costCenter.findMany({
             where: {
                 companyId,
@@ -188,10 +207,14 @@ export async function getCostCenterReport(companyId: string, projectId?: string)
 
 export async function toggleCostCenterStatus(id: string, isActive: boolean) {
     try {
+        await assertAuthenticated()
         const costCenter = await prisma.costCenter.update({
             where: { id },
             data: { isActive },
         })
+
+        await logAction(isActive ? 'ACTIVATE' : 'DEACTIVATE', 'CostCenter', id, costCenter.name, `Status set to ${isActive ? 'active' : 'inactive'}`)
+
         revalidatePath('/financeiro/centros-de-custo')
         return { success: true, data: costCenter }
     } catch (error) {
@@ -202,6 +225,7 @@ export async function toggleCostCenterStatus(id: string, isActive: boolean) {
 
 export async function getCostCenterById(id: string) {
     try {
+        const session = await assertAuthenticated()
         const costCenter = await prisma.costCenter.findUnique({
             where: { id },
             include: {
@@ -213,6 +237,11 @@ export async function getCostCenterById(id: string) {
             },
         })
         if (!costCenter) return { success: false, error: "Centro de custo não encontrado" }
+
+        if (costCenter.companyId) {
+            await assertCompanyAccess(session, costCenter.companyId)
+        }
+
         return { success: true, data: costCenter }
     } catch (error) {
         console.error("Erro ao buscar centro de custo:", error)

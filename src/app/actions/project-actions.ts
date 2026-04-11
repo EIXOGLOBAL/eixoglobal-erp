@@ -5,9 +5,11 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { getNextCode } from "@/lib/sequence"
 import { getSession } from "@/lib/auth"
+import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
 import { assertCanDelete } from "@/lib/permissions"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 const projectSchema = z.object({
     name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres"),
@@ -43,7 +45,9 @@ const projectSchema = z.object({
 
 export async function createProject(data: z.infer<typeof projectSchema>) {
     try {
-        const validated = projectSchema.parse(data)
+        const _parsed = projectSchema.safeParse(data)
+        if (!_parsed.success) return { success: false, error: _parsed.error.issues[0]?.message ?? 'Dados inválidos' }
+        const validated = _parsed.data
 
         const code = await getNextCode('project', validated.companyId)
 
@@ -72,6 +76,8 @@ export async function createProject(data: z.infer<typeof projectSchema>) {
             }
         })
 
+        await logCreate('Project', project.id, project.name, validated)
+
         revalidatePath('/projects')
         return { success: true, data: project }
     } catch (error: any) {
@@ -81,9 +87,11 @@ export async function createProject(data: z.infer<typeof projectSchema>) {
 
 export async function updateProject(id: string, data: z.infer<typeof projectSchema>) {
     try {
-        const validated = projectSchema.parse(data)
+        const _parsed = projectSchema.safeParse(data)
+        if (!_parsed.success) return { success: false, error: _parsed.error.issues[0]?.message ?? 'Dados inválidos' }
+        const validated = _parsed.data
 
-        const existingProject = await prisma.project.findUnique({ where: { id }, select: { status: true } })
+        const existingProject = await prisma.project.findUnique({ where: { id } })
 
         const project = await prisma.project.update({
             where: { id },
@@ -109,6 +117,8 @@ export async function updateProject(id: string, data: z.infer<typeof projectSche
                 baselineEndDate: validated.baselineEndDate ? new Date(validated.baselineEndDate) : null,
             }
         })
+
+        await logUpdate('Project', id, project.name, existingProject, project)
 
         if (existingProject && existingProject.status !== (validated.status || 'PLANNING')) {
             await prisma.projectStatusHistory.create({
@@ -165,6 +175,8 @@ export async function deleteProject(id: string) {
         await prisma.project.delete({
             where: { id }
         })
+
+        await logDelete('Project', id, projectWithRelations.name, projectWithRelations)
 
         revalidatePath('/projects')
         return { success: true }
@@ -230,6 +242,8 @@ export async function getProjects(params?: {
 
 export async function getProjectById(id: string) {
     try {
+        const session = await assertAuthenticated()
+
         const project = await prisma.project.findUnique({
             where: { id },
             include: {
@@ -265,6 +279,10 @@ export async function getProjectById(id: string) {
 
         if (!project) {
             return { success: false, error: 'Projeto não encontrado' }
+        }
+
+        if (project.companyId) {
+            await assertCompanyAccess(session, project.companyId)
         }
 
         // Convert Decimal to Number for client components
@@ -320,7 +338,7 @@ export async function deleteAllocation(allocationId: string, projectId: string) 
 
 export async function changeProjectStatus(id: string, status: 'PLANNING' | 'IN_PROGRESS' | 'COMPLETED' | 'ON_HOLD' | 'CANCELLED') {
     try {
-        const existing = await prisma.project.findUnique({ where: { id }, select: { status: true } })
+        const existing = await prisma.project.findUnique({ where: { id }, select: { status: true, name: true } })
         const project = await prisma.project.update({ where: { id }, data: { status } })
         if (existing && existing.status !== status) {
             await prisma.projectStatusHistory.create({
@@ -333,6 +351,9 @@ export async function changeProjectStatus(id: string, status: 'PLANNING' | 'IN_P
                 }
             })
         }
+
+        await logAction('STATUS_CHANGE', 'Project', id, project.name, `Status alterado de ${existing?.status || 'N/A'} para ${status}`)
+
         revalidatePath('/projects')
         revalidatePath(`/projects/${id}`)
         return { success: true, data: project }
@@ -351,5 +372,119 @@ export async function getProjectStatusHistory(projectId: string) {
     } catch (error) {
         console.error("Erro ao buscar histórico de status:", error)
         return { success: false, error: "Erro ao buscar histórico de status", data: [] }
+    }
+}
+
+// ========================================
+// CUSTO DE MÃO DE OBRA
+// ========================================
+
+export interface LaborCostEmployee {
+    employeeId: string
+    employeeName: string
+    jobTitle: string
+    totalHours: number
+    costPerHour: number
+    totalCost: number
+}
+
+export interface ProjectLaborCostResult {
+    employees: LaborCostEmployee[]
+    totalHours: number
+    totalCost: number
+    averageCostPerHour: number
+}
+
+export async function getProjectLaborCost(projectId: string): Promise<{ success: boolean; data?: ProjectLaborCostResult; error?: string }> {
+    try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Buscar alocações ativas (sem endDate ou endDate no futuro) com dados do funcionário
+        const allocations = await prisma.allocation.findMany({
+            where: {
+                projectId,
+                OR: [
+                    { endDate: null },
+                    { endDate: { gte: new Date() } },
+                ],
+            },
+            include: {
+                employee: {
+                    select: {
+                        id: true,
+                        name: true,
+                        jobTitle: true,
+                        costPerHour: true,
+                        monthlySalary: true,
+                        hoursPerMonth: true,
+                    },
+                },
+            },
+        })
+
+        if (allocations.length === 0) {
+            return {
+                success: true,
+                data: { employees: [], totalHours: 0, totalCost: 0, averageCostPerHour: 0 },
+            }
+        }
+
+        const employeeIds = allocations.map(a => a.employee.id)
+
+        // Buscar horas trabalhadas (TimeEntry) de cada funcionário neste projeto
+        const timeEntries = await prisma.timeEntry.findMany({
+            where: {
+                projectId,
+                employeeId: { in: employeeIds },
+                status: { in: ['APPROVED', 'PENDING'] },
+            },
+            select: {
+                employeeId: true,
+                totalHours: true,
+            },
+        })
+
+        // Agrupar horas por funcionário
+        const hoursMap = new Map<string, number>()
+        for (const entry of timeEntries) {
+            const current = hoursMap.get(entry.employeeId) || 0
+            hoursMap.set(entry.employeeId, current + (entry.totalHours || 0))
+        }
+
+        // Calcular custo por funcionário
+        const employees: LaborCostEmployee[] = allocations.map(allocation => {
+            const emp = allocation.employee
+            const hours = hoursMap.get(emp.id) || 0
+
+            // Prioridade: costPerHour > monthlySalary / hoursPerMonth
+            let costHour = 0
+            if (emp.costPerHour && Number(emp.costPerHour) > 0) {
+                costHour = Number(emp.costPerHour)
+            } else if (emp.monthlySalary && Number(emp.monthlySalary) > 0) {
+                costHour = Number(emp.monthlySalary) / (emp.hoursPerMonth || 220)
+            }
+
+            return {
+                employeeId: emp.id,
+                employeeName: emp.name,
+                jobTitle: emp.jobTitle,
+                totalHours: Math.round(hours * 100) / 100,
+                costPerHour: Math.round(costHour * 100) / 100,
+                totalCost: Math.round(hours * costHour * 100) / 100,
+            }
+        })
+
+        const totalHours = employees.reduce((sum, e) => sum + e.totalHours, 0)
+        const totalCost = employees.reduce((sum, e) => sum + e.totalCost, 0)
+        const averageCostPerHour = totalHours > 0 ? Math.round((totalCost / totalHours) * 100) / 100 : 0
+
+        return {
+            success: true,
+            data: { employees, totalHours, totalCost, averageCostPerHour },
+        }
+    } catch (error: any) {
+        console.error("Erro ao calcular custo de mão de obra:", error)
+        return { success: false, error: error.message || "Erro ao calcular custo de mão de obra" }
     }
 }

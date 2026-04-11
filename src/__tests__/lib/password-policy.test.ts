@@ -44,7 +44,7 @@ describe('Password Policy', () => {
 
       for (const char of specialChars) {
         const result = validatePassword(`TestPass1${char}`)
-        expect(result.valid).toBe(true, `Should accept special character: ${char}`)
+        expect(result.valid, `Should accept special character: ${char}`).toBe(true)
       }
     })
 

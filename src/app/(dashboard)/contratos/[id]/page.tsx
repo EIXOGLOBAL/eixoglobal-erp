@@ -7,13 +7,16 @@ import { ContractItemsTable } from "@/components/contracts/contract-items-table"
 import { ContractItemsTableEnhanced } from "@/components/contracts/contract-items-table-enhanced"
 import { ContractExecutionChart } from "@/components/contracts/contract-execution-chart"
 import { ContractExecutiveSummary } from "@/components/contracts/contract-executive-summary"
+import { ContractFinancialSummary } from "@/components/contracts/contract-financial-summary"
 import { AmendmentsTimeline } from "@/components/contracts/amendments-timeline"
 import { AmendmentDialog } from "@/components/contracts/amendment-dialog"
 import { AdjustmentDialog } from "@/components/contracts/adjustment-dialog"
 import { AmendmentsTable } from "@/components/contracts/amendments-table"
 import { AdjustmentsTable } from "@/components/contracts/adjustments-table"
+import { ContractFinancialSchedule } from "@/components/contracts/contract-financial-schedule"
 import { ContractDetailsSection } from "@/components/contracts/contract-details-section"
 import { SignaturePanel } from "@/components/signatures/SignaturePanel"
+import { GenerateBudgetButton } from "@/components/contracts/generate-budget-button"
 import { prisma } from "@/lib/prisma"
 import {
     Card,
@@ -37,12 +40,16 @@ import {
     ArrowLeft,
     Building2,
     Calendar,
+    CalendarDays,
     DollarSign,
     FileText,
     Users,
     Printer,
     FileSignature,
 } from "lucide-react"
+import { EntityAuditTrail } from "@/components/audit/entity-audit-trail"
+import { CopyableValue } from '@/components/ui/copy-button'
+import { formatDate, formatDateTime } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -129,8 +136,15 @@ const [result, session] = await Promise.all([
                     </Link>
                 </Button>
                 <div className="flex-1">
-                    <h1 className="text-3xl font-bold tracking-tight">{contract.identifier}</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">
+                        <CopyableValue value={contract.identifier} />
+                    </h1>
                     <p className="text-muted-foreground">
+                        {contract.contractNumber && (
+                            <span className="mr-2">
+                                <CopyableValue value={contract.contractNumber} display={`N.º ${contract.contractNumber}`} mono />
+                            </span>
+                        )}
                         {contract.description || 'Sem descrição'}
                     </p>
                 </div>
@@ -143,6 +157,10 @@ const [result, session] = await Promise.all([
                         Imprimir
                     </Link>
                 </Button>
+                <GenerateBudgetButton
+                    contractId={contract.id}
+                    hasItems={totalItems > 0}
+                />
                 <ContractDialog
                     projects={projects}
                     contractors={contractors}
@@ -163,6 +181,9 @@ const [result, session] = await Promise.all([
                 status={contract.status}
             />
 
+            {/* Financial Summary (server component with independent data fetching) */}
+            <ContractFinancialSummary contractId={contract.id} />
+
             {/* Info Cards - Using new component */}
             <ContractDetailsSection
                 contract={contract}
@@ -172,7 +193,7 @@ const [result, session] = await Promise.all([
 
             {/* Tabs */}
             <Tabs defaultValue="geral" className="space-y-4">
-                <TabsList className="grid grid-cols-3 md:grid-cols-6 h-auto">
+                <TabsList className="grid grid-cols-4 md:grid-cols-8 h-auto">
                     <TabsTrigger value="geral" className="text-xs md:text-sm">
                         <FileText className="h-4 w-4 mr-1 md:mr-2" />
                         <span className="hidden sm:inline">Geral</span>
@@ -181,6 +202,14 @@ const [result, session] = await Promise.all([
                         <span className="hidden sm:inline">Itens</span>
                         <span className="sm:hidden">It.</span>
                         <Badge variant="secondary" className="ml-1 text-xs">{totalItems}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="cronograma" className="text-xs md:text-sm">
+                        <CalendarDays className="h-4 w-4 mr-1" />
+                        <span className="hidden sm:inline">Cronograma</span>
+                        <span className="sm:hidden">Cron.</span>
+                        <Badge variant="secondary" className="ml-1 text-xs">
+                            {contract.schedule?.length || 0}
+                        </Badge>
                     </TabsTrigger>
                     <TabsTrigger value="aditivos" className="text-xs md:text-sm">
                         <span className="hidden sm:inline">Aditivos</span>
@@ -203,6 +232,10 @@ const [result, session] = await Promise.all([
                         <FileSignature className="h-4 w-4 mr-1" />
                         <span className="hidden sm:inline">Assinatura</span>
                         <span className="sm:hidden">Ass.</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="auditoria" className="text-xs md:text-sm">
+                        <span className="hidden sm:inline">Auditoria</span>
+                        <span className="sm:hidden">Aud.</span>
                     </TabsTrigger>
                 </TabsList>
 
@@ -278,7 +311,7 @@ const [result, session] = await Promise.all([
                                         Data de Início
                                     </label>
                                     <p className="text-base font-medium">
-                                        {new Date(contract.startDate).toLocaleDateString('pt-BR')}
+                                        {formatDate(contract.startDate)}
                                     </p>
                                 </div>
                                 <div className="space-y-1">
@@ -287,7 +320,7 @@ const [result, session] = await Promise.all([
                                     </label>
                                     <p className="text-base font-medium">
                                         {contract.endDate
-                                            ? new Date(contract.endDate).toLocaleDateString('pt-BR')
+                                            ? formatDate(contract.endDate)
                                             : '—'
                                         }
                                     </p>
@@ -311,13 +344,13 @@ const [result, session] = await Promise.all([
                                 <div>
                                     <span>Criado em: </span>
                                     <span className="font-medium">
-                                        {new Date(contract.createdAt).toLocaleString('pt-BR')}
+                                        {formatDateTime(contract.createdAt)}
                                     </span>
                                 </div>
                                 <div>
                                     <span>Última atualização: </span>
                                     <span className="font-medium">
-                                        {new Date(contract.updatedAt).toLocaleString('pt-BR')}
+                                        {formatDateTime(contract.updatedAt)}
                                     </span>
                                 </div>
                             </div>
@@ -426,6 +459,25 @@ const [result, session] = await Promise.all([
                     <ContractItemsTableEnhanced
                         items={contract.items || []}
                     />
+                </TabsContent>
+
+                {/* Tab: Cronograma Financeiro */}
+                <TabsContent value="cronograma" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Cronograma Financeiro</CardTitle>
+                            <CardDescription>
+                                Planejamento de desembolso mensal do contrato
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ContractFinancialSchedule
+                                contractId={contract.id}
+                                items={contract.schedule ?? []}
+                                contractValue={contractValue}
+                            />
+                        </CardContent>
+                    </Card>
                 </TabsContent>
 
                 {/* Tab: Termos Aditivos */}
@@ -552,6 +604,15 @@ const [result, session] = await Promise.all([
                         entityId={contract.id}
                         currentStatus={contract.d4signStatus}
                         userRole={userRole}
+                    />
+                </TabsContent>
+
+                {/* Tab: Auditoria */}
+                <TabsContent value="auditoria" className="space-y-4">
+                    <EntityAuditTrail
+                        entityType="contract"
+                        entityId={contract.id}
+                        title="Histórico de Alterações do Contrato"
                     />
                 </TabsContent>
             </Tabs>

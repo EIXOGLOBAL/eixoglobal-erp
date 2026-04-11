@@ -45,3 +45,50 @@ export function formatCNPJ(value: string) {
 export function stripCNPJ(value: string) {
     return value.replace(/\D/g, '');
 }
+
+// ── Datas (timezone America/Sao_Paulo, UTC-3) ─────────────────────────────────
+const TZ = 'America/Sao_Paulo'
+
+function toDate(value: Date | string | number | null | undefined): Date | null {
+    if (value == null) return null
+    const d = value instanceof Date ? value : new Date(value)
+    return isNaN(d.getTime()) ? null : d
+}
+
+/** Formata data dd/mm/yyyy no fuso America/Sao_Paulo */
+export function formatDate(value: Date | string | number | null | undefined): string {
+    const d = toDate(value)
+    if (!d) return '—'
+    return d.toLocaleDateString('pt-BR', { timeZone: TZ })
+}
+
+/** Formata data+hora dd/mm/yyyy HH:mm no fuso America/Sao_Paulo */
+export function formatDateTime(value: Date | string | number | null | undefined): string {
+    const d = toDate(value)
+    if (!d) return '—'
+    return d.toLocaleString('pt-BR', {
+        timeZone: TZ,
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+    })
+}
+
+/** Formata hora HH:mm */
+export function formatTime(value: Date | string | number | null | undefined): string {
+    const d = toDate(value)
+    if (!d) return '—'
+    return d.toLocaleTimeString('pt-BR', {
+        timeZone: TZ, hour: '2-digit', minute: '2-digit',
+    })
+}
+
+/**
+ * Converte string "yyyy-mm-dd" (input type=date) em Date "à meia-noite local SP",
+ * evitando off-by-one quando o servidor está em UTC.
+ */
+export function parseDateLocal(value: string): Date {
+    const [y, m, d] = value.split('-').map(Number)
+    // Meia-noite UTC-3 em UTC = 03:00 UTC
+    return new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, 3, 0, 0))
+}
+

@@ -1,4 +1,5 @@
 import { getSession } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -20,6 +21,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { formatCurrency, toNumber } from '@/lib/formatters'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,19 +32,45 @@ export default async function FinanceiroPage() {
   const companyId = session.user?.companyId
   if (!companyId) redirect('/login')
 
-  const fmt = (n: number) =>
-    new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 0,
-    }).format(n)
+  let kpis = {
+    receitaTotal: 0,
+    despesas: 0,
+    saldoContas: 0,
+    contasReceber: 0,
+  }
 
-  // Placeholder KPI values - these would be fetched from database in real implementation
-  const kpis = {
-    receitaTotal: 1250000,
-    despesas: 750000,
-    saldoContas: 500000,
-    contasReceber: 320000,
+  try {
+    const [revenueAgg, expenseAgg, receivablesAgg, payablesAgg] =
+      await Promise.all([
+        prisma.financialRecord.aggregate({
+          _sum: { amount: true },
+          where: { companyId, type: 'INCOME', status: 'PAID' },
+        }),
+        prisma.financialRecord.aggregate({
+          _sum: { amount: true },
+          where: { companyId, type: 'EXPENSE', status: 'PAID' },
+        }),
+        prisma.financialRecord.aggregate({
+          _sum: { amount: true },
+          where: { companyId, type: 'INCOME', status: 'PENDING' },
+        }),
+        prisma.financialRecord.aggregate({
+          _sum: { amount: true },
+          where: { companyId, type: 'EXPENSE', status: 'PENDING' },
+        }),
+      ])
+
+    const receitaTotal = toNumber(revenueAgg._sum.amount)
+    const despesas = toNumber(expenseAgg._sum.amount)
+
+    kpis = {
+      receitaTotal,
+      despesas,
+      saldoContas: receitaTotal - despesas,
+      contasReceber: toNumber(receivablesAgg._sum.amount),
+    }
+  } catch {
+    // fallback to zeros on error
   }
 
   const subModules = [
@@ -135,7 +163,7 @@ export default async function FinanceiroPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-2xl font-bold text-green-700">
-                    {fmt(kpis.receitaTotal)}
+                    {formatCurrency(kpis.receitaTotal)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Este mês
@@ -156,7 +184,7 @@ export default async function FinanceiroPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-2xl font-bold text-red-700">
-                    {fmt(kpis.despesas)}
+                    {formatCurrency(kpis.despesas)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Este mês
@@ -177,7 +205,7 @@ export default async function FinanceiroPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-2xl font-bold text-blue-700">
-                    {fmt(kpis.saldoContas)}
+                    {formatCurrency(kpis.saldoContas)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Disponível
@@ -198,7 +226,7 @@ export default async function FinanceiroPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-2xl font-bold text-orange-700">
-                    {fmt(kpis.contasReceber)}
+                    {formatCurrency(kpis.contasReceber)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Em aberto

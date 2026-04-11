@@ -26,6 +26,7 @@ import {
   Folder, Building2, Plus, Trash2, Send, Activity,
 } from "lucide-react"
 
+import { formatDate } from "@/lib/formatters"
 type TaskDetail = {
   id: string
   title: string
@@ -303,9 +304,7 @@ export function TaskDetailClient({
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-sm font-medium">{comment.author.name}</span>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(comment.createdAt).toLocaleDateString("pt-BR", {
-                        day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
-                      })}
+                      {formatDate(comment.createdAt)}
                     </span>
                     {(comment.authorId === currentUserId || userRole === "ADMIN") && (
                       <Button
@@ -460,7 +459,7 @@ export function TaskDetailClient({
             <div>
               <p className="text-xs text-muted-foreground">
                 Criado por {task.createdBy?.name ?? "—"} em{" "}
-                {new Date(task.createdAt).toLocaleDateString("pt-BR")}
+                {formatDate(task.createdAt)}
               </p>
             </div>
           </CardContent>
@@ -486,9 +485,7 @@ export function TaskDetailClient({
                         <span className="text-muted-foreground">: {act.oldValue} → {act.newValue}</span>
                       )}
                       <p className="text-[10px] text-muted-foreground">
-                        {new Date(act.createdAt).toLocaleDateString("pt-BR", {
-                          day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
-                        })}
+                        {formatDate(act.createdAt)}
                       </p>
                     </div>
                   </div>

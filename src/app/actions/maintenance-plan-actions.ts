@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { assertAuthenticated } from "@/lib/auth-helpers"
 
 // ============================================================================
 // SCHEMAS
@@ -26,6 +27,7 @@ export async function createMaintenancePlanItem(
     data: z.infer<typeof maintenancePlanItemSchema>
 ) {
     try {
+        await assertAuthenticated()
         const validated = maintenancePlanItemSchema.parse(data)
 
         const item = await prisma.maintenancePlanItem.create({
@@ -57,6 +59,7 @@ export async function updateMaintenancePlanItem(
     data: z.infer<typeof maintenancePlanItemSchema>
 ) {
     try {
+        await assertAuthenticated()
         const validated = maintenancePlanItemSchema.parse(data)
 
         const item = await prisma.maintenancePlanItem.findUnique({
@@ -93,6 +96,7 @@ export async function updateMaintenancePlanItem(
 
 export async function deleteMaintenancePlanItem(itemId: string) {
     try {
+        await assertAuthenticated()
         const item = await prisma.maintenancePlanItem.findUnique({
             where: { id: itemId }
         })
@@ -117,6 +121,7 @@ export async function deleteMaintenancePlanItem(itemId: string) {
 
 export async function getMaintenancePlanItems(equipmentId: string) {
     try {
+        await assertAuthenticated()
         const items = await prisma.maintenancePlanItem.findMany({
             where: { equipmentId },
             include: {
@@ -136,6 +141,7 @@ export async function getMaintenancePlanItems(equipmentId: string) {
 
 export async function getMaintenancePlanItemById(itemId: string) {
     try {
+        await assertAuthenticated()
         const item = await prisma.maintenancePlanItem.findUnique({
             where: { id: itemId },
             include: {
@@ -158,6 +164,7 @@ export async function getMaintenancePlanItemById(itemId: string) {
 
 export async function markMaintenanceAsPerformed(itemId: string) {
     try {
+        await assertAuthenticated()
         const item = await prisma.maintenancePlanItem.findUnique({
             where: { id: itemId }
         })
@@ -199,6 +206,7 @@ export async function markMaintenanceAsPerformed(itemId: string) {
 
 export async function getOverdueMaintenanceItems(equipmentId: string) {
     try {
+        await assertAuthenticated()
         const now = new Date()
 
         const overdueItems = await prisma.maintenancePlanItem.findMany({
@@ -226,6 +234,7 @@ export async function getOverdueMaintenanceItems(equipmentId: string) {
 
 export async function getUpcomingMaintenanceItems(equipmentId: string, daysAhead: number = 30) {
     try {
+        await assertAuthenticated()
         const now = new Date()
         const futureDate = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000)
 

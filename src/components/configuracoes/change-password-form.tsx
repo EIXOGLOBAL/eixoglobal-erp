@@ -22,11 +22,7 @@ const schema = z.object({
     path: ["confirmPassword"],
 })
 
-interface Props {
-    userId: string
-}
-
-export function ChangePasswordForm({ userId }: Props) {
+export function ChangePasswordForm() {
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
 
@@ -38,7 +34,7 @@ export function ChangePasswordForm({ userId }: Props) {
     async function onSubmit(values: z.infer<typeof schema>) {
         setLoading(true)
         try {
-            const result = await changePassword({ userId, ...values })
+            const result = await changePassword(values)
             if (result.success) {
                 toast({ title: "Senha alterada com sucesso!" })
                 form.reset()

@@ -38,6 +38,7 @@ import {
   downloadSignedPdf,
 } from '@/app/actions/signature-actions'
 
+import { formatDate } from "@/lib/formatters"
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -492,13 +493,7 @@ export function SignaturePanel({
                   </div>
                   {signer.signedAt && (
                     <span className="text-xs text-muted-foreground">
-                      {new Date(signer.signedAt).toLocaleDateString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {formatDate(signer.signedAt)}
                     </span>
                   )}
                 </div>

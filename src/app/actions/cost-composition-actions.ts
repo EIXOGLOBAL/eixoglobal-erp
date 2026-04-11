@@ -3,6 +3,8 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { assertAuthenticated } from "@/lib/auth-helpers"
+import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 // ============================================================================
 // SCHEMAS DE VALIDAÇÃO
@@ -118,6 +120,7 @@ export async function createCostComposition(
     companyId: string
 ): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         const validated = compositionSchema.parse(data)
 
         // Verificar se código já existe
@@ -152,6 +155,8 @@ export async function createCostComposition(
             }
         })
 
+        await logCreate('CostComposition', composition.id, composition.code || 'N/A', validated)
+
         revalidatePath('/composicoes')
         revalidatePath('/composicoes/' + composition.id)
 
@@ -173,7 +178,10 @@ export async function updateCostComposition(
     data: z.infer<typeof compositionSchema>
 ): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         const validated = compositionSchema.parse(data)
+
+        const oldComposition = await prisma.costComposition.findUnique({ where: { id } })
 
         const composition = await prisma.costComposition.update({
             where: { id },
@@ -188,6 +196,8 @@ export async function updateCostComposition(
                 project: true,
             }
         })
+
+        await logUpdate('CostComposition', id, composition.code || 'N/A', oldComposition, composition)
 
         // Recalcular preço de venda com novo BDI
         await recalculateComposition(id)
@@ -210,11 +220,16 @@ export async function updateCostComposition(
 
 export async function deleteCostComposition(id: string): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         // Verificar se há dependências (pode adicionar verificações futuras aqui)
+
+        const oldComposition = await prisma.costComposition.findUnique({ where: { id } })
 
         await prisma.costComposition.delete({
             where: { id }
         })
+
+        await logDelete('CostComposition', id, oldComposition?.code || 'N/A', oldComposition)
 
         revalidatePath('/composicoes')
 
@@ -230,6 +245,7 @@ export async function deleteCostComposition(id: string): Promise<ActionResult> {
 
 export async function getCostCompositions(companyId: string, projectId?: string) {
     try {
+        await assertAuthenticated()
         const compositions = await prisma.costComposition.findMany({
             where: {
                 companyId,
@@ -270,6 +286,7 @@ export async function getCostCompositions(companyId: string, projectId?: string)
 
 export async function getCostCompositionById(id: string) {
     try {
+        await assertAuthenticated()
         const composition = await prisma.costComposition.findUnique({
             where: { id },
             include: {
@@ -327,6 +344,7 @@ export async function duplicateCostComposition(
     newCode: string
 ): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         const original = await prisma.costComposition.findUnique({
             where: { id },
             include: {
@@ -372,6 +390,8 @@ export async function duplicateCostComposition(
                 projectId: original.projectId,
             }
         })
+
+        await logCreate('CostComposition', newComposition.id, newComposition.code || 'N/A', { duplicatedFrom: id, newCode })
 
         // Duplicar materiais
         if (original.materials.length > 0) {
@@ -438,6 +458,7 @@ export async function addMaterial(
     data: z.infer<typeof materialSchema>
 ): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         const validated = materialSchema.parse(data)
 
         const material = await prisma.compositionMaterial.create({
@@ -450,6 +471,8 @@ export async function addMaterial(
                 totalCost: validated.coefficient * validated.unitCost,
             }
         })
+
+        await logCreate('CompositionMaterial', material.id, material.description || 'N/A', validated)
 
         // Recalcular custos da composição
         await recalculateComposition(compositionId)
@@ -474,7 +497,10 @@ export async function updateMaterial(
     data: z.infer<typeof materialSchema>
 ): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         const validated = materialSchema.parse(data)
+
+        const oldMaterial = await prisma.compositionMaterial.findUnique({ where: { id: materialId } })
 
         const material = await prisma.compositionMaterial.update({
             where: { id: materialId },
@@ -486,6 +512,8 @@ export async function updateMaterial(
                 totalCost: validated.coefficient * validated.unitCost,
             }
         })
+
+        await logUpdate('CompositionMaterial', materialId, material.description || 'N/A', oldMaterial, material)
 
         // Recalcular custos da composição
         await recalculateComposition(material.compositionId)
@@ -507,6 +535,7 @@ export async function updateMaterial(
 
 export async function deleteMaterial(materialId: string): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         const material = await prisma.compositionMaterial.findUnique({
             where: { id: materialId }
         })
@@ -523,6 +552,8 @@ export async function deleteMaterial(materialId: string): Promise<ActionResult> 
         await prisma.compositionMaterial.delete({
             where: { id: materialId }
         })
+
+        await logDelete('CompositionMaterial', materialId, material.description || 'N/A', material)
 
         // Recalcular custos da composição
         await recalculateComposition(compositionId)
@@ -548,6 +579,7 @@ export async function addLabor(
     data: z.infer<typeof laborSchema>
 ): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         const validated = laborSchema.parse(data)
 
         const labor = await prisma.compositionLabor.create({
@@ -559,6 +591,8 @@ export async function addLabor(
                 totalCost: validated.hours * validated.hourlyRate,
             }
         })
+
+        await logCreate('CompositionLabor', labor.id, labor.description || 'N/A', validated)
 
         await recalculateComposition(compositionId)
         revalidatePath('/composicoes/' + compositionId)
@@ -581,7 +615,10 @@ export async function updateLabor(
     data: z.infer<typeof laborSchema>
 ): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         const validated = laborSchema.parse(data)
+
+        const oldLabor = await prisma.compositionLabor.findUnique({ where: { id: laborId } })
 
         const labor = await prisma.compositionLabor.update({
             where: { id: laborId },
@@ -592,6 +629,8 @@ export async function updateLabor(
                 totalCost: validated.hours * validated.hourlyRate,
             }
         })
+
+        await logUpdate('CompositionLabor', laborId, labor.description || 'N/A', oldLabor, labor)
 
         await recalculateComposition(labor.compositionId)
         revalidatePath('/composicoes/' + labor.compositionId)
@@ -611,6 +650,7 @@ export async function updateLabor(
 
 export async function deleteLabor(laborId: string): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         const labor = await prisma.compositionLabor.findUnique({
             where: { id: laborId }
         })
@@ -627,6 +667,8 @@ export async function deleteLabor(laborId: string): Promise<ActionResult> {
         await prisma.compositionLabor.delete({
             where: { id: laborId }
         })
+
+        await logDelete('CompositionLabor', laborId, labor.description || 'N/A', labor)
 
         await recalculateComposition(compositionId)
         revalidatePath('/composicoes/' + compositionId)
@@ -650,6 +692,7 @@ export async function addEquipment(
     data: z.infer<typeof equipmentSchema>
 ): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         const validated = equipmentSchema.parse(data)
 
         const equipment = await prisma.compositionEquipment.create({
@@ -662,6 +705,8 @@ export async function addEquipment(
                 totalCost: validated.coefficient * validated.unitCost,
             }
         })
+
+        await logCreate('CompositionEquipment', equipment.id, equipment.description || 'N/A', validated)
 
         await recalculateComposition(compositionId)
         revalidatePath('/composicoes/' + compositionId)
@@ -684,7 +729,10 @@ export async function updateEquipment(
     data: z.infer<typeof equipmentSchema>
 ): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         const validated = equipmentSchema.parse(data)
+
+        const oldEquipment = await prisma.compositionEquipment.findUnique({ where: { id: equipmentId } })
 
         const equipment = await prisma.compositionEquipment.update({
             where: { id: equipmentId },
@@ -696,6 +744,8 @@ export async function updateEquipment(
                 totalCost: validated.coefficient * validated.unitCost,
             }
         })
+
+        await logUpdate('CompositionEquipment', equipmentId, equipment.description || 'N/A', oldEquipment, equipment)
 
         await recalculateComposition(equipment.compositionId)
         revalidatePath('/composicoes/' + equipment.compositionId)
@@ -715,6 +765,7 @@ export async function updateEquipment(
 
 export async function deleteEquipment(equipmentId: string): Promise<ActionResult> {
     try {
+        await assertAuthenticated()
         const equipment = await prisma.compositionEquipment.findUnique({
             where: { id: equipmentId }
         })
@@ -731,6 +782,8 @@ export async function deleteEquipment(equipmentId: string): Promise<ActionResult
         await prisma.compositionEquipment.delete({
             where: { id: equipmentId }
         })
+
+        await logDelete('CompositionEquipment', equipmentId, equipment.description || 'N/A', equipment)
 
         await recalculateComposition(compositionId)
         revalidatePath('/composicoes/' + compositionId)

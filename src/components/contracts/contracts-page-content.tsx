@@ -32,6 +32,7 @@ import {
     Calendar,
 } from "lucide-react"
 
+import { formatDate } from "@/lib/formatters"
 interface ContractsPageProps {
     contracts: any[]
     projects: any[]
@@ -272,7 +273,7 @@ export default function ContractsPageContent({
                                         {c.identifier} — {c.project?.name}
                                     </Link>
                                     <span className="text-amber-600 text-xs">
-                                        Vence em {new Date(c.endDate!).toLocaleDateString('pt-BR')}
+                                        Vence em {formatDate(c.endDate!)}
                                     </span>
                                 </div>
                             ))}
@@ -469,7 +470,7 @@ export default function ContractsPageContent({
                                                 <div className="flex items-center gap-1">
                                                     <Calendar className="h-3 w-3" />
                                                     <span>
-                                                        {new Date(contract.startDate).toLocaleDateString('pt-BR')}
+                                                        {formatDate(contract.startDate)}
                                                     </span>
                                                 </div>
                                                 <div className="flex gap-3">

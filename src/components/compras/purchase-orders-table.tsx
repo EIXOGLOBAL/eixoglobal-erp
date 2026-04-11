@@ -23,6 +23,7 @@ import { MoreHorizontal, Eye, Pencil, Trash2, ShoppingCart } from "lucide-react"
 import { deletePurchaseOrder } from "@/app/actions/purchase-actions"
 import { useToast } from "@/hooks/use-toast"
 import { PurchaseOrderDialog } from "./purchase-order-dialog"
+import { formatDate } from "@/lib/formatters"
 
 const STATUS_LABELS: Record<string, string> = {
     DRAFT: "Rascunho",
@@ -59,6 +60,7 @@ interface Order {
 interface Supplier {
     id: string
     name: string
+    lastScore?: number | null
 }
 
 interface Project {
@@ -81,7 +83,7 @@ export function PurchaseOrdersTable({ orders, companyId, suppliers, projects }: 
 
     const fmtDate = (d: Date | null | undefined) => {
         if (!d) return "—"
-        return new Date(d).toLocaleDateString('pt-BR')
+        return formatDate(d)
     }
 
     async function handleDelete(id: string, number: string) {

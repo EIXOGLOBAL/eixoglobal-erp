@@ -41,6 +41,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Loader2, FileSpreadsheet, ArrowRight } from "lucide-react"
 import { createBudget } from "@/app/actions/budget-actions"
+import { formatDate } from "@/lib/formatters"
 
 const STATUS_LABELS: Record<string, string> = {
     DRAFT: "Em Elaboração",
@@ -62,9 +63,6 @@ const formatBRL = (value: number) =>
         currency: "BRL",
         minimumFractionDigits: 2,
     }).format(value)
-
-const formatDate = (date: Date) =>
-    new Intl.DateTimeFormat("pt-BR").format(new Date(date))
 
 interface Project {
     id: string

@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { assertAuthenticated } from "@/lib/auth-helpers"
 
 const bdiConfigSchema = z.object({
     name: z.string().min(1, "Nome é obrigatório"),
@@ -13,6 +14,7 @@ const bdiConfigSchema = z.object({
 
 export async function createBDIConfig(data: z.infer<typeof bdiConfigSchema>) {
     try {
+        await assertAuthenticated()
         const validated = bdiConfigSchema.parse(data)
 
         // If setting as default, unset any previous default for this company
@@ -46,6 +48,7 @@ export async function createBDIConfig(data: z.infer<typeof bdiConfigSchema>) {
 
 export async function updateBDIConfig(id: string, data: z.infer<typeof bdiConfigSchema>) {
     try {
+        await assertAuthenticated()
         const validated = bdiConfigSchema.parse(data)
 
         // If setting as default, unset any previous default for this company
@@ -77,6 +80,7 @@ export async function updateBDIConfig(id: string, data: z.infer<typeof bdiConfig
 
 export async function deleteBDIConfig(id: string) {
     try {
+        await assertAuthenticated()
         await prisma.bDIConfig.delete({ where: { id } })
         revalidatePath('/configuracoes')
         return { success: true }
@@ -88,6 +92,7 @@ export async function deleteBDIConfig(id: string) {
 
 export async function getBDIConfigs(companyId: string) {
     try {
+        await assertAuthenticated()
         const bdiConfigs = await prisma.bDIConfig.findMany({
             where: { companyId },
             include: { company: { select: { id: true, name: true } } },
@@ -102,6 +107,7 @@ export async function getBDIConfigs(companyId: string) {
 
 export async function getBDIConfigById(id: string) {
     try {
+        await assertAuthenticated()
         const bdiConfig = await prisma.bDIConfig.findUnique({
             where: { id },
             include: { company: true }
@@ -120,6 +126,7 @@ export async function getBDIConfigById(id: string) {
 
 export async function getDefaultBDIConfig(companyId: string) {
     try {
+        await assertAuthenticated()
         const bdiConfig = await prisma.bDIConfig.findFirst({
             where: { companyId, isDefault: true },
             include: { company: { select: { id: true, name: true } } }

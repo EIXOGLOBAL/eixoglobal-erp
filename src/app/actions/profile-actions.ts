@@ -4,15 +4,15 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
+import { assertAuthenticated } from "@/lib/auth-helpers"
+import { BCRYPT_ROUNDS, validatePassword } from "@/lib/password-policy"
 
 const updateProfileSchema = z.object({
-    userId: z.string().uuid(),
     name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-    email: z.string().email("Email inválido"),
+    email: z.string().email("Email inválido").optional().or(z.literal("")),
 })
 
 const changePasswordSchema = z.object({
-    userId: z.string().uuid(),
     currentPassword: z.string().min(1, "Senha atual obrigatória"),
     newPassword: z.string().min(8, "Nova senha deve ter pelo menos 8 caracteres"),
     confirmPassword: z.string().min(1, "Confirmação obrigatória"),
@@ -21,24 +21,14 @@ const changePasswordSchema = z.object({
     path: ["confirmPassword"],
 })
 
-export async function updateProfile(data: { userId: string; name: string; email: string }) {
+export async function updateProfile(data: { name: string; email?: string }) {
     try {
+        const session = await assertAuthenticated()
         const validated = updateProfileSchema.parse(data)
 
-        // Verificar se email já está em uso por outro usuário
-        const existing = await prisma.user.findFirst({
-            where: { email: validated.email, NOT: { id: validated.userId } }
-        })
-        if (existing) {
-            return { success: false, error: "Este email já está em uso por outro usuário" }
-        }
-
         await prisma.user.update({
-            where: { id: validated.userId },
-            data: {
-                name: validated.name,
-                email: validated.email,
-            }
+            where: { id: session.user.id },
+            data: { name: validated.name, email: validated.email || null }
         })
 
         revalidatePath('/configuracoes/perfil')
@@ -53,16 +43,21 @@ export async function updateProfile(data: { userId: string; name: string; email:
 }
 
 export async function changePassword(data: {
-    userId: string
     currentPassword: string
     newPassword: string
     confirmPassword: string
 }) {
     try {
+        const session = await assertAuthenticated()
         const validated = changePasswordSchema.parse(data)
 
+        const policy = validatePassword(validated.newPassword)
+        if (!policy.valid) {
+            return { success: false, error: policy.errors[0] }
+        }
+
         const user = await prisma.user.findUnique({
-            where: { id: validated.userId },
+            where: { id: session.user.id },
             select: { password: true }
         })
 
@@ -75,10 +70,10 @@ export async function changePassword(data: {
             return { success: false, error: "Senha atual incorreta" }
         }
 
-        const hashed = await bcrypt.hash(validated.newPassword, 12)
+        const hashed = await bcrypt.hash(validated.newPassword, BCRYPT_ROUNDS)
 
         await prisma.user.update({
-            where: { id: validated.userId },
+            where: { id: session.user.id },
             data: { password: hashed }
         })
 

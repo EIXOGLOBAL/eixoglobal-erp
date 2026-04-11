@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2, Pin, AlertTriangle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { formatDate } from "@/lib/formatters"
 
 type Priority = "LOW" | "NORMAL" | "HIGH" | "URGENT"
 interface Author { id: string; name: string | null }
@@ -154,7 +155,7 @@ export function AnnouncementsClient({ initialAnnouncements, canCreate }: Announc
                 <CardContent>
                   <p className="text-sm whitespace-pre-wrap">{ann.content}</p>
                   <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
-                    <span>Por {ann.author.name ?? "Usuário"} • {new Date(ann.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</span>
+                    <span>Por {ann.author.name ?? "Usuário"} • {formatDate(ann.createdAt)}</span>
                     {expiring && (
                       <span className="flex items-center gap-1 text-orange-600 font-medium">
                         <AlertTriangle className="h-3 w-3" />Expira em breve

@@ -28,6 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MoreHorizontal, Plus, Pencil, Trash2, Search, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createAllocation, updateAllocation, deleteAllocation } from "@/app/actions/allocation-actions"
+import { formatDate } from "@/lib/formatters"
 
 interface Employee { id: string; name: string; jobTitle: string | null }
 interface Project { id: string; name: string; status: string }
@@ -53,7 +54,7 @@ const allocationSchema = z.object({
 })
 type AllocationForm = z.infer<typeof allocationSchema>
 
-const fmt = (d: Date | string) => new Date(d).toLocaleDateString('pt-BR')
+const fmt = (d: Date | string) => formatDate(d)
 
 const projectStatusColors: Record<string, string> = {
     PLANNING: 'bg-amber-100 text-amber-800',

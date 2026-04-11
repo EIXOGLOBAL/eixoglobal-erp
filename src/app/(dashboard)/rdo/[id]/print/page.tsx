@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation"
 import { getDailyReportById } from "@/app/actions/daily-report-actions"
 import { PrintButton } from "@/components/rdo/print-button"
-import { toNumber } from "@/lib/formatters"
+import { toNumber, formatDate} from "@/lib/formatters"
+
+export const dynamic = "force-dynamic"
 
 const WEATHER_LABELS: Record<string, string> = {
     SUNNY: "Ensolarado ☀️",
@@ -27,7 +29,7 @@ export default async function RdoPrintPage({ params }: PageProps) {
 
     if (!report) notFound()
 
-    const fmtDate = (d: Date) => new Date(d).toLocaleDateString('pt-BR')
+    const fmtDate = (d: Date) => formatDate(d)
 
     const totalWorkers = report.workforce.reduce((sum, w) => sum + w.count, 0)
 

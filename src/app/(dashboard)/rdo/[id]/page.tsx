@@ -11,7 +11,7 @@ import { WorkforceEditor } from "@/components/rdo/workforce-editor"
 import { ActivitiesEditor } from "@/components/rdo/activities-editor"
 import { DailyReportDialog } from "@/components/rdo/daily-report-dialog"
 import { prisma } from "@/lib/prisma"
-import { toNumber } from "@/lib/formatters"
+import { toNumber, formatDate} from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -67,7 +67,7 @@ export default async function RdoDetailPage({ params }: PageProps) {
 
     if (!report) notFound()
 
-    const fmtDate = (d: Date) => new Date(d).toLocaleDateString('pt-BR')
+    const fmtDate = (d: Date) => formatDate(d)
 
     const totalWorkers = report.workforce.reduce((sum, w) => sum + w.count, 0)
 
