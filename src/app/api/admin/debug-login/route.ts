@@ -5,42 +5,42 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    // 1. Contar usuarios
-    const userCount = await prisma.user.count()
-
-    // 2. Buscar admin com select minimo
-    const admin = await prisma.user.findFirst({
-      where: { username: 'admin' },
-      select: { id: true, username: true, role: true, companyId: true, isActive: true },
-    })
-
-    // 3. Listar todos users (select minimo)
-    const allUsers = await prisma.user.findMany({
-      select: { id: true, username: true, role: true, companyId: true },
-      take: 10,
-    })
-
-    // 4. Verificar colunas da tabela users via raw query
-    const columns = await prisma.$queryRaw`
+    // 1. Verificar colunas da tabela users via raw query
+    const columns: any[] = await prisma.$queryRaw`
       SELECT column_name, data_type
       FROM information_schema.columns
       WHERE table_name = 'users'
       ORDER BY ordinal_position
     `
 
+    // 2. Contar usuarios via raw SQL
+    const countResult: any[] = await prisma.$queryRaw`SELECT COUNT(*) as total FROM users`
+
+    // 3. Buscar admin via raw SQL
+    const adminResult: any[] = await prisma.$queryRaw`
+      SELECT id, username, role, "companyId", "isActive"
+      FROM users
+      WHERE username = 'admin'
+      LIMIT 1
+    `
+
+    // 4. Listar todas as tabelas
+    const tables: any[] = await prisma.$queryRaw`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'public'
+      ORDER BY table_name
+    `
+
     // 5. Contar empresas
-    const companyCount = await prisma.company.count()
-    const firstCompany = await prisma.company.findFirst({
-      select: { id: true, name: true },
-    })
+    const companyResult: any[] = await prisma.$queryRaw`SELECT COUNT(*) as total FROM companies`
 
     return NextResponse.json({
-      userCount,
-      admin,
-      allUsers,
-      columns,
-      companyCount,
-      firstCompany,
+      userCount: countResult[0]?.total,
+      admin: adminResult[0] || null,
+      columnNames: columns.map((c: any) => c.column_name),
+      columnCount: columns.length,
+      tableCount: tables.length,
+      companyCount: companyResult[0]?.total,
     })
   } catch (error: any) {
     return NextResponse.json({
