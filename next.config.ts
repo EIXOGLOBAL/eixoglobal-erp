@@ -18,7 +18,25 @@ const BUILD_COMMIT =
   safeExec("git rev-parse HEAD");
 const BUILD_COMMIT_SHORT = BUILD_COMMIT.slice(0, 7);
 const BUILD_TIME = new Date().toISOString();
-const APP_VERSION = pkg.version;
+
+// Versão no formato DDMMYYYY-XX (tag git) ou fallback para package.json
+function getAppVersion(): string {
+  // 1. Tentar ler da env (passada pelo CI/CD ou Dockerfile)
+  if (process.env.APP_VERSION) return process.env.APP_VERSION;
+
+  // 2. Tentar ler a tag git mais recente no formato DDMMYYYY-XX
+  const latestTag = safeExec("git describe --tags --abbrev=0", "");
+  if (latestTag && /^\d{8}-\d{2}$/.test(latestTag)) return latestTag;
+
+  // 3. Fallback: gerar versão baseada na data atual
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yyyy = now.getFullYear();
+  return `${dd}${mm}${yyyy}-01`;
+}
+
+const APP_VERSION = getAppVersion();
 
 const nextConfig: NextConfig = {
   output: "standalone",

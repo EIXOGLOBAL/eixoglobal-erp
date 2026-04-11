@@ -56,7 +56,7 @@ export function VersionBadge({
       .catch(() => {});
   }, []);
 
-  const title = `Versão ${info.version}\nCommit: ${info.commit}\nBuild: ${formatBuildDate(info.buildTime)}`;
+  const title = `Atualização ${info.version}\nCommit: ${info.commit}\nBuild: ${formatBuildDate(info.buildTime)}`;
 
   if (variant === "compact") {
     return (
@@ -64,7 +64,7 @@ export function VersionBadge({
         className={`text-xs text-muted-foreground select-none ${className}`}
         title={title}
       >
-        v{info.version}
+        {info.version}
         <span className="mx-1 opacity-40">·</span>
         <span className="font-mono opacity-70">{info.commit}</span>
       </div>
@@ -75,7 +75,7 @@ export function VersionBadge({
     <div className={`text-xs text-muted-foreground ${className}`} title={title}>
       <div>
         <span className="font-medium">Eixo Global ERP</span>{" "}
-        <span>v{info.version}</span>
+        <span>{info.version}</span>
       </div>
       <div className="opacity-70">
         Build <span className="font-mono">{info.commit}</span> ·{" "}

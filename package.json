@@ -1,6 +1,6 @@
 {
   "name": "erp-eixo-global",
-  "version": "1.0.0",
+  "version": "11042026-01",
   "private": true,
   "scripts": {
     "dev": "next dev",

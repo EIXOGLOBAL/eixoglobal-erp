@@ -14,7 +14,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ARG GIT_COMMIT_SHA=unknown
+ARG APP_VERSION=unknown
 ENV GIT_COMMIT_SHA=$GIT_COMMIT_SHA
+ENV APP_VERSION=$APP_VERSION
 ENV DATABASE_URL="postgresql://fake:fake@localhost:5432/fake"
 ENV NEXT_TELEMETRY_DISABLED=1
 
