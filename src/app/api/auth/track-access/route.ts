@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { updateLastAccess, getLastAccess } from '@/lib/session-tracker'
 
+export const dynamic = 'force-dynamic'
+
 // In-memory rate limit: userId -> timestamp of last successful call.
 const rateLimitMap = new Map<string, number>()
 const RATE_LIMIT_MS = 5 * 60 * 1000 // 5 minutes

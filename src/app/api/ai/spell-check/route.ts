@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 // In-memory cache for recent corrections
 const correctionCache = new Map<string, { result: any; timestamp: number }>()
 const CACHE_TTL = 3600000 // 1 hour
