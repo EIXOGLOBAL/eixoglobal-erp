@@ -4,8 +4,6 @@ export default defineConfig({
   earlyAccess: true,
   schema: 'prisma/schema.prisma',
   migrate: {
-    async seed(prisma) {
-      // Seed logic can be added here later
-    },
+    url: process.env.DATABASE_URL,
   },
 })
