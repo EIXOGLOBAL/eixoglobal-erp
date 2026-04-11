@@ -80,6 +80,37 @@ export async function getAnthropicApiKey(): Promise<string | null> {
   return null
 }
 
+// Helper para OpenRouter API key
+export async function getOpenRouterApiKey(): Promise<string | null> {
+  const dbKey = await getSetting('OPENROUTER_API_KEY')
+  if (dbKey) return dbKey
+
+  const envKey = process.env.OPENROUTER_API_KEY
+  if (envKey && envKey !== 'your_key_here') return envKey
+
+  return null
+}
+
+// Helper para provider de IA ativo
+export async function getAIProvider(): Promise<'anthropic' | 'openrouter' | null> {
+  const explicit = await getSetting('AI_PROVIDER')
+  if (explicit === 'anthropic' || explicit === 'openrouter') return explicit
+
+  // Auto-detect
+  const anthropic = await getAnthropicApiKey()
+  if (anthropic) return 'anthropic'
+
+  const openrouter = await getOpenRouterApiKey()
+  if (openrouter) return 'openrouter'
+
+  return null
+}
+
+// Verifica se algum provider de IA esta configurado
+export async function isAIConfigured(): Promise<boolean> {
+  return (await getAIProvider()) !== null
+}
+
 // Limpar cache (util apos update)
 export function clearSettingsCache() {
   cache = new Map()

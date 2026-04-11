@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
+import { aiCompleteFast, getActiveApiKey } from '@/lib/ai-client'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+      return NextResponse.json({ error: 'Nao autenticado' }, { status: 401 })
     }
 
     if (!checkRateLimit(session.user.id)) {
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     const { text } = await request.json()
 
     if (!text || typeof text !== 'string' || text.length > 5000) {
-      return NextResponse.json({ error: 'Texto inválido ou muito longo' }, { status: 400 })
+      return NextResponse.json({ error: 'Texto invalido ou muito longo' }, { status: 400 })
     }
 
     // Check cache first
@@ -68,34 +69,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ...cached, fromCache: true })
     }
 
-    // Call Claude for advanced correction
-    const { getAnthropicApiKey } = await import('@/lib/system-settings')
-    const apiKey = await getAnthropicApiKey()
-    if (!apiKey) {
-      return NextResponse.json({ error: 'API key nao configurada. Acesse Configuracoes > IA.' }, { status: 500 })
+    // Verificar se IA esta configurada
+    const active = await getActiveApiKey()
+    if (!active) {
+      return NextResponse.json({ error: 'Provedor de IA nao configurado. Acesse Configuracoes > IA.' }, { status: 500 })
     }
 
-    const Anthropic = (await import('@anthropic-ai/sdk')).default
-    const client = new Anthropic({ apiKey })
-
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      system: `Você é um corretor ortográfico de português brasileiro (PT-BR).
+    const response = await aiCompleteFast({
+      system: `Voce e um corretor ortografico de portugues brasileiro (PT-BR).
 Corrija o texto recebido mantendo o significado original.
 Responda APENAS com JSON no formato: {"corrected": "texto corrigido", "changes": [{"original": "palavra errada", "corrected": "palavra correta"}]}
 Se o texto estiver correto, retorne o mesmo texto com changes vazio.
-Não adicione explicações. Apenas o JSON.`,
+Nao adicione explicacoes. Apenas o JSON.`,
       messages: [{ role: 'user', content: text }],
+      maxTokens: 1024,
     })
 
-    const content = response.content[0]
-    if (content.type !== 'text') {
-      return NextResponse.json({ corrected: text, changes: [] })
-    }
-
     try {
-      const result = JSON.parse(content.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim())
+      const result = JSON.parse(response.content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim())
       setCachedCorrection(text, result)
       return NextResponse.json(result)
     } catch {

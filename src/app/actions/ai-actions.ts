@@ -4,8 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
 import { resolveAIPermissions, type AIPermissions, type AiAccessLevel } from '@/lib/permissions'
 import { logAction } from '@/lib/audit-logger'
-import Anthropic from '@anthropic-ai/sdk'
-import { getAnthropicApiKey } from '@/lib/system-settings'
+import { aiComplete, getActiveApiKey } from '@/lib/ai-client'
 
 // ============================================================================
 // Rate Limiting (diferenciado por permissão)
@@ -50,37 +49,29 @@ async function getAIContext() {
 }
 
 // ============================================================================
-// Anthropic Helper
+// Unified AI Helper (suporta Anthropic e OpenRouter)
 // ============================================================================
 
-async function callAnthropic(
+async function callAI(
   systemPrompt: string,
   userMessage: string,
   maxTokens = 2000
 ): Promise<{ content?: string; error?: string }> {
   try {
-    const apiKey = await getAnthropicApiKey()
-    if (!apiKey) {
-      return { error: 'Chave API nao configurada. Acesse Configuracoes > IA.' }
+    const active = await getActiveApiKey()
+    if (!active) {
+      return { error: 'Provedor de IA nao configurado. Acesse Configuracoes > IA.' }
     }
 
-    const client = new Anthropic({ apiKey })
-
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: maxTokens,
+    const response = await aiComplete({
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
+      maxTokens,
     })
 
-    const block = response.content[0]
-    if (block && block.type === 'text') {
-      return { content: block.text }
-    }
-
-    return { error: 'Sem resposta da IA' }
+    return { content: response.content }
   } catch (error) {
-    console.error('[AI] Erro ao chamar Anthropic:', error)
+    console.error('[AI] Erro ao chamar provedor:', error)
     return { error: error instanceof Error ? error.message : 'Erro desconhecido' }
   }
 }
@@ -233,7 +224,7 @@ Forneça uma análise estruturada em JSON com:
 }
 `
 
-    const response = await callAnthropic(
+    const response = await callAI(
       'Você é um analista de sistemas ERP especializado em auditoria de dados e saúde operacional. Responda sempre em JSON válido.',
       analysisPrompt,
       2000
@@ -422,7 +413,7 @@ Forneça análise em JSON:
 }
 `
 
-    const response = await callAnthropic(
+    const response = await callAI(
       'Você é um gerente de projetos especializado em análise de EVM e riscos. Responda em JSON válido em português.',
       prompt,
       2000
@@ -596,7 +587,7 @@ Forneça em JSON:
 }
 `
 
-    const response = await callAnthropic(
+    const response = await callAI(
       'Você é um analista de dados especializado em detecção de anomalias. Identifique problemas em português. Responda em JSON válido.',
       prompt,
       2000
@@ -742,7 +733,7 @@ Formato: HTML estruturado, máximo 2500 palavras.
 
     const systemPrompt = `Você é um especialista em relatórios de projetos. Gere relatórios em HTML estruturado em português brasileiro. Use tags como <h1>, <h2>, <p>, <ul>, <li>, <table>. Seja claro, conciso e profissional.`
 
-    const response = await callAnthropic(systemPrompt, prompts[reportType], 3000)
+    const response = await callAI(systemPrompt, prompts[reportType], 3000)
 
     if (response.error) {
       return { error: response.error }
@@ -810,7 +801,7 @@ Ajude o usuário a:
 
 Responda sempre em português brasileiro de forma clara, profissional e concisa.`
 
-    const response = await callAnthropic(systemPrompt, userPrompt, 1500)
+    const response = await callAI(systemPrompt, userPrompt, 1500)
 
     if (response.error) {
       return { error: response.error }

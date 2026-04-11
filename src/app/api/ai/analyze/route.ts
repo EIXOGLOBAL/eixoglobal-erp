@@ -64,11 +64,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 2. Check ANTHROPIC_API_KEY (banco > env)
-    const { getAnthropicApiKey } = await import('@/lib/system-settings')
-    if (!(await getAnthropicApiKey())) {
+    // 2. Verificar provedor de IA (Anthropic ou OpenRouter)
+    const { getActiveApiKey } = await import('@/lib/ai-client')
+    if (!(await getActiveApiKey())) {
       return NextResponse.json(
-        { error: 'Chave da API de IA nao configurada. Acesse Configuracoes > IA.' },
+        { error: 'Provedor de IA nao configurado. Acesse Configuracoes > IA.' },
         { status: 503 }
       )
     }

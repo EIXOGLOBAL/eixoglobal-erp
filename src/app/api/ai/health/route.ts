@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/audit'
-import Anthropic from '@anthropic-ai/sdk'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -101,8 +100,8 @@ export async function GET(req: NextRequest) {
     // Check API key for security
     const authHeader = req.headers.get('authorization')
     const cronSecret = process.env.AI_CRON_SECRET
-    const { getAnthropicApiKey } = await import('@/lib/system-settings')
-    const apiKey = await getAnthropicApiKey()
+    const { getActiveApiKey } = await import('@/lib/ai-client')
+    const active = await getActiveApiKey()
 
     // Simple auth check - if secret is configured, require it
     if (cronSecret && cronSecret !== 'your_secret_here') {
@@ -114,11 +113,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Check if API is configured
-    if (!apiKey) {
+    // Check if AI is configured
+    if (!active) {
       return NextResponse.json(
         {
-          error: 'ANTHROPIC_API_KEY não configurada',
+          error: 'Nenhum provedor de IA configurado',
           timestamp: new Date().toISOString(),
         },
         { status: 503 }

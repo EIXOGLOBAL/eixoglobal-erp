@@ -18,9 +18,9 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { RoleBadge } from "@/components/ui/role-badge"
 import { AIAccessSelect } from "@/components/ai/ai-access-select"
-import { Brain, Zap, Shield, MessageSquare, Ban, Key } from "lucide-react"
+import { Brain, Zap, Shield, MessageSquare, Ban, Key, Globe, Cpu } from "lucide-react"
 import { ApiKeyManager } from "@/components/ai/api-key-manager"
-import { getAnthropicApiKey, getSetting } from "@/lib/system-settings"
+import { getAnthropicApiKey, getSetting, getOpenRouterApiKey, getAIProvider } from "@/lib/system-settings"
 
 export const dynamic = 'force-dynamic'
 
@@ -59,14 +59,28 @@ function AILevelBadge({ level }: { level: string }) {
 export default async function ConfiguracoesIAPage() {
   await requireAdmin()
 
-  const apiKey = await getAnthropicApiKey()
-  const apiKeyConfigured = !!apiKey
-  const dbKey = await getSetting('ANTHROPIC_API_KEY')
-  const maskedKey = dbKey
-    ? dbKey.slice(0, 8) + '...' + dbKey.slice(-4)
+  // Anthropic
+  const anthropicKey = await getAnthropicApiKey()
+  const anthropicConfigured = !!anthropicKey
+  const dbAnthropicKey = await getSetting('ANTHROPIC_API_KEY')
+  const anthropicMaskedKey = dbAnthropicKey
+    ? dbAnthropicKey.slice(0, 8) + '...' + dbAnthropicKey.slice(-4)
     : process.env.ANTHROPIC_API_KEY
       ? process.env.ANTHROPIC_API_KEY.slice(0, 8) + '...' + process.env.ANTHROPIC_API_KEY.slice(-4)
       : null
+
+  // OpenRouter
+  const openrouterKey = await getOpenRouterApiKey()
+  const openrouterConfigured = !!openrouterKey
+  const dbOpenrouterKey = await getSetting('OPENROUTER_API_KEY')
+  const openrouterMaskedKey = dbOpenrouterKey
+    ? dbOpenrouterKey.slice(0, 8) + '...' + dbOpenrouterKey.slice(-4)
+    : null
+  const openrouterModel = await getSetting('OPENROUTER_MODEL')
+
+  // Provider ativo
+  const activeProvider = await getAIProvider()
+  const apiKeyConfigured = anthropicConfigured || openrouterConfigured
 
   const users = await prisma.user.findMany({
     orderBy: { name: 'asc' },
@@ -155,19 +169,39 @@ export default async function ConfiguracoesIAPage() {
         </p>
       </div>
 
-      {/* Se\u00e7\u00e3o 1: Chave API */}
+      {/* Secao 1: Provedores de IA */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <Key className="h-5 w-5" />
-            <CardTitle className="text-lg">Chave API Anthropic</CardTitle>
+            <CardTitle className="text-lg">Provedores de IA</CardTitle>
           </div>
           <CardDescription>
-            Gerencie a chave de acesso ao servico de IA. Pode ser inserida aqui ou via variavel de ambiente.
+            Configure Anthropic Claude e/ou OpenRouter. OpenRouter oferece modelos gratuitos.
           </CardDescription>
+          {activeProvider && (
+            <div className="flex items-center gap-2 pt-2">
+              {activeProvider === 'anthropic' ? (
+                <Badge className="bg-purple-100 text-purple-700 border-purple-200 gap-1">
+                  <Cpu className="h-3 w-3" /> Anthropic Claude (ativo)
+                </Badge>
+              ) : (
+                <Badge className="bg-blue-100 text-blue-700 border-blue-200 gap-1">
+                  <Globe className="h-3 w-3" /> OpenRouter (ativo){openrouterModel ? ` - ${openrouterModel.split('/').pop()}` : ''}
+                </Badge>
+              )}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
-          <ApiKeyManager currentMaskedKey={maskedKey} isConfigured={apiKeyConfigured} />
+          <ApiKeyManager
+            anthropicMaskedKey={anthropicMaskedKey}
+            anthropicConfigured={anthropicConfigured}
+            openrouterMaskedKey={openrouterMaskedKey}
+            openrouterConfigured={openrouterConfigured}
+            activeProvider={activeProvider}
+            openrouterModel={openrouterModel}
+          />
           <div className="mt-4 grid grid-cols-3 gap-4">
             <div className="text-center p-3 rounded-lg bg-muted/50">
               <p className="text-2xl font-bold">{totalUsers}</p>

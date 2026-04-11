@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logAction } from '@/lib/audit-logger'
+import { aiCompleteFast, getActiveApiKey } from '@/lib/ai-client'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,10 +66,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { getAnthropicApiKey } = await import('@/lib/system-settings')
-    const apiKey = await getAnthropicApiKey()
-    if (!apiKey) {
-      return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 })
+    const active = await getActiveApiKey()
+    if (!active) {
+      return NextResponse.json({ error: 'Nenhum provedor de IA configurado' }, { status: 500 })
     }
 
     // Get all companies
@@ -82,32 +82,24 @@ export async function POST(request: NextRequest) {
       try {
         const metrics = await collectSystemMetrics(company.id)
 
-        // Send to Claude for analysis
-        const Anthropic = (await import('@anthropic-ai/sdk')).default
-        const client = new Anthropic({ apiKey })
-
-        const response = await client.messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1024,
-          system: `Você é um analista de sistemas ERP. Analise as métricas do sistema e identifique:
-1. Tendências preocupantes
+        const response = await aiCompleteFast({
+          system: `Voce e um analista de sistemas ERP. Analise as metricas do sistema e identifique:
+1. Tendencias preocupantes
 2. Riscos operacionais
-3. Sugestões de ação imediata
+3. Sugestoes de acao imediata
 Responda em JSON: {"insights": [{"type": "risk"|"warning"|"info", "title": "...", "description": "..."}], "healthScore": 0-100, "urgentActions": ["..."]}`,
           messages: [{
             role: 'user',
-            content: `Métricas da empresa ${company.name}:\n${JSON.stringify(metrics, null, 2)}`,
+            content: `Metricas da empresa ${company.name}:\n${JSON.stringify(metrics, null, 2)}`,
           }],
+          maxTokens: 1024,
         })
 
-        const content = response.content[0]
         let analysis = { insights: [], healthScore: 50, urgentActions: [] }
 
-        if (content.type === 'text') {
-          try {
-            analysis = JSON.parse(content.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim())
-          } catch { /* use default */ }
-        }
+        try {
+          analysis = JSON.parse(response.content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim())
+        } catch { /* use default */ }
 
         // Save health log
         await (prisma as any).systemHealthLog.create({
@@ -133,7 +125,7 @@ Responda em JSON: {"insights": [{"type": "risk"|"warning"|"info", "title": "..."
             await prisma.notification.createMany({
               data: admins.map(admin => ({
                 type: 'AI_INSIGHT',
-                title: 'Análise de IA: Riscos Identificados',
+                title: 'Analise de IA: Riscos Identificados',
                 message: urgentInsights.map((i: any) => i.title).join('; '),
                 link: '/configuracoes/monitoramento',
                 userId: admin.id,
@@ -150,8 +142,8 @@ Responda em JSON: {"insights": [{"type": "risk"|"warning"|"info", "title": "..."
           urgentActions: (analysis.urgentActions as any[]).length,
         })
       } catch (companyError) {
-        console.error(`Erro na análise da empresa ${company.name}:`, companyError)
-        results.push({ company: company.name, error: 'Falha na análise' })
+        console.error(`Erro na analise da empresa ${company.name}:`, companyError)
+        results.push({ company: company.name, error: 'Falha na analise' })
       }
     }
 
@@ -163,7 +155,7 @@ Responda em JSON: {"insights": [{"type": "risk"|"warning"|"info", "title": "..."
       results,
     })
   } catch (error) {
-    console.error('Erro na análise de IA via cron:', error)
-    return NextResponse.json({ error: 'Erro na análise' }, { status: 500 })
+    console.error('Erro na analise de IA via cron:', error)
+    return NextResponse.json({ error: 'Erro na analise' }, { status: 500 })
   }
 }

@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
 import { resolveAIPermissions, type AiAccessLevel } from '@/lib/permissions'
-import { getAnthropicApiKey } from '@/lib/system-settings'
+import { aiComplete, getActiveApiKey } from '@/lib/ai-client'
 
 // --------------------------------------------------------
 // Helper
@@ -82,20 +82,13 @@ export interface ProjectRiskReport {
 const SYSTEM_PROMPT =
   'Voce e um analista de projetos de engenharia e infraestrutura especializado em obras publicas e privadas no Brasil. Analise os dados fornecidos e responda SEMPRE em JSON valido com a estrutura especificada. Seja objetivo e direto. Valores monetarios em BRL. Datas no formato brasileiro.'
 
-async function callAnthropic(userPrompt: string): Promise<string> {
-  const Anthropic = (await import('@anthropic-ai/sdk')).default
-  const client = new Anthropic()
-
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 1024,
+async function callAI(userPrompt: string): Promise<string> {
+  const response = await aiComplete({
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userPrompt }],
+    maxTokens: 1024,
   })
-
-  const block = message.content[0]!
-  if (block.type === 'text') return block.text
-  return '{}'
+  return response.content || '{}'
 }
 
 function parseJSON<T>(raw: string, fallback: T): T {
@@ -124,7 +117,7 @@ export async function analyzeProjectPortfolio(companyId: string): Promise<Portfo
   }
 
   try {
-    if (!(await getAnthropicApiKey())) return fallback
+    if (!(await getActiveApiKey())) return fallback
 
     // Verificar permissões: filtrar por companyId do usuário (exceto ADMIN)
     const session = await getSession()
@@ -196,7 +189,7 @@ export async function analyzeProjectPortfolio(companyId: string): Promise<Portfo
 Dados do portfolio:
 ${JSON.stringify(context, null, 2)}`
 
-    const raw = await callAnthropic(prompt)
+    const raw = await callAI(prompt)
     return parseJSON<PortfolioAnalysis>(raw, fallback)
   } catch {
     return fallback
@@ -219,7 +212,7 @@ export async function analyzeFinancialHealth(companyId: string): Promise<Financi
   }
 
   try {
-    if (!(await getAnthropicApiKey())) return fallback
+    if (!(await getActiveApiKey())) return fallback
 
     // Verificar permissões: filtrar por companyId do usuário
     const session = await getSession()
@@ -292,7 +285,7 @@ export async function analyzeFinancialHealth(companyId: string): Promise<Financi
 Dados financeiros:
 ${JSON.stringify(context, null, 2)}`
 
-    const raw = await callAnthropic(prompt)
+    const raw = await callAI(prompt)
     return parseJSON<FinancialAnalysis>(raw, fallback)
   } catch {
     return fallback
@@ -314,7 +307,7 @@ export async function analyzeHRMetrics(companyId: string): Promise<HRAnalysis> {
   }
 
   try {
-    if (!(await getAnthropicApiKey())) return fallback
+    if (!(await getActiveApiKey())) return fallback
 
     // Análise de RH contém dados sensíveis de salário: apenas ADMIN
     const session = await getSession()
@@ -382,7 +375,7 @@ export async function analyzeHRMetrics(companyId: string): Promise<HRAnalysis> {
 Dados de RH:
 ${JSON.stringify(context, null, 2)}`
 
-    const raw = await callAnthropic(prompt)
+    const raw = await callAI(prompt)
     const result = parseJSON<HRAnalysis>(raw, fallback)
 
     // Ensure computed fields are correct
@@ -411,7 +404,7 @@ export async function generateExecutiveSummary(companyId: string): Promise<Execu
   }
 
   try {
-    if (!(await getAnthropicApiKey())) return fallback
+    if (!(await getActiveApiKey())) return fallback
 
     // Resumo executivo: apenas ADMIN e MANAGER
     const session = await getSession()
@@ -469,7 +462,7 @@ export async function generateExecutiveSummary(companyId: string): Promise<Execu
 Dados consolidados:
 ${JSON.stringify(context, null, 2)}`
 
-    const raw = await callAnthropic(prompt)
+    const raw = await callAI(prompt)
     return parseJSON<ExecutiveSummary>(raw, fallback)
   } catch {
     return fallback
@@ -484,7 +477,7 @@ export async function detectAnomalies(companyId: string): Promise<AnomalyReport>
   const fallback: AnomalyReport = { anomalies: [] }
 
   try {
-    if (!(await getAnthropicApiKey())) return fallback
+    if (!(await getActiveApiKey())) return fallback
 
     // Detecção de anomalias: apenas ADMIN e MANAGER
     const session = await getSession()
@@ -559,7 +552,7 @@ Se nao houver anomalias, retorne {"anomalies":[]}.
 Dados recentes:
 ${JSON.stringify(context, null, 2)}`
 
-    const raw = await callAnthropic(prompt)
+    const raw = await callAI(prompt)
     return parseJSON<AnomalyReport>(raw, fallback)
   } catch {
     return fallback
@@ -582,7 +575,7 @@ export async function generateProjectRiskReport(projectId: string): Promise<Proj
   }
 
   try {
-    if (!(await getAnthropicApiKey())) return fallback
+    if (!(await getActiveApiKey())) return fallback
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -660,7 +653,7 @@ export async function generateProjectRiskReport(projectId: string): Promise<Proj
 Dados do projeto:
 ${JSON.stringify(context, null, 2)}`
 
-    const raw = await callAnthropic(prompt)
+    const raw = await callAI(prompt)
     return parseJSON<ProjectRiskReport>(raw, fallback)
   } catch {
     return fallback

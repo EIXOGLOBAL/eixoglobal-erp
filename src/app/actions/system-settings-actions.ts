@@ -13,7 +13,7 @@ async function requireAdmin() {
   return session.user as { id: string; name?: string }
 }
 
-const SENSITIVE_KEYS = ['ANTHROPIC_API_KEY', 'D4SIGN_TOKEN_API', 'D4SIGN_CRYPT_KEY']
+const SENSITIVE_KEYS = ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'D4SIGN_TOKEN_API', 'D4SIGN_CRYPT_KEY']
 
 function maskValue(key: string, value: string): string {
   if (SENSITIVE_KEYS.includes(key) && value.length > 8) {
@@ -85,17 +85,45 @@ export async function testAnthropicKey(apiKey: string): Promise<{ success: boole
   await requireAdmin()
 
   try {
-    const Anthropic = (await import('@anthropic-ai/sdk')).default
-    const client = new Anthropic({ apiKey: apiKey.trim() })
-
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 10,
-      messages: [{ role: 'user', content: 'Responda apenas: OK' }],
-    })
-
-    return { success: true, model: response.model }
+    const { testProvider } = await import('@/lib/ai-client')
+    return testProvider('anthropic', apiKey.trim())
   } catch (e: any) {
     return { success: false, error: e.message?.slice(0, 200) || 'Erro desconhecido' }
   }
+}
+
+export async function testOpenRouterKey(apiKey: string): Promise<{ success: boolean; error?: string; model?: string }> {
+  await requireAdmin()
+
+  try {
+    const { testProvider } = await import('@/lib/ai-client')
+    return testProvider('openrouter', apiKey.trim())
+  } catch (e: any) {
+    return { success: false, error: e.message?.slice(0, 200) || 'Erro desconhecido' }
+  }
+}
+
+export async function setAIProvider(provider: 'anthropic' | 'openrouter'): Promise<{ success?: boolean; error?: string }> {
+  const user = await requireAdmin()
+
+  await setSetting('AI_PROVIDER', provider, 'Provedor de IA Ativo', user.id)
+
+  await logAudit({
+    action: 'UPDATE_SETTING',
+    entity: 'SystemSetting',
+    entityId: 'AI_PROVIDER',
+    entityName: 'Provedor de IA',
+    newData: JSON.stringify({ provider }),
+    userId: user.id,
+  })
+
+  clearSettingsCache()
+  revalidatePath('/configuracoes/ia')
+  return { success: true }
+}
+
+export async function getAIProviderSetting(): Promise<string | null> {
+  await requireAdmin()
+  const { getSetting: getS } = await import('@/lib/system-settings')
+  return getS('AI_PROVIDER')
 }
