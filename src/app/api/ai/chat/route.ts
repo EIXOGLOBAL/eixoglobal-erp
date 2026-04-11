@@ -10,6 +10,7 @@ import { getSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { aiChat } from '@/lib/ai/client'
 import { getSystemPromptForModule, SYSTEM_GLOBAL } from '@/lib/ai/prompts'
+import { getChatDataContext } from '@/lib/ai/chat-context'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -73,8 +74,26 @@ export async function POST(request: NextRequest) {
     // Selecionar system prompt baseado no modulo
     const systemPrompt = module ? getSystemPromptForModule(module) : SYSTEM_GLOBAL
 
-    // Adicionar info do usuario ao system prompt
-    const enhancedPrompt = `${systemPrompt}\n\nUsuario: ${user.name || 'Usuario'}\nCargo: ${user.role}${context ? `\n\nContexto adicional:\n${JSON.stringify(context)}` : ''}`
+    // Buscar dados reais do banco para contexto da IA
+    const dataContext = await getChatDataContext({
+      companyId: user.companyId,
+      userId: user.id,
+      module: module || '/',
+      userRole: user.role,
+    })
+
+    // Montar prompt completo: system + dados reais + info do usuario
+    const enhancedPrompt = [
+      systemPrompt,
+      '',
+      dataContext,
+      '',
+      `Usuario: ${user.name || 'Usuario'}`,
+      `Cargo: ${user.role}`,
+      '',
+      'IMPORTANTE: Os dados acima sao REAIS do sistema. Use-os para responder com numeros e informacoes concretas. Nunca diga que nao tem acesso aos dados — eles estao acima.',
+      context ? `\nContexto adicional:\n${JSON.stringify(context)}` : '',
+    ].filter(Boolean).join('\n')
 
     // Converter UIMessage (v6 parts) para formato ModelMessage (role + content)
     // O AI SDK v6 useChat/TextStreamChatTransport envia mensagens com "parts" em vez de "content"
