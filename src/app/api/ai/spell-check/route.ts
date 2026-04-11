@@ -69,9 +69,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Call Claude for advanced correction
-    const apiKey = process.env.ANTHROPIC_API_KEY
+    const { getAnthropicApiKey } = await import('@/lib/system-settings')
+    const apiKey = await getAnthropicApiKey()
     if (!apiKey) {
-      return NextResponse.json({ error: 'API key não configurada' }, { status: 500 })
+      return NextResponse.json({ error: 'API key nao configurada. Acesse Configuracoes > IA.' }, { status: 500 })
     }
 
     const Anthropic = (await import('@anthropic-ai/sdk')).default

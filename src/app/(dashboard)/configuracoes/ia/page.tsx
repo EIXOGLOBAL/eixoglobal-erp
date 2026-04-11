@@ -18,7 +18,9 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { RoleBadge } from "@/components/ui/role-badge"
 import { AIAccessSelect } from "@/components/ai/ai-access-select"
-import { Brain, CheckCircle2, XCircle, Zap, Shield, MessageSquare, Ban } from "lucide-react"
+import { Brain, Zap, Shield, MessageSquare, Ban, Key } from "lucide-react"
+import { ApiKeyManager } from "@/components/ai/api-key-manager"
+import { getAnthropicApiKey, getSetting } from "@/lib/system-settings"
 
 export const dynamic = 'force-dynamic'
 
@@ -57,7 +59,14 @@ function AILevelBadge({ level }: { level: string }) {
 export default async function ConfiguracoesIAPage() {
   await requireAdmin()
 
-  const apiKeyConfigured = !!process.env.ANTHROPIC_API_KEY
+  const apiKey = await getAnthropicApiKey()
+  const apiKeyConfigured = !!apiKey
+  const dbKey = await getSetting('ANTHROPIC_API_KEY')
+  const maskedKey = dbKey
+    ? dbKey.slice(0, 8) + '...' + dbKey.slice(-4)
+    : process.env.ANTHROPIC_API_KEY
+      ? process.env.ANTHROPIC_API_KEY.slice(0, 8) + '...' + process.env.ANTHROPIC_API_KEY.slice(-4)
+      : null
 
   const users = await prisma.user.findMany({
     orderBy: { name: 'asc' },
@@ -146,36 +155,19 @@ export default async function ConfiguracoesIAPage() {
         </p>
       </div>
 
-      {/* Se\u00e7\u00e3o 1: Status da API */}
+      {/* Se\u00e7\u00e3o 1: Chave API */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Status da API</CardTitle>
-          <CardDescription>Verifica\u00e7\u00e3o da conex\u00e3o com o servi\u00e7o de IA</CardDescription>
+          <div className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            <CardTitle className="text-lg">Chave API Anthropic</CardTitle>
+          </div>
+          <CardDescription>
+            Gerencie a chave de acesso ao servico de IA. Pode ser inserida aqui ou via variavel de ambiente.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3">
-            {apiKeyConfigured ? (
-              <>
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle2 className="h-5 w-5" />
-                  <span className="font-medium">API configurada</span>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  A chave da API Anthropic est\u00e1 configurada e pronta para uso.
-                </span>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 text-red-600">
-                  <XCircle className="h-5 w-5" />
-                  <span className="font-medium">API n\u00e3o configurada</span>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  A vari\u00e1vel ANTHROPIC_API_KEY n\u00e3o est\u00e1 definida. As funcionalidades de IA estar\u00e3o indispon\u00edveis.
-                </span>
-              </>
-            )}
-          </div>
+          <ApiKeyManager currentMaskedKey={maskedKey} isConfigured={apiKeyConfigured} />
           <div className="mt-4 grid grid-cols-3 gap-4">
             <div className="text-center p-3 rounded-lg bg-muted/50">
               <p className="text-2xl font-bold">{totalUsers}</p>

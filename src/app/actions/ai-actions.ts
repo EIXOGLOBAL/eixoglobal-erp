@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth'
 import { resolveAIPermissions, type AIPermissions, type AiAccessLevel } from '@/lib/permissions'
 import { logAction } from '@/lib/audit-logger'
 import Anthropic from '@anthropic-ai/sdk'
+import { getAnthropicApiKey } from '@/lib/system-settings'
 
 // ============================================================================
 // Rate Limiting (diferenciado por permissão)
@@ -58,9 +59,9 @@ async function callAnthropic(
   maxTokens = 2000
 ): Promise<{ content?: string; error?: string }> {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY
+    const apiKey = await getAnthropicApiKey()
     if (!apiKey) {
-      return { error: 'ANTHROPIC_API_KEY não configurada' }
+      return { error: 'Chave API nao configurada. Acesse Configuracoes > IA.' }
     }
 
     const client = new Anthropic({ apiKey })

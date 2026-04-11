@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
 import { resolveAIPermissions, type AiAccessLevel } from '@/lib/permissions'
+import { getAnthropicApiKey } from '@/lib/system-settings'
 
 // --------------------------------------------------------
 // Helper
@@ -123,7 +124,7 @@ export async function analyzeProjectPortfolio(companyId: string): Promise<Portfo
   }
 
   try {
-    if (!process.env.ANTHROPIC_API_KEY) return fallback
+    if (!(await getAnthropicApiKey())) return fallback
 
     // Verificar permissões: filtrar por companyId do usuário (exceto ADMIN)
     const session = await getSession()
@@ -218,7 +219,7 @@ export async function analyzeFinancialHealth(companyId: string): Promise<Financi
   }
 
   try {
-    if (!process.env.ANTHROPIC_API_KEY) return fallback
+    if (!(await getAnthropicApiKey())) return fallback
 
     // Verificar permissões: filtrar por companyId do usuário
     const session = await getSession()
@@ -313,7 +314,7 @@ export async function analyzeHRMetrics(companyId: string): Promise<HRAnalysis> {
   }
 
   try {
-    if (!process.env.ANTHROPIC_API_KEY) return fallback
+    if (!(await getAnthropicApiKey())) return fallback
 
     // Análise de RH contém dados sensíveis de salário: apenas ADMIN
     const session = await getSession()
@@ -410,7 +411,7 @@ export async function generateExecutiveSummary(companyId: string): Promise<Execu
   }
 
   try {
-    if (!process.env.ANTHROPIC_API_KEY) return fallback
+    if (!(await getAnthropicApiKey())) return fallback
 
     // Resumo executivo: apenas ADMIN e MANAGER
     const session = await getSession()
@@ -483,7 +484,7 @@ export async function detectAnomalies(companyId: string): Promise<AnomalyReport>
   const fallback: AnomalyReport = { anomalies: [] }
 
   try {
-    if (!process.env.ANTHROPIC_API_KEY) return fallback
+    if (!(await getAnthropicApiKey())) return fallback
 
     // Detecção de anomalias: apenas ADMIN e MANAGER
     const session = await getSession()
@@ -581,7 +582,7 @@ export async function generateProjectRiskReport(projectId: string): Promise<Proj
   }
 
   try {
-    if (!process.env.ANTHROPIC_API_KEY) return fallback
+    if (!(await getAnthropicApiKey())) return fallback
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },

@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import { getAnthropicApiKey } from '@/lib/system-settings'
 import { NextRequest } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -29,9 +30,9 @@ export async function POST(request: NextRequest) {
     rateLimits.set(user.id, { count: 1, resetAt: now + 3600000 })
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey || apiKey === 'your_key_here') {
-    return Response.json({ error: 'Chave da API de IA não configurada. Contate o administrador.' }, { status: 503 })
+  const apiKey = await getAnthropicApiKey()
+  if (!apiKey) {
+    return Response.json({ error: 'Chave da API de IA não configurada. Acesse Configurações > IA para inserir.' }, { status: 503 })
   }
 
   const body = await request.json()

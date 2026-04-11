@@ -2867,3 +2867,17 @@ model SecurityScan {
 
   @@index([scanDate])
 }
+
+// --------------------------------------------------------
+// System Settings (API keys, config, etc.)
+// --------------------------------------------------------
+
+model SystemSetting {
+  key       String   @id
+  value     String   @db.Text
+  label     String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@map("system_settings")
+}

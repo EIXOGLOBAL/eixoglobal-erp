@@ -101,7 +101,8 @@ export async function GET(req: NextRequest) {
     // Check API key for security
     const authHeader = req.headers.get('authorization')
     const cronSecret = process.env.AI_CRON_SECRET
-    const apiKey = process.env.ANTHROPIC_API_KEY
+    const { getAnthropicApiKey } = await import('@/lib/system-settings')
+    const apiKey = await getAnthropicApiKey()
 
     // Simple auth check - if secret is configured, require it
     if (cronSecret && cronSecret !== 'your_secret_here') {
