@@ -13,18 +13,27 @@ function getConfig(): GitHubConfig | null {
   return { token, owner, repo }
 }
 
-async function getOctokit() {
+async function githubFetch(path: string, options?: RequestInit) {
   const config = getConfig()
   if (!config) return null
 
-  try {
-    // @ts-expect-error -- @octokit/rest is optional; installed only when GitHub integration is enabled
-    const { Octokit } = await import('@octokit/rest')
-    return new Octokit({ auth: config.token })
-  } catch {
-    console.warn('GitHub integration not available: @octokit/rest not installed')
-    return null
+  const res = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${config.token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`GitHub API ${res.status}: ${text}`)
   }
+
+  return res.json()
 }
 
 export async function isGitHubConfigured(): Promise<boolean> {
@@ -36,20 +45,19 @@ export async function createIssue(params: {
   body: string
   labels?: string[]
 }): Promise<{ success: boolean; url?: string; error?: string }> {
-  const config = getConfig()
-  const octokit = await getOctokit()
-  if (!config || !octokit) return { success: false, error: 'GitHub não configurado' }
+  if (!getConfig()) return { success: false, error: 'GitHub nao configurado' }
 
   try {
-    const response = await octokit.issues.create({
-      owner: config.owner,
-      repo: config.repo,
-      title: params.title,
-      body: params.body,
-      labels: params.labels || ['bug', 'ai-detected'],
+    const data = await githubFetch('/issues', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: params.title,
+        body: params.body,
+        labels: params.labels || ['bug', 'ai-detected'],
+      }),
     })
 
-    return { success: true, url: response.data.html_url }
+    return { success: true, url: data.html_url }
   } catch (error) {
     console.error('Erro ao criar issue no GitHub:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }
@@ -62,21 +70,20 @@ export async function createPullRequest(params: {
   head: string
   base?: string
 }): Promise<{ success: boolean; url?: string; error?: string }> {
-  const config = getConfig()
-  const octokit = await getOctokit()
-  if (!config || !octokit) return { success: false, error: 'GitHub não configurado' }
+  if (!getConfig()) return { success: false, error: 'GitHub nao configurado' }
 
   try {
-    const response = await octokit.pulls.create({
-      owner: config.owner,
-      repo: config.repo,
-      title: params.title,
-      body: params.body,
-      head: params.head,
-      base: params.base || 'main',
+    const data = await githubFetch('/pulls', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: params.title,
+        body: params.body,
+        head: params.head,
+        base: params.base || 'main',
+      }),
     })
 
-    return { success: true, url: response.data.html_url }
+    return { success: true, url: data.html_url }
   } catch (error) {
     console.error('Erro ao criar PR no GitHub:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }
@@ -88,19 +95,12 @@ export async function checkDependencyUpdates(): Promise<{
   updates?: Array<{ name: string; current: string; latest: string; type: string }>
   error?: string
 }> {
-  const config = getConfig()
-  const octokit = await getOctokit()
-  if (!config || !octokit) return { success: false, error: 'GitHub não configurado' }
+  if (!getConfig()) return { success: false, error: 'GitHub nao configurado' }
 
   try {
-    // Get Dependabot alerts if available
-    const { data: alerts } = await octokit.rest.dependabot.listAlertsForRepo({
-      owner: config.owner,
-      repo: config.repo,
-      state: 'open',
-    }).catch(() => ({ data: [] }))
+    const alerts = await githubFetch('/dependabot/alerts?state=open').catch(() => [])
 
-    const updates = (alerts as any[]).map((alert: any) => ({
+    const updates = (Array.isArray(alerts) ? alerts : []).map((alert: any) => ({
       name: alert.dependency?.package?.name || 'unknown',
       current: alert.security_vulnerability?.first_patched_version?.identifier || 'N/A',
       latest: alert.security_vulnerability?.vulnerable_version_range || 'N/A',
@@ -117,16 +117,12 @@ export async function triggerWorkflow(workflowFileName: string): Promise<{
   success: boolean
   error?: string
 }> {
-  const config = getConfig()
-  const octokit = await getOctokit()
-  if (!config || !octokit) return { success: false, error: 'GitHub não configurado' }
+  if (!getConfig()) return { success: false, error: 'GitHub nao configurado' }
 
   try {
-    await octokit.actions.createWorkflowDispatch({
-      owner: config.owner,
-      repo: config.repo,
-      workflow_id: workflowFileName,
-      ref: 'main',
+    await githubFetch(`/actions/workflows/${workflowFileName}/dispatches`, {
+      method: 'POST',
+      body: JSON.stringify({ ref: 'main' }),
     })
 
     return { success: true }
@@ -140,16 +136,20 @@ export async function getLatestRelease(): Promise<{
   data?: { tag: string; name: string; publishedAt: string; url: string }
   error?: string
 }> {
-  const config = getConfig()
-  const octokit = await getOctokit()
-  if (!config || !octokit) return { success: false, error: 'GitHub não configurado' }
+  if (!getConfig()) return { success: false, error: 'GitHub nao configurado' }
 
   try {
-    const { data } = await octokit.repos.getLatestRelease({
-      owner: config.owner,
-      repo: config.repo,
+    const config = getConfig()!
+    const res = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/releases/latest`, {
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        Accept: 'application/vnd.github+json',
+      },
     })
 
+    if (!res.ok) return { success: false, error: 'Nenhuma release encontrada' }
+
+    const data = await res.json()
     return {
       success: true,
       data: {

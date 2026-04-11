@@ -4,6 +4,8 @@ import { join } from 'path'
 import { getSession } from '@/lib/auth'
 import { saveBulletinAttachment } from '@/app/actions/bulletin-actions'
 
+export const dynamic = 'force-dynamic'
+
 const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'bulletins')
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
