@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'progress-photo' })
 
 // ============================================================================
 // SCHEMAS
@@ -88,7 +91,7 @@ export async function uploadPhoto(
     revalidatePath(`/projects/${validated.projectId}`)
     return { success: true, data: photo }
   } catch (error) {
-    console.error("Erro ao fazer upload de foto:", error)
+    log.error({ err: error }, "Erro ao fazer upload de foto")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao fazer upload de foto",
@@ -147,7 +150,7 @@ export async function getPhotos(
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar fotos de progresso:", error)
+    log.error({ err: error }, "Erro ao buscar fotos de progresso")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar fotos",
@@ -173,7 +176,7 @@ export async function getPhotoById(id: string) {
 
     return { success: true, data: photo }
   } catch (error) {
-    console.error("Erro ao buscar foto:", error)
+    log.error({ err: error }, "Erro ao buscar foto")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar foto",
@@ -205,7 +208,7 @@ export async function deletePhoto(id: string) {
     revalidatePath(`/projects/${photo.projectId}`)
     return { success: true }
   } catch (error) {
-    console.error("Erro ao deletar foto:", error)
+    log.error({ err: error }, "Erro ao deletar foto")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao deletar foto",
@@ -273,7 +276,7 @@ export async function getPhotoTimeline(projectId: string) {
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar timeline de fotos:", error)
+    log.error({ err: error }, "Erro ao buscar timeline de fotos")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar timeline",

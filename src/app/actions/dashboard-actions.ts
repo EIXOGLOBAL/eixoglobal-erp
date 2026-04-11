@@ -2,6 +2,9 @@
 
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'dashboard' })
 
 // ============================================================================
 // TYPES
@@ -142,7 +145,7 @@ export async function getDashboardData(userId: string, companyId: string): Promi
       },
     }
   } catch (error) {
-    console.error('[dashboard-actions] getDashboardData error:', error)
+    log.error({ err: error }, '[dashboard-actions] getDashboardData error')
     return { success: false, data: null, error: 'Erro ao carregar dados do dashboard' }
   }
 }

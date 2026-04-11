@@ -2,6 +2,9 @@
 
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'activity' })
 
 export interface ActivityData {
   userId: string
@@ -42,7 +45,7 @@ export async function logActivity(data: ActivityData) {
 
     return { success: true, data: activity }
   } catch (error: any) {
-    console.error('Error logging activity:', error)
+    log.error({ err: error }, 'Error logging activity')
     return { success: false, error: error.message || 'Erro ao registrar atividade' }
   }
 }
@@ -103,7 +106,7 @@ export async function getRecentActivities(limit: number = 10) {
       }),
     }
   } catch (error: any) {
-    console.error('Error fetching activities:', error)
+    log.error({ err: error }, 'Error fetching activities')
     return { success: false, error: error.message || 'Erro ao buscar atividades', data: [] }
   }
 }
@@ -153,7 +156,7 @@ export async function getUserActivities(userId: string, limit: number = 10) {
       }),
     }
   } catch (error: any) {
-    console.error('Error fetching user activities:', error)
+    log.error({ err: error }, 'Error fetching user activities')
     return { success: false, error: error.message || 'Erro ao buscar atividades do usuário', data: [] }
   }
 }
@@ -210,7 +213,7 @@ export async function getResourceActivities(
       }),
     }
   } catch (error: any) {
-    console.error('Error fetching resource activities:', error)
+    log.error({ err: error }, 'Error fetching resource activities')
     return { success: false, error: error.message || 'Erro ao buscar atividades do recurso', data: [] }
   }
 }

@@ -317,7 +317,7 @@ export async function getAIModel(): Promise<{
           console.warn(
             `[AI] AVISO: Modelo customizado "${customModel}" falhou. ` +
             `Usando fallback "${modelId}". ` +
-            `Atualize o modelo em Configuracoes > IA.`
+            `Atualize o modelo em Configurações > IA.`
           )
         }
 
@@ -333,7 +333,7 @@ export async function getAIModel(): Promise<{
 
   throw new Error(
     `Nenhum provedor de IA disponivel. Tentativas:\n${errors.join('\n')}\n\n` +
-    `Acesse Configuracoes > IA para verificar as chaves e modelos.`
+    `Acesse Configurações > IA para verificar as chaves e modelos.`
   )
 }
 

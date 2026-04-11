@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     const { getActiveApiKey } = await import('@/lib/ai-client')
     if (!(await getActiveApiKey())) {
       return NextResponse.json(
-        { error: 'Provedor de IA nao configurado. Acesse Configuracoes > IA.' },
+        { error: 'Provedor de IA não configurado. Acesse Configurações > IA.' },
         { status: 503 }
       )
     }

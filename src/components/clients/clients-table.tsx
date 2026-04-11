@@ -29,6 +29,20 @@ import { useToast } from '@/hooks/use-toast'
 import { changeClientStatus } from '@/app/actions/client-actions'
 import { ClientDialog } from './client-dialog'
 import { ClientQuickView } from './client-quick-view'
+import { ExportButton } from '@/components/ui/export-button'
+import type { ExportColumn } from '@/lib/export-utils'
+
+const clientExportColumns: ExportColumn[] = [
+  { key: 'code', label: 'Codigo' },
+  { key: 'displayName', label: 'Nome / Razao Social' },
+  { key: 'typePtBr', label: 'Tipo' },
+  { key: 'document', label: 'CNPJ / CPF' },
+  { key: 'cityState', label: 'Cidade / UF' },
+  { key: 'email', label: 'E-mail' },
+  { key: 'phone', label: 'Telefone' },
+  { key: 'statusPtBr', label: 'Status' },
+  { key: 'createdAt', label: 'Cadastro' },
+]
 
 const statusVariants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   ACTIVE: 'default',
@@ -116,8 +130,23 @@ export function ClientsTable({ clients, companyId }: ClientsTableProps) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Lista de Clientes</CardTitle>
+        <ExportButton
+          data={clients.map(c => ({
+            ...c,
+            code: c.code ? `#${c.code}` : '',
+            typePtBr: c.type === 'COMPANY' ? 'PJ' : 'PF',
+            document: c.type === 'COMPANY' ? (c.cnpj || '') : (c.cpf || ''),
+            cityState: c.city && c.state ? `${c.city} / ${c.state}` : (c.city || ''),
+            statusPtBr: statusLabels[c.status] || c.status,
+          }))}
+          columns={clientExportColumns}
+          filename="clientes"
+          title="Clientes"
+          sheetName="Clientes"
+          size="sm"
+        />
       </CardHeader>
       <CardContent>
         {clients.length === 0 ? (

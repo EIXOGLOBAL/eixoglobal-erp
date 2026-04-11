@@ -68,6 +68,9 @@ import {
     UserMinus,
 } from "lucide-react"
 import { formatDate } from "@/lib/formatters"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
+import { formatCurrency as fmtCurrencyExport, formatDate as fmtDateExport } from "@/lib/export-utils"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -172,6 +175,28 @@ const trainingFormSchema = z.object({
 })
 
 type FormValues = z.infer<typeof trainingFormSchema>
+
+// ─── Export columns ──────────────────────────────────────────────────────────
+
+const trainingExportColumns: ExportColumn[] = [
+    { key: 'title', label: 'Título' },
+    { key: 'type', label: 'Tipo', format: (v) => typeLabels[v as TrainingType] || String(v) },
+    { key: 'status', label: 'Status', format: (v) => statusLabels[v as TrainingStatus] || String(v) },
+    { key: 'instructor', label: 'Instrutor', format: (v) => v ? String(v) : '' },
+    { key: 'location', label: 'Local', format: (v) => v ? String(v) : '' },
+    { key: 'startDate', label: 'Data Início', format: (v) => v ? fmtDateExport(v as string) : '' },
+    { key: 'endDate', label: 'Data Término', format: (v) => v ? fmtDateExport(v as string) : '' },
+    { key: 'hours', label: 'Carga Horária (h)' },
+    { key: '_participants', label: 'Participantes' },
+    { key: 'cost', label: 'Custo', format: (v) => v != null ? fmtCurrencyExport(v as number) : '' },
+]
+
+function mapTrainingsForExport(list: Training[]): Record<string, unknown>[] {
+    return list.map(t => ({
+        ...t,
+        _participants: `${t._count.participants}${t.maxParticipants ? ` / ${t.maxParticipants}` : ''}`,
+    }))
+}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -435,7 +460,16 @@ export function TrainingsClient({ companyId, trainings, employees }: TrainingsCl
                     </Select>
                 </div>
 
-                {/* New training button */}
+                {/* Export + New training buttons */}
+                <div className="flex items-center gap-2">
+                    <ExportButton
+                        data={mapTrainingsForExport(filteredTrainings)}
+                        columns={trainingExportColumns}
+                        filename="treinamentos"
+                        title="Lista de Treinamentos"
+                        sheetName="Treinamentos"
+                        size="sm"
+                    />
                 <Dialog open={open} onOpenChange={setOpen}>
                     <DialogTrigger asChild>
                         <Button onClick={openCreate}>
@@ -692,6 +726,7 @@ export function TrainingsClient({ companyId, trainings, employees }: TrainingsCl
                         </Form>
                     </DialogContent>
                 </Dialog>
+                </div>
             </div>
 
             {/* Trainings Table */}

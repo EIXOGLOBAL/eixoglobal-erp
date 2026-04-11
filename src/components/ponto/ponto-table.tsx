@@ -8,12 +8,41 @@ import { formatDate, formatTime } from '@/lib/formatters'
 import { ApproveRejectDialog } from './approve-reject-dialog'
 import { BulkApproveButton } from './bulk-approve-button'
 import { CheckCircle, XCircle } from 'lucide-react'
+import { ExportButton } from '@/components/ui/export-button'
+import type { ExportColumn } from '@/lib/export-utils'
+import { formatDate as fmtDateExport } from '@/lib/export-utils'
 
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
   PENDING: { label: 'Pendente', className: 'bg-orange-100 text-orange-800' },
   APPROVED: { label: 'Aprovado', className: 'bg-green-100 text-green-800' },
   REJECTED: { label: 'Rejeitado', className: 'bg-red-100 text-red-800' },
   ADJUSTED: { label: 'Ajustado', className: 'bg-blue-100 text-blue-800' },
+}
+
+const pontoExportColumns: ExportColumn[] = [
+  { key: '_employeeName', label: 'Funcionário' },
+  { key: '_employeeJobTitle', label: 'Cargo' },
+  { key: '_projectName', label: 'Projeto' },
+  { key: '_clockIn', label: 'Entrada' },
+  { key: '_clockOut', label: 'Saída' },
+  { key: '_totalHours', label: 'Total (h)' },
+  { key: '_overtimeHours', label: 'Extra (h)' },
+  { key: '_statusLabel', label: 'Status' },
+  { key: 'date', label: 'Data', format: (v) => v ? fmtDateExport(v as string) : '' },
+]
+
+function mapPontoForExport(list: TimeEntry[]): Record<string, unknown>[] {
+  return list.map(e => ({
+    ...e,
+    _employeeName: e.employee?.name || '',
+    _employeeJobTitle: e.employee?.jobTitle || '',
+    _projectName: e.project?.name || '',
+    _clockIn: e.clockIn ? new Date(e.clockIn).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
+    _clockOut: e.clockOut ? new Date(e.clockOut).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
+    _totalHours: e.totalHours != null ? `${e.totalHours.toFixed(1)}h` : '',
+    _overtimeHours: e.overtimeHours != null && e.overtimeHours > 0 ? `${e.overtimeHours.toFixed(1)}h` : '',
+    _statusLabel: STATUS_MAP[e.status]?.label || e.status,
+  }))
 }
 
 interface TimeEntry {
@@ -76,19 +105,31 @@ export function PontoTable({ entries }: PontoTableProps) {
 
   return (
     <>
-      {pendingEntries.length > 0 && (
-        <div className="mb-4 flex items-center gap-2">
-          <BulkApproveButton
-            selectedIds={selectedIds}
-            onComplete={() => setSelectedIds([])}
+      <div className="mb-4 flex items-center gap-2 flex-wrap">
+        {pendingEntries.length > 0 && (
+          <>
+            <BulkApproveButton
+              selectedIds={selectedIds}
+              onComplete={() => setSelectedIds([])}
+            />
+            {selectedIds.length > 0 && (
+              <span className="text-sm text-muted-foreground">
+                {selectedIds.length} selecionado(s)
+              </span>
+            )}
+          </>
+        )}
+        <div className="ml-auto">
+          <ExportButton
+            data={mapPontoForExport(entries)}
+            columns={pontoExportColumns}
+            filename="folha_de_ponto"
+            title="Folha de Ponto"
+            sheetName="Ponto"
+            size="sm"
           />
-          {selectedIds.length > 0 && (
-            <span className="text-sm text-muted-foreground">
-              {selectedIds.length} selecionado(s)
-            </span>
-          )}
         </div>
-      )}
+      </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">

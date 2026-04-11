@@ -21,7 +21,7 @@ const ROLE_LABELS: Record<string, string> = {
   MANAGER: 'Gerente',
   ENGINEER: 'Engenheiro',
   SUPERVISOR: 'Supervisor',
-  SAFETY_OFFICER: 'Seguranca',
+  SAFETY_OFFICER: 'Segurança',
   ACCOUNTANT: 'Contador',
   HR_ANALYST: 'Analista RH',
   USER: 'Colaborador',

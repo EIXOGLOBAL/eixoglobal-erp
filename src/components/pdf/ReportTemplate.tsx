@@ -415,7 +415,7 @@ export function ReportDocument({
       {/* ─── Capa ─── */}
       <Page size="A4" style={styles.coverPage}>
         <Text style={styles.coverLogo}>EIXO GLOBAL</Text>
-        <Text style={styles.coverSubtitle}>Sistema de Gestao Empresarial</Text>
+        <Text style={styles.coverSubtitle}>Sistema de Gestão Empresarial</Text>
 
         <Text style={styles.coverTitle}>{title}</Text>
         {subtitle && (
@@ -588,14 +588,14 @@ export function ExecutiveReportContent({
       color: '#7C3AED',
     },
     {
-      label: 'Medicoes Aprovadas',
+      label: 'Medições Aprovadas',
       value: String(kpis.approvedMeasurements),
       color: COLORS.success,
     },
     {
       label: 'Pagamentos Pendentes',
       value: String(kpis.pendingPayments),
-      trend: kpis.pendingPayments > 0 ? 'Requer atencao' : '',
+      trend: kpis.pendingPayments > 0 ? 'Requer atenção' : '',
       trendDirection: kpis.pendingPayments > 0 ? 'negative' : 'neutral',
       color: kpis.pendingPayments > 0 ? COLORS.danger : COLORS.muted,
     },
@@ -604,7 +604,7 @@ export function ExecutiveReportContent({
   const projectColumns = [
     { header: 'Projeto', width: '35%' },
     { header: 'Status', width: '20%' },
-    { header: 'Orcamento', width: '25%', align: 'right' as const },
+    { header: 'Orçamento', width: '25%', align: 'right' as const },
     { header: 'Progresso', width: '20%', align: 'right' as const },
   ]
 
@@ -616,7 +616,7 @@ export function ExecutiveReportContent({
   ])
 
   const financialColumns = [
-    { header: 'Mes', width: '25%' },
+    { header: 'Mês', width: '25%' },
     { header: 'Receitas', width: '25%', align: 'right' as const },
     { header: 'Despesas', width: '25%', align: 'right' as const },
     { header: 'Saldo', width: '25%', align: 'right' as const },
@@ -636,7 +636,7 @@ export function ExecutiveReportContent({
 
       {kpis.balance < 0 && (
         <HighlightBox title="Alerta Financeiro" variant="danger">
-          O saldo do periodo esta negativo. Revise as despesas e receitas previstas.
+          O saldo do período está negativo. Revise as despesas e receitas previstas.
         </HighlightBox>
       )}
 
@@ -645,7 +645,7 @@ export function ExecutiveReportContent({
         <DataTable columns={projectColumns} rows={projectRows} />
       ) : (
         <Text style={{ fontSize: 9, color: COLORS.muted, marginBottom: 12 }}>
-          Nenhum projeto encontrado no periodo.
+          Nenhum projeto encontrado no período.
         </Text>
       )}
 
@@ -654,7 +654,7 @@ export function ExecutiveReportContent({
         <DataTable columns={financialColumns} rows={financialRows} />
       ) : (
         <Text style={{ fontSize: 9, color: COLORS.muted, marginBottom: 12 }}>
-          Nenhum registro financeiro no periodo.
+          Nenhum registro financeiro no período.
         </Text>
       )}
     </View>
@@ -765,7 +765,7 @@ export function ProjectReportContent({
         </Text>
       )}
 
-      <SectionTitle>Medicoes ({measurements.length})</SectionTitle>
+      <SectionTitle>Medições ({measurements.length})</SectionTitle>
       {measurements.length > 0 ? (
         <DataTable
           columns={[
@@ -876,7 +876,7 @@ export function FinancialReportContent({
 
       {summary.balance < 0 && (
         <HighlightBox title="Atencao" variant="danger">
-          O saldo do periodo esta negativo em {formatCurrency(Math.abs(summary.balance))}.
+          O saldo do período está negativo em {formatCurrency(Math.abs(summary.balance))}.
         </HighlightBox>
       )}
 
@@ -884,7 +884,7 @@ export function FinancialReportContent({
       {summary.monthlyBreakdown.length > 0 ? (
         <DataTable
           columns={[
-            { header: 'Mes', width: '25%' },
+            { header: 'Mês', width: '25%' },
             { header: 'Receitas', width: '25%', align: 'right' },
             { header: 'Despesas', width: '25%', align: 'right' },
             { header: 'Saldo', width: '25%', align: 'right' },
@@ -924,7 +924,7 @@ export function FinancialReportContent({
         />
       ) : (
         <Text style={{ fontSize: 9, color: COLORS.muted, marginBottom: 12 }}>
-          Nenhum lancamento financeiro no periodo.
+          Nenhum lançamento financeiro no período.
         </Text>
       )}
     </View>
@@ -1015,7 +1015,7 @@ export function HRReportContent({
       color: COLORS.danger,
     },
     {
-      label: 'Alocacoes Ativas',
+      label: 'Alocações Ativas',
       value: String(allocations.length),
       color: '#7C3AED',
     },
@@ -1055,7 +1055,7 @@ export function HRReportContent({
         </Text>
       )}
 
-      <SectionTitle>Alocacoes em Projetos ({allocations.length})</SectionTitle>
+      <SectionTitle>Alocações em Projetos ({allocations.length})</SectionTitle>
       {allocations.length > 0 ? (
         <DataTable
           columns={[
@@ -1073,7 +1073,7 @@ export function HRReportContent({
         />
       ) : (
         <Text style={{ fontSize: 9, color: COLORS.muted, marginBottom: 12 }}>
-          Nenhuma alocacao encontrada no periodo.
+          Nenhuma alocação encontrada no período.
         </Text>
       )}
 
@@ -1101,7 +1101,7 @@ export function HRReportContent({
         />
       ) : (
         <Text style={{ fontSize: 9, color: COLORS.muted, marginBottom: 12 }}>
-          Nenhum registro de ferias ou afastamento no periodo.
+          Nenhum registro de férias ou afastamento no período.
         </Text>
       )}
     </View>

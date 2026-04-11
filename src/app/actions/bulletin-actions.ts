@@ -8,6 +8,9 @@ import { notifyUser, notifyUsers } from "@/lib/sse-notifications"
 import { getSession } from "@/lib/auth"
 import { assertAuthenticated } from "@/lib/auth-helpers"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'bulletin' })
 
 // ========================================
 // SCHEMAS DE VALIDAÇÃO
@@ -209,7 +212,7 @@ export async function createMeasurementBulletin(
         return { success: true, data: bulletin }
 
     } catch (error: any) {
-        console.error('Error creating bulletin:', error)
+        log.error({ err: error }, 'Error creating bulletin')
         return { success: false, error: error.message || 'Erro ao criar boletim' }
     }
 }
@@ -275,7 +278,7 @@ export async function submitBulletinForApproval(bulletinId: string) {
 
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Erro ao enviar para aprovação'
-        console.error('[submitBulletinForApproval]', error)
+        log.error({ err: error }, '[submitBulletinForApproval]')
         return { success: false, error: message }
     }
 }
@@ -393,7 +396,7 @@ export async function approveByEngineer(data: z.infer<typeof approveBulletinSche
 
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Erro ao aprovar boletim'
-        console.error('[approveByEngineer]', error)
+        log.error({ err: error }, '[approveByEngineer]')
         return { success: false, error: message }
     }
 }
@@ -520,7 +523,7 @@ export async function approveByManager(data: z.infer<typeof approveBulletinSchem
             revalidatePath('/financeiro')
         } catch (finError) {
             // Log but do not fail – the approval itself was already saved.
-            console.error('[approveByManager] Failed to create FinancialRecord for bulletin', bulletin.number, finError)
+            log.error({ err: finError, context: bulletin.number }, '[approveByManager] Failed to create FinancialRecord for bulletin')
         }
 
         revalidatePath('/measurements')
@@ -528,7 +531,7 @@ export async function approveByManager(data: z.infer<typeof approveBulletinSchem
 
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Erro ao aprovar boletim'
-        console.error('[approveByManager]', error)
+        log.error({ err: error }, '[approveByManager]')
         return { success: false, error: message }
     }
 }
@@ -613,7 +616,7 @@ export async function rejectBulletin(data: z.infer<typeof rejectBulletinSchema>)
 
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Erro ao rejeitar boletim'
-        console.error('[rejectBulletin]', error)
+        log.error({ err: error }, '[rejectBulletin]')
         return { success: false, error: message }
     }
 }
@@ -1013,7 +1016,7 @@ export async function updateBulletin(
         revalidatePath(`/medicoes/boletins/${bulletinId}`)
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao atualizar boletim:", error)
+        log.error({ err: error }, "Erro ao atualizar boletim")
         return { success: false, error: "Erro ao atualizar boletim" }
     }
 }
@@ -1108,7 +1111,7 @@ export async function initD4SignProcess(bulletinId: string) {
         }
 
     } catch (error: any) {
-        console.error('Error initializing D4Sign:', error)
+        log.error({ err: error }, 'Error initializing D4Sign')
         return { success: false, error: error.message || 'Erro ao inicializar assinatura digital' }
     }
 }
@@ -1168,7 +1171,7 @@ export async function checkD4SignStatus(bulletinId: string) {
         }
 
     } catch (error: any) {
-        console.error('Error checking D4Sign status:', error)
+        log.error({ err: error }, 'Error checking D4Sign status')
         return { success: false, error: error.message || 'Erro ao verificar status de assinatura' }
     }
 }
@@ -1273,7 +1276,7 @@ export async function getDailyReportQuantitiesForBulletin(params: {
         }
 
     } catch (error: any) {
-        console.error('[getDailyReportQuantitiesForBulletin]', error)
+        log.error({ err: error }, '[getDailyReportQuantitiesForBulletin]')
         return { success: false, error: error.message || 'Erro ao buscar quantidades dos RDOs' }
     }
 }

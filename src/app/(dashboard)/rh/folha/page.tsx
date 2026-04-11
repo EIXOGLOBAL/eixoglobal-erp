@@ -206,7 +206,7 @@ export default async function FolhaPagamentoPage({
                         <Badge variant="outline" className="ml-1">Estimativa</Badge>
                     </p>
                 </div>
-                <PayrollExportButton />
+                <PayrollExportButton rows={rows} competencia={competencia} />
             </div>
 
             {/* Print-only header */}

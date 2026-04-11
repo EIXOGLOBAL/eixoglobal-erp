@@ -3,6 +3,9 @@
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'notification' })
 
 export interface NotificationData {
   title: string
@@ -32,7 +35,7 @@ export async function createNotification(data: NotificationData) {
     revalidatePath('/notificacoes')
     return { success: true, data: notification }
   } catch (error: any) {
-    console.error('Error creating notification:', error)
+    log.error({ err: error }, 'Error creating notification')
     return { success: false, error: error.message || 'Erro ao criar notificação' }
   }
 }
@@ -57,7 +60,7 @@ export async function getUserNotifications(limit: number = 10) {
 
     return { success: true, data: notifications }
   } catch (error: any) {
-    console.error('Error fetching notifications:', error)
+    log.error({ err: error }, 'Error fetching notifications')
     return { success: false, error: error.message || 'Erro ao buscar notificações', data: [] }
   }
 }
@@ -81,7 +84,7 @@ export async function getUnreadCount() {
 
     return { success: true, count }
   } catch (error: any) {
-    console.error('Error counting unread notifications:', error)
+    log.error({ err: error }, 'Error counting unread notifications')
     return { success: false, error: error.message || 'Erro ao contar notificações', count: 0 }
   }
 }
@@ -104,7 +107,7 @@ export async function markNotificationAsRead(notificationId: string) {
     revalidatePath('/notificacoes')
     return { success: true, data: notification }
   } catch (error: any) {
-    console.error('Error marking notification as read:', error)
+    log.error({ err: error }, 'Error marking notification as read')
     return { success: false, error: error.message || 'Erro ao marcar notificação como lida' }
   }
 }
@@ -130,7 +133,7 @@ export async function markAllNotificationsAsRead() {
     revalidatePath('/notificacoes')
     return { success: true }
   } catch (error: any) {
-    console.error('Error marking all notifications as read:', error)
+    log.error({ err: error }, 'Error marking all notifications as read')
     return { success: false, error: error.message || 'Erro ao marcar notificações como lidas' }
   }
 }
@@ -152,7 +155,7 @@ export async function deleteNotification(notificationId: string) {
     revalidatePath('/notificacoes')
     return { success: true }
   } catch (error: any) {
-    console.error('Error deleting notification:', error)
+    log.error({ err: error }, 'Error deleting notification')
     return { success: false, error: error.message || 'Erro ao deletar notificação' }
   }
 }
@@ -174,7 +177,7 @@ export async function clearAllNotifications() {
     revalidatePath('/notificacoes')
     return { success: true }
   } catch (error: any) {
-    console.error('Error clearing notifications:', error)
+    log.error({ err: error }, 'Error clearing notifications')
     return { success: false, error: error.message || 'Erro ao limpar notificações' }
   }
 }
@@ -211,7 +214,7 @@ export async function createBulkNotifications(
 
     return { success: true, data: notifications }
   } catch (error: any) {
-    console.error('Error creating bulk notifications:', error)
+    log.error({ err: error }, 'Error creating bulk notifications')
     return { success: false, error: error.message || 'Erro ao criar notificações em massa' }
   }
 }
@@ -237,8 +240,57 @@ export async function markNotificationsAsRead(notificationIds: string[]) {
     revalidatePath('/notificacoes')
     return { success: true }
   } catch (error: any) {
-    console.error('Error marking notifications as read:', error)
+    log.error({ err: error }, 'Error marking notifications as read')
     return { success: false, error: error.message || 'Erro ao marcar notificações como lidas' }
+  }
+}
+
+/**
+ * Get notification stats (KPIs) for the current user
+ */
+export async function getNotificationStats() {
+  try {
+    const session = await getSession()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Não autenticado', data: null }
+    }
+
+    const userId = session.user.id
+    const now = new Date()
+
+    // Start of today (UTC)
+    const startOfToday = new Date(now)
+    startOfToday.setHours(0, 0, 0, 0)
+
+    // Start of this week (Monday)
+    const startOfWeek = new Date(now)
+    const dayOfWeek = startOfWeek.getDay()
+    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+    startOfWeek.setDate(startOfWeek.getDate() - diff)
+    startOfWeek.setHours(0, 0, 0, 0)
+
+    const [total, unread, today, thisWeek] = await Promise.all([
+      prisma.notification.count({
+        where: { userId },
+      }),
+      prisma.notification.count({
+        where: { userId, read: false },
+      }),
+      prisma.notification.count({
+        where: { userId, createdAt: { gte: startOfToday } },
+      }),
+      prisma.notification.count({
+        where: { userId, createdAt: { gte: startOfWeek } },
+      }),
+    ])
+
+    return {
+      success: true,
+      data: { total, unread, today, thisWeek },
+    }
+  } catch (error: any) {
+    log.error({ err: error }, 'Error fetching notification stats')
+    return { success: false, error: error.message || 'Erro ao buscar estatísticas', data: null }
   }
 }
 

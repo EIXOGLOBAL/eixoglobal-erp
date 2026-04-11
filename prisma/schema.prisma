@@ -105,6 +105,11 @@ model User {
 
   resolvedAnomalies      AnomalyDetection[]     @relation("AnomalyResolver")
   createdBillings        Billing[]              @relation("BillingCreator")
+  scheduledReports       ScheduledReport[]      @relation("ScheduledReportCreator")
+
+  // Preferências de notificação por email
+  emailNotifications Boolean @default(true)
+  emailDigest        Boolean @default(false) // Receber digest diário ao invés de emails individuais
 
   @@index([companyId])
   @@index([email])
@@ -173,6 +178,7 @@ model Company {
   progressPhotos     ProgressPhoto[]
   anomalyDetections  AnomalyDetection[]
   billings           Billing[]
+  scheduledReports   ScheduledReport[]
 
   @@map("companies")
 }
@@ -1946,7 +1952,8 @@ model Notification {
   title   String
   message String  @db.Text
   link    String? // URL to navigate to when clicked
-  read    Boolean @default(false)
+  read      Boolean @default(false)
+  emailSent Boolean @default(false)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2411,27 +2418,68 @@ enum FuelType {
 // ============================================================
 
 model WorkCalendar {
-  id        String   @id @default(uuid())
-  name      String
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id])
-  projectId String?
-  project   Project? @relation(fields: [projectId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  hoursPerDay Decimal  @default(8) @db.Decimal(4, 2)
+  isActive    Boolean  @default(true)
+  monday      Boolean  @default(true)
+  tuesday     Boolean  @default(true)
+  wednesday   Boolean  @default(true)
+  thursday    Boolean  @default(true)
+  friday      Boolean  @default(true)
+  saturday    Boolean  @default(false)
+  sunday      Boolean  @default(false)
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id])
+  holidays    WorkCalendarHoliday[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("work_calendars")
 }
 
+model WorkCalendarHoliday {
+  id          String       @id @default(uuid())
+  name        String
+  date        DateTime
+  type        HolidayType  @default(NACIONAL)
+  recurring   Boolean      @default(false)
+  calendarId  String
+  calendar    WorkCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+
+  @@map("work_calendar_holidays")
+}
+
+enum HolidayType {
+  NACIONAL
+  ESTADUAL
+  MUNICIPAL
+  PONTE
+}
+
 model BDIConfig {
-  id         String   @id @default(uuid())
-  name       String
-  companyId  String
-  company    Company  @relation(fields: [companyId], references: [id])
-  percentage Decimal  @db.Decimal(5, 2)
-  isDefault  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                   String   @id @default(uuid())
+  name                 String
+  companyId            String
+  company              Company  @relation(fields: [companyId], references: [id])
+  percentage           Decimal  @db.Decimal(5, 2)
+  administracaoCentral Decimal  @default(0) @db.Decimal(5, 2)
+  seguroGarantia       Decimal  @default(0) @db.Decimal(5, 2)
+  risco                Decimal  @default(0) @db.Decimal(5, 2)
+  despesasFinanceiras  Decimal  @default(0) @db.Decimal(5, 2)
+  lucro                Decimal  @default(0) @db.Decimal(5, 2)
+  iss                  Decimal  @default(0) @db.Decimal(5, 2)
+  pis                  Decimal  @default(0) @db.Decimal(5, 2)
+  cofins               Decimal  @default(0) @db.Decimal(5, 2)
+  irpj                 Decimal  @default(0) @db.Decimal(5, 2)
+  csll                 Decimal  @default(0) @db.Decimal(5, 2)
+  isDefault            Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@map("bdi_configs")
 }
@@ -2980,4 +3028,33 @@ model Billing {
   @@index([contractId])
   @@index([measurementBulletinId])
   @@map("billings")
+}
+
+// --------------------------------------------------------
+// SCHEDULED REPORTS
+// --------------------------------------------------------
+
+model ScheduledReport {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   // DRE, FLUXO_CAIXA, EXECUTIVO, etc.
+  frequency   String   // DAILY, WEEKLY, MONTHLY
+  dayOfWeek   Int?     // 0-6 para WEEKLY
+  dayOfMonth  Int?     // 1-31 para MONTHLY
+  hour        Int      @default(8) // hora de envio
+  recipients  String   // JSON array de emails
+  filters     String?  // JSON com filtros (período, projeto, etc.)
+  isActive    Boolean  @default(true)
+  lastRun     DateTime?
+  nextRun     DateTime?
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdById String
+  createdBy   User     @relation("ScheduledReportCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([isActive, nextRun])
+  @@map("scheduled_reports")
 }

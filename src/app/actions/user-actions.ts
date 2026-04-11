@@ -8,6 +8,9 @@ import { UserPermissions } from "@/lib/permissions"
 import { BCRYPT_ROUNDS, validatePassword } from "@/lib/password-policy"
 import { assertAuthenticated, assertRole } from "@/lib/auth-helpers"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'user' })
 
 const RoleEnum = z.enum(["ADMIN", "MANAGER", "USER", "ENGINEER"]);
 
@@ -140,7 +143,7 @@ export async function createUser(
         revalidatePath("/users");
         return { message: "Usuário criado com sucesso!", success: true };
     } catch (error) {
-        console.error("[createUser]", error);
+        log.error({ err: error }, "[createUser]");
         return {
             message: "Erro ao criar usuário no banco de dados.",
             success: false
@@ -239,7 +242,7 @@ export async function updateUser(
         revalidatePath("/users");
         return { message: "Usuário atualizado com sucesso!", success: true };
     } catch (error) {
-        console.error("[updateUser]", error);
+        log.error({ err: error }, "[updateUser]");
         return {
             message: "Erro ao atualizar usuário.",
             success: false
@@ -266,7 +269,7 @@ export async function deleteUser(id: string) {
         revalidatePath("/users")
         return { message: "Usuário removido com sucesso.", success: true }
     } catch (error) {
-        console.error("[deleteUser]", error)
+        log.error({ err: error }, "[deleteUser]")
         return {
             message: error instanceof Error ? error.message : "Erro ao remover usuário.",
             success: false,
@@ -293,7 +296,7 @@ export async function blockUser(userId: string, reason: string) {
         revalidatePath("/users")
         return { success: true, message: "Usuário bloqueado com sucesso." }
     } catch (error) {
-        console.error("[blockUser]", error)
+        log.error({ err: error }, "[blockUser]")
         return { success: false, error: error instanceof Error ? error.message : "Erro ao bloquear usuário." }
     }
 }
@@ -313,7 +316,7 @@ export async function unblockUser(userId: string) {
         revalidatePath("/users")
         return { success: true, message: "Usuário desbloqueado com sucesso." }
     } catch (error) {
-        console.error("[unblockUser]", error)
+        log.error({ err: error }, "[unblockUser]")
         return { success: false, error: error instanceof Error ? error.message : "Erro ao desbloquear usuário." }
     }
 }
@@ -346,7 +349,7 @@ export async function deactivateUser(userId: string) {
         revalidatePath("/users")
         return { success: true, message: "Usuário desativado com sucesso." }
     } catch (error) {
-        console.error("[deactivateUser]", error)
+        log.error({ err: error }, "[deactivateUser]")
         return { success: false, error: error instanceof Error ? error.message : "Erro ao desativar usuário." }
     }
 }
@@ -366,7 +369,7 @@ export async function activateUser(userId: string) {
         revalidatePath("/users")
         return { success: true, message: "Usuário ativado com sucesso." }
     } catch (error) {
-        console.error("[activateUser]", error)
+        log.error({ err: error }, "[activateUser]")
         return { success: false, error: error instanceof Error ? error.message : "Erro ao ativar usuário." }
     }
 }
@@ -392,7 +395,7 @@ export async function adminResetPassword(userId: string, newPassword: string) {
         revalidatePath("/users")
         return { success: true, message: "Senha resetada com sucesso." }
     } catch (error) {
-        console.error("[adminResetPassword]", error)
+        log.error({ err: error }, "[adminResetPassword]")
         return { success: false, error: error instanceof Error ? error.message : "Erro ao resetar senha." }
     }
 }
@@ -419,7 +422,7 @@ export async function updateUserPermissions(
         revalidatePath('/users')
         return { success: true }
     } catch (error) {
-        console.error("[updateUserPermissions]", error)
+        log.error({ err: error }, "[updateUserPermissions]")
         return { success: false, error: 'Erro ao atualizar permissões' }
     }
 }
@@ -455,7 +458,7 @@ export async function getUsers(companyId?: string) {
         })
         return { success: true, data: users }
     } catch (error) {
-        console.error("[getUsers]", error)
+        log.error({ err: error }, "[getUsers]")
         return { success: false, error: 'Erro ao buscar usuários', data: [] }
     }
 }
@@ -493,7 +496,7 @@ export async function getUserById(id: string) {
         if (!user) return { success: false, error: 'Usuário não encontrado' }
         return { success: true, data: user }
     } catch (error) {
-        console.error("[getUserById]", error)
+        log.error({ err: error }, "[getUserById]")
         return { success: false, error: 'Erro ao buscar usuário' }
     }
 }

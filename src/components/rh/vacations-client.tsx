@@ -64,6 +64,9 @@ import {
 } from "lucide-react"
 
 import { formatDate } from "@/lib/formatters"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
+import { formatDate as fmtDateExport } from "@/lib/export-utils"
 // ---- Types ----
 
 type LeaveType = 'VACATION' | 'SICK_LEAVE' | 'MATERNITY' | 'PATERNITY' | 'BEREAVEMENT' | 'PERSONAL' | 'ACCIDENT' | 'OTHER'
@@ -171,6 +174,28 @@ function calculateDays(startDate: string, endDate: string): number {
     const diff = new Date(endDate).getTime() - new Date(startDate).getTime()
     if (diff < 0) return 0
     return Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1
+}
+
+// ---- Export columns ----
+
+const vacationExportColumns: ExportColumn[] = [
+    { key: '_employeeName', label: 'Funcionário' },
+    { key: '_employeeJobTitle', label: 'Cargo' },
+    { key: 'type', label: 'Tipo', format: (v) => typeLabels[v as LeaveType] || String(v) },
+    { key: 'status', label: 'Status', format: (v) => statusLabels[v as LeaveStatus] || String(v) },
+    { key: 'startDate', label: 'Início', format: (v) => v ? fmtDateExport(v as string) : '' },
+    { key: 'endDate', label: 'Fim', format: (v) => v ? fmtDateExport(v as string) : '' },
+    { key: 'days', label: 'Dias' },
+    { key: 'approvedBy', label: 'Aprovado por', format: (v) => v ? String(v) : '' },
+    { key: 'reason', label: 'Motivo', format: (v) => v ? String(v) : '' },
+]
+
+function mapVacationsForExport(list: VacationRequest[]): Record<string, unknown>[] {
+    return list.map(r => ({
+        ...r,
+        _employeeName: r.employee.name,
+        _employeeJobTitle: r.employee.jobTitle ?? '',
+    }))
 }
 
 // ---- Component ----
@@ -380,10 +405,20 @@ export function VacationsClient({ requests, employees }: VacationsClientProps) {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Solicitações</h3>
-                <Button onClick={openCreate}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nova Solicitação
-                </Button>
+                <div className="flex items-center gap-2">
+                    <ExportButton
+                        data={mapVacationsForExport(filtered)}
+                        columns={vacationExportColumns}
+                        filename="ferias_afastamentos"
+                        title="Férias e Afastamentos"
+                        sheetName="Férias"
+                        size="sm"
+                    />
+                    <Button onClick={openCreate}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nova Solicitação
+                    </Button>
+                </div>
             </div>
 
             {/* Filter bar */}

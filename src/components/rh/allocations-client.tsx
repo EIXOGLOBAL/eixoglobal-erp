@@ -29,6 +29,9 @@ import { MoreHorizontal, Plus, Pencil, Trash2, Search, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createAllocation, updateAllocation, deleteAllocation } from "@/app/actions/allocation-actions"
 import { formatDate } from "@/lib/formatters"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
+import { formatDate as fmtDateExport } from "@/lib/export-utils"
 
 interface Employee { id: string; name: string; jobTitle: string | null }
 interface Project { id: string; name: string; status: string }
@@ -55,6 +58,28 @@ const allocationSchema = z.object({
 type AllocationForm = z.infer<typeof allocationSchema>
 
 const fmt = (d: Date | string) => formatDate(d)
+
+const allocationExportColumns: ExportColumn[] = [
+    { key: '_employeeName', label: 'Funcionário' },
+    { key: '_employeeJobTitle', label: 'Cargo' },
+    { key: '_projectName', label: 'Projeto' },
+    { key: '_projectStatus', label: 'Status Projeto' },
+    { key: 'startDate', label: 'Início', format: (v) => v ? fmtDateExport(v as string) : '' },
+    { key: 'endDate', label: 'Término', format: (v) => v ? fmtDateExport(v as string) : '' },
+    { key: '_status', label: 'Situação' },
+]
+
+function mapAllocationsForExport(list: Allocation[]): Record<string, unknown>[] {
+    const today = new Date()
+    return list.map(a => ({
+        ...a,
+        _employeeName: a.employee.name,
+        _employeeJobTitle: a.employee.jobTitle ?? '',
+        _projectName: a.project.name,
+        _projectStatus: a.project.status.replace('_', ' '),
+        _status: (!a.endDate || new Date(a.endDate) >= today) ? 'Ativa' : 'Encerrada',
+    }))
+}
 
 const projectStatusColors: Record<string, string> = {
     PLANNING: 'bg-amber-100 text-amber-800',
@@ -167,10 +192,20 @@ export function AllocationsClient({ allocations: initial, employees, projects }:
             <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <CardTitle>Todas as Alocações</CardTitle>
-                    <Button size="sm" onClick={openCreate}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Nova Alocação
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <ExportButton
+                            data={mapAllocationsForExport(filtered)}
+                            columns={allocationExportColumns}
+                            filename="alocacoes"
+                            title="Alocações de Funcionários"
+                            sheetName="Alocações"
+                            size="sm"
+                        />
+                        <Button size="sm" onClick={openCreate}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Nova Alocação
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Filters */}

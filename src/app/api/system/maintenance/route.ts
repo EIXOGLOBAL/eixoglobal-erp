@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const action = (body as any).action
 
     if (action === "enable") {
-      const reason = (body as any).reason ?? "Manutencao programada"
+      const reason = (body as any).reason ?? "Manutenção programada"
       const durationMinutes = (body as any).durationMinutes
         ? Number((body as any).durationMinutes)
         : undefined

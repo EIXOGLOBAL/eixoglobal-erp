@@ -5,6 +5,9 @@ import { getSession } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
 import { MODULES } from '@/lib/module-permissions'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'module-access' })
 
 export async function getUserModuleAccess(userId: string) {
   const session = await getSession()
@@ -63,7 +66,7 @@ export async function updateUserModuleAccess(
     revalidatePath('/configuracoes')
     return { success: true as const, data: user }
   } catch (error) {
-    console.error('Erro ao atualizar acesso aos módulos:', error)
+    log.error({ err: error }, 'Erro ao atualizar acesso aos módulos')
     return { success: false as const, error: 'Erro ao atualizar acesso' }
   }
 }
@@ -96,7 +99,7 @@ export async function setAllModuleAccess(userId: string, enabled: boolean) {
     revalidatePath('/users')
     return { success: true as const, data: user }
   } catch (error) {
-    console.error('Erro ao atualizar acesso aos módulos:', error)
+    log.error({ err: error }, 'Erro ao atualizar acesso aos módulos')
     return { success: false as const, error: 'Erro ao atualizar acesso' }
   }
 }

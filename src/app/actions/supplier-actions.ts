@@ -12,6 +12,9 @@ import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'supplier' })
 
 const supplierSchema = z.object({
     name: z.string().min(2, "Razão social é obrigatória"),
@@ -33,6 +36,11 @@ export async function createSupplier(data: z.infer<typeof supplierSchema>) {
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot create
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para criar fornecedor" }
+        }
 
         // Verify company access
         if (data.companyId !== session.user.companyId) {
@@ -65,7 +73,7 @@ export async function createSupplier(data: z.infer<typeof supplierSchema>) {
         revalidatePath('/financeiro/fornecedores')
         return { success: true, data: supplier }
     } catch (error) {
-        console.error("Erro ao criar fornecedor:", error)
+        log.error({ err: error }, "Erro ao criar fornecedor")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar fornecedor"
@@ -77,6 +85,11 @@ export async function updateSupplier(id: string, data: z.infer<typeof supplierSc
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot update
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para editar fornecedor" }
+        }
 
         // Verify supplier belongs to user's company
         const oldData = await prisma.supplier.findUnique({
@@ -112,7 +125,7 @@ export async function updateSupplier(id: string, data: z.infer<typeof supplierSc
         revalidatePath('/financeiro/fornecedores')
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao atualizar fornecedor:", error)
+        log.error({ err: error }, "Erro ao atualizar fornecedor")
         return { success: false, error: "Erro ao atualizar fornecedor" }
     }
 }
@@ -152,7 +165,7 @@ export async function deleteSupplier(id: string) {
         revalidatePath('/financeiro/fornecedores')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar fornecedor:", error)
+        log.error({ err: error }, "Erro ao deletar fornecedor")
         return { success: false, error: "Erro ao deletar fornecedor" }
     }
 }
@@ -188,7 +201,7 @@ export async function getSuppliers(params?: {
 
         return { success: true, data: suppliers, pagination: paginatedResponse(suppliers, total, page, pageSize).pagination }
     } catch (error) {
-        console.error("Erro ao buscar fornecedores:", error)
+        log.error({ err: error }, "Erro ao buscar fornecedores")
         return { success: false, data: [], error: "Erro ao buscar fornecedores", pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
@@ -202,7 +215,7 @@ export async function getActiveSuppliers(companyId: string) {
         })
         return suppliers
     } catch (error) {
-        console.error("Erro ao buscar fornecedores ativos:", error)
+        log.error({ err: error }, "Erro ao buscar fornecedores ativos")
         return []
     }
 }
@@ -241,7 +254,7 @@ export async function getSuppliersWithScore(companyId: string) {
 
         return result
     } catch (error) {
-        console.error("Erro ao buscar fornecedores com score:", error)
+        log.error({ err: error }, "Erro ao buscar fornecedores com score")
         return []
     }
 }
@@ -250,6 +263,11 @@ export async function toggleSupplierStatus(id: string, isActive: boolean) {
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot change status
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para alterar status do fornecedor" }
+        }
 
         // Verify supplier belongs to user's company
         const supplier = await prisma.supplier.findUnique({
@@ -330,7 +348,7 @@ export async function addSupplierContact(
         revalidatePath(`/fornecedores/${supplierId}`)
         return { success: true, data: contact }
     } catch (error) {
-        console.error("Erro ao adicionar contato:", error)
+        log.error({ err: error }, "Erro ao adicionar contato")
         return { success: false, error: "Erro ao adicionar contato do fornecedor" }
     }
 }
@@ -360,7 +378,7 @@ export async function removeSupplierContact(contactId: string) {
         revalidatePath(`/fornecedores/${contact.supplierId}`)
         return { success: true }
     } catch (error) {
-        console.error("Erro ao remover contato:", error)
+        log.error({ err: error }, "Erro ao remover contato")
         return { success: false, error: "Erro ao remover contato do fornecedor" }
     }
 }
@@ -424,7 +442,7 @@ export async function uploadSupplierDocument(formData: FormData) {
         revalidatePath(`/fornecedores/${supplierId}`)
         return { success: true, data: doc }
     } catch (error) {
-        console.error("Erro ao fazer upload de documento:", error)
+        log.error({ err: error }, "Erro ao fazer upload de documento")
         return { success: false, error: "Erro ao fazer upload do documento" }
     }
 }
@@ -488,7 +506,7 @@ export async function evaluateSupplier(
         revalidatePath('/fornecedores')
         return { success: true, data: evaluation }
     } catch (error) {
-        console.error("Erro ao avaliar fornecedor:", error)
+        log.error({ err: error }, "Erro ao avaliar fornecedor")
         return { success: false, error: "Erro ao registrar avaliação" }
     }
 }
@@ -555,7 +573,7 @@ export async function getSupplierDetail(supplierId: string) {
             },
         }
     } catch (error) {
-        console.error("Erro ao buscar detalhes do fornecedor:", error)
+        log.error({ err: error }, "Erro ao buscar detalhes do fornecedor")
         return { success: false, error: "Erro ao buscar detalhes do fornecedor" }
     }
 }
@@ -660,7 +678,7 @@ export async function getSupplierFinancialHistory(supplierId: string) {
             },
         }
     } catch (error) {
-        console.error("Erro ao buscar histórico financeiro:", error)
+        log.error({ err: error }, "Erro ao buscar histórico financeiro")
         return { success: false, error: "Erro ao buscar histórico financeiro" }
     }
 }
@@ -710,7 +728,7 @@ export async function getSuppliersWithExpiringDocuments(companyId: string, days:
 
         return { success: true, data: result }
     } catch (error) {
-        console.error("Erro ao buscar documentos vencendo:", error)
+        log.error({ err: error }, "Erro ao buscar documentos vencendo")
         return { success: false, data: [], error: "Erro ao buscar documentos vencendo" }
     }
 }
@@ -819,7 +837,7 @@ export async function getSuppliersEnhanced(params?: { companyId?: string }) {
             },
         }
     } catch (error) {
-        console.error("Erro ao buscar fornecedores:", error)
+        log.error({ err: error }, "Erro ao buscar fornecedores")
         return { success: false, data: [], kpis: null, error: "Erro ao buscar fornecedores" }
     }
 }

@@ -26,10 +26,10 @@ export default async function GerenciamentoUsuariosPage() {
       <div>
         <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
           <Users className="h-8 w-8" />
-          Gerenciamento de Usuarios
+          Gerenciamento de Usuários
         </h2>
         <p className="text-muted-foreground">
-          Gerencie usuarios, permissoes, status e acesso aos modulos do sistema
+          Gerencie usuários, permissões, status e acesso aos módulos do sistema
         </p>
       </div>
 

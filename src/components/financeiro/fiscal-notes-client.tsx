@@ -27,8 +27,12 @@ import { getCostCentersByProject } from "@/app/actions/cost-center-actions"
 import {
     Plus, MoreHorizontal, CheckCircle, XCircle, Trash2, Pencil, Search
 } from "lucide-react"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
+import { formatCurrency as fmtCurrencyExport, formatDate as fmtDateExport } from "@/lib/export-utils"
 
 import { formatDate } from "@/lib/formatters"
+import { DateRangeFilter, type DateRange } from "@/components/ui/date-range-filter"
 // ─── Document type labels and groups ────────────────────────────────────────
 
 export const DOC_TYPES: { value: string; label: string; group: string; icon?: React.ReactNode }[] = [
@@ -63,6 +67,27 @@ const typeColor: Record<string, string> = {
 
 const statusLabel: Record<string, string> = {
     DRAFT: 'Rascunho', ISSUED: 'Emitido', CANCELLED: 'Cancelado', DENIED: 'Denegado'
+}
+
+const fiscalExportColumns: ExportColumn[] = [
+    { key: 'typeName', label: 'Tipo' },
+    { key: 'numberFull', label: 'Numero' },
+    { key: 'supplierName', label: 'Fornecedor' },
+    { key: 'description', label: 'Descricao' },
+    { key: 'issuedDate', label: 'Emissao', format: (v) => v ? fmtDateExport(v as string) : '' },
+    { key: 'dueDate', label: 'Vencimento', format: (v) => v ? fmtDateExport(v as string) : '' },
+    { key: 'value', label: 'Valor (R$)', format: (v) => fmtCurrencyExport(v as number) },
+    { key: 'statusName', label: 'Status' },
+]
+
+function mapNotesForExport(notes: Note[]): Record<string, unknown>[] {
+    return notes.map(n => ({
+        ...n,
+        typeName: typeShort[n.type] || n.type,
+        numberFull: `${n.number}${n.series ? `-${n.series}` : ''}`,
+        supplierName: n.supplier?.name || '',
+        statusName: statusLabel[n.status] || n.status,
+    }))
 }
 const statusColor: Record<string, string> = {
     DRAFT: 'bg-gray-100 text-gray-700',
@@ -463,19 +488,46 @@ function NotesTable({ notes, companyId, suppliers, projects = [], costCenters = 
     const [editNote, setEditNote] = useState<Note | null>(null)
     const [search, setSearch] = useState('')
 
+    // Advanced filters
+    const [dateRange, setDateRange] = useState<DateRange>({ from: '', to: '' })
+    const [filterStatus, setFilterStatus] = useState('ALL')
+    const [filterType, setFilterType] = useState('ALL')
+
     const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
     const fmtDate = (d: Date | null) => d ? formatDate(d) : '—'
 
     const filtered = useMemo(() => {
-        if (!search.trim()) return notes
         const q = search.toLowerCase()
-        return notes.filter(n =>
-            n.number.toLowerCase().includes(q) ||
-            (n.supplier?.name.toLowerCase().includes(q) ?? false) ||
-            (n.description?.toLowerCase().includes(q) ?? false) ||
-            typeShort[n.type]?.toLowerCase().includes(q)
-        )
-    }, [notes, search])
+        return notes.filter(n => {
+            // Text search
+            if (q) {
+                const matchesSearch =
+                    n.number.toLowerCase().includes(q) ||
+                    (n.supplier?.name.toLowerCase().includes(q) ?? false) ||
+                    (n.description?.toLowerCase().includes(q) ?? false) ||
+                    (typeShort[n.type]?.toLowerCase().includes(q) ?? false)
+                if (!matchesSearch) return false
+            }
+
+            // Date range filter (issuedDate)
+            if (dateRange.from) {
+                const issued = new Date(n.issuedDate).toISOString().split('T')[0]
+                if (issued < dateRange.from) return false
+            }
+            if (dateRange.to) {
+                const issued = new Date(n.issuedDate).toISOString().split('T')[0]
+                if (issued > dateRange.to) return false
+            }
+
+            // Status filter
+            if (filterStatus !== 'ALL' && n.status !== filterStatus) return false
+
+            // Type filter
+            if (filterType !== 'ALL' && n.type !== filterType) return false
+
+            return true
+        })
+    }, [notes, search, dateRange, filterStatus, filterType])
 
     async function handleStatusChange(id: string, status: 'ISSUED' | 'CANCELLED' | 'DENIED') {
         const result = await updateFiscalNoteStatus(id, status)
@@ -498,14 +550,60 @@ function NotesTable({ notes, companyId, suppliers, projects = [], costCenters = 
 
     return (
         <div className="space-y-4">
-            <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    className="pl-9"
-                    placeholder="Buscar por número, fornecedor..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
+            <div className="flex items-center gap-2">
+                <div className="relative max-w-sm flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        className="pl-9"
+                        placeholder="Buscar por numero, fornecedor..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
+                <ExportButton
+                    data={mapNotesForExport(filtered)}
+                    columns={fiscalExportColumns}
+                    filename="notas_fiscais"
+                    title="Documentos Fiscais"
+                    sheetName="Notas Fiscais"
+                    size="sm"
                 />
+            </div>
+
+            {/* Advanced Filters */}
+            <div className="flex flex-wrap items-end gap-3 p-3 border rounded-md bg-muted/10">
+                <DateRangeFilter value={dateRange} onChange={setDateRange} />
+
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-muted-foreground">Status</label>
+                    <Select onValueChange={setFilterStatus} value={filterStatus}>
+                        <SelectTrigger className="h-9 w-[150px] text-sm">
+                            <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Todos</SelectItem>
+                            <SelectItem value="DRAFT">Rascunho</SelectItem>
+                            <SelectItem value="ISSUED">Emitido</SelectItem>
+                            <SelectItem value="CANCELLED">Cancelado</SelectItem>
+                            <SelectItem value="DENIED">Denegado</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-muted-foreground">Tipo</label>
+                    <Select onValueChange={setFilterType} value={filterType}>
+                        <SelectTrigger className="h-9 w-[170px] text-sm">
+                            <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Todos os tipos</SelectItem>
+                            {DOC_TYPES.map(t => (
+                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
 
             {filtered.length === 0 ? (

@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const session = await getSession()
     if (!session?.user) {
       return NextResponse.json(
-        { error: 'Nao autorizado. Faca login para continuar.' },
+        { error: 'Não autorizado. Faça login para continuar.' },
         { status: 401 }
       )
     }
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     // Verificar permissao: apenas ADMIN e MANAGER podem gerar relatorios
     if (user.role !== 'ADMIN' && user.role !== 'MANAGER') {
       return NextResponse.json(
-        { error: 'Sem permissao. Apenas administradores e gerentes podem gerar relatorios.' },
+        { error: 'Sem permissão. Apenas administradores e gerentes podem gerar relatórios.' },
         { status: 403 }
       )
     }
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     if (!body.type) {
       return NextResponse.json(
-        { error: 'Tipo de relatorio nao informado.' },
+        { error: 'Tipo de relatório não informado.' },
         { status: 400 }
       )
     }
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
 
       default:
         return NextResponse.json(
-          { error: 'Tipo de relatorio nao suportado.' },
+          { error: 'Tipo de relatório não suportado.' },
           { status: 400 }
         )
     }

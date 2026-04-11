@@ -46,7 +46,7 @@ export default async function CentrosDeCustoPage() {
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Centros de Custo</h2>
                     <p className="text-muted-foreground">
-                        Gestao e hierarquia de centros de custo da empresa
+                        Gestão e hierarquia de centros de custo da empresa
                     </p>
                 </div>
             </div>

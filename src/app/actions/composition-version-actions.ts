@@ -4,6 +4,9 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { assertAuthenticated } from "@/lib/auth-helpers"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'composition-version' })
 
 const compositionVersionSchema = z.object({
     compositionId: z.string().uuid("ID da composição inválido"),
@@ -47,7 +50,7 @@ export async function createCompositionVersion(data: z.infer<typeof compositionV
         revalidatePath('/composicoes')
         return { success: true, data: version }
     } catch (error) {
-        console.error("Erro ao criar versão de composição:", error)
+        log.error({ err: error }, "Erro ao criar versão de composição")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar versão de composição",
@@ -80,7 +83,7 @@ export async function deleteCompositionVersion(id: string) {
         revalidatePath('/composicoes')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar versão de composição:", error)
+        log.error({ err: error }, "Erro ao deletar versão de composição")
         return { success: false, error: "Erro ao deletar versão de composição" }
     }
 }
@@ -107,7 +110,7 @@ export async function getCompositionVersions(compositionId: string) {
 
         return { success: true, data: versions }
     } catch (error) {
-        console.error("Erro ao buscar versões de composição:", error)
+        log.error({ err: error }, "Erro ao buscar versões de composição")
         return { success: false, error: "Erro ao buscar versões de composição" }
     }
 }
@@ -128,7 +131,7 @@ export async function getCompositionVersionById(id: string) {
 
         return { success: true, data: version }
     } catch (error) {
-        console.error("Erro ao buscar versão de composição:", error)
+        log.error({ err: error }, "Erro ao buscar versão de composição")
         return { success: false, error: "Erro ao buscar versão de composição" }
     }
 }
@@ -159,7 +162,7 @@ export async function getLatestCompositionVersion(compositionId: string) {
 
         return { success: true, data: version }
     } catch (error) {
-        console.error("Erro ao buscar última versão de composição:", error)
+        log.error({ err: error }, "Erro ao buscar última versão de composição")
         return { success: false, error: "Erro ao buscar última versão de composição" }
     }
 }
@@ -192,7 +195,7 @@ export async function getCompositionVersionByNumber(compositionId: string, versi
 
         return { success: true, data: version }
     } catch (error) {
-        console.error("Erro ao buscar versão de composição:", error)
+        log.error({ err: error }, "Erro ao buscar versão de composição")
         return { success: false, error: "Erro ao buscar versão de composição" }
     }
 }
@@ -206,7 +209,7 @@ export async function getCompositionVersionCount(compositionId: string) {
 
         return { success: true, data: count }
     } catch (error) {
-        console.error("Erro ao contar versões de composição:", error)
+        log.error({ err: error }, "Erro ao contar versões de composição")
         return { success: false, error: "Erro ao contar versões de composição" }
     }
 }

@@ -17,6 +17,9 @@ import {
   type D4SignSigner,
 } from '@/lib/d4sign'
 import { formatDate } from '@/lib/formatters'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'signature' })
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -369,7 +372,7 @@ export async function initiateContractSignature(contractId: string) {
       },
     }
   } catch (error) {
-    console.error('Error initiating contract signature:', error)
+    log.error({ err: error }, 'Error initiating contract signature')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao iniciar assinatura digital',
@@ -520,7 +523,7 @@ export async function initiateBulletinSignature(bulletinId: string) {
       },
     }
   } catch (error) {
-    console.error('Error initiating bulletin signature:', error)
+    log.error({ err: error }, 'Error initiating bulletin signature')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao iniciar assinatura digital',
@@ -625,7 +628,7 @@ export async function checkSignatureStatus(
       },
     }
   } catch (error) {
-    console.error('Error checking signature status:', error)
+    log.error({ err: error }, 'Error checking signature status')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao verificar status da assinatura',
@@ -729,7 +732,7 @@ export async function cancelSignature(
 
     return { success: true }
   } catch (error) {
-    console.error('Error canceling signature:', error)
+    log.error({ err: error }, 'Error canceling signature')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao cancelar assinatura',
@@ -807,7 +810,7 @@ export async function downloadSignedPdf(
 
     return { success: true, data: { url: base64Url } }
   } catch (error) {
-    console.error('Error downloading signed document:', error)
+    log.error({ err: error }, 'Error downloading signed document')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao baixar documento assinado',

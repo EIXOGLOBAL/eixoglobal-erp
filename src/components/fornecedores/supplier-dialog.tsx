@@ -248,9 +248,9 @@ export function SupplierDialog({
                                 name="address"
                                 render={({ field }) => (
                                     <FormItem className="col-span-2">
-                                        <FormLabel>Endereco</FormLabel>
+                                        <FormLabel>Endereço</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Rua, numero, complemento" {...field} value={field.value ?? ""} />
+                                            <Input placeholder="Rua, número, complemento" {...field} value={field.value ?? ""} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -310,9 +310,9 @@ export function SupplierDialog({
                                 name="notes"
                                 render={({ field }) => (
                                     <FormItem className="col-span-2">
-                                        <FormLabel>Observacoes</FormLabel>
+                                        <FormLabel>Observações</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Informacoes adicionais" {...field} value={field.value ?? ""} />
+                                            <Input placeholder="Informações adicionais" {...field} value={field.value ?? ""} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

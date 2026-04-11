@@ -179,7 +179,7 @@ export function PurchaseOrderDialog({
                     <DialogTitle>{order ? 'Editar Pedido' : 'Novo Pedido de Compra'}</DialogTitle>
                     <DialogDescription>
                         {order
-                            ? 'Atualize as informacoes do pedido.'
+                            ? 'Atualize as informações do pedido.'
                             : 'Preencha os dados para criar um novo pedido de compra.'}
                     </DialogDescription>
                 </DialogHeader>
@@ -323,11 +323,11 @@ export function PurchaseOrderDialog({
                             name="notes"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Observacoes</FormLabel>
+                                    <FormLabel>Observações</FormLabel>
                                     <FormControl>
                                         <Textarea
                                             rows={3}
-                                            placeholder="Informacoes adicionais sobre o pedido..."
+                                            placeholder="Informações adicionais sobre o pedido..."
                                             {...field}
                                         />
                                     </FormControl>

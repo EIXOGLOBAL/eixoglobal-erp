@@ -160,7 +160,7 @@ export function HealthChart() {
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <Activity className="h-10 w-10 text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground">
-              {loading ? 'Carregando...' : 'Nenhum log de saude encontrado para o periodo selecionado'}
+              {loading ? 'Carregando...' : 'Nenhum log de saúde encontrado para o período selecionado'}
             </p>
           </div>
         ) : (

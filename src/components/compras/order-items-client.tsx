@@ -292,7 +292,7 @@ export function OrderItemsClient({ orderId, items, materials, totalValue }: Orde
                         <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Item'}</DialogTitle>
                         <DialogDescription>
                             {editingItem
-                                ? 'Atualize as informacoes do item.'
+                                ? 'Atualize as informações do item.'
                                 : 'Adicione um novo item ao pedido de compra.'}
                         </DialogDescription>
                     </DialogHeader>

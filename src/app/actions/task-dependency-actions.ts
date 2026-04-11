@@ -4,6 +4,9 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { assertAuthenticated } from "@/lib/auth-helpers"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'task-dependency' })
 
 const DEPENDENCY_TYPES = ['FS', 'SS', 'FF', 'SF'] as const
 
@@ -103,7 +106,7 @@ export async function createTaskDependency(data: z.infer<typeof taskDependencySc
         revalidatePath('/cronograma')
         return { success: true, data: dependency }
     } catch (error) {
-        console.error("Erro ao criar dependência de tarefa:", error)
+        log.error({ err: error }, "Erro ao criar dependência de tarefa")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar dependência de tarefa",
@@ -177,7 +180,7 @@ export async function updateTaskDependency(id: string, data: z.infer<typeof task
         revalidatePath('/cronograma')
         return { success: true, data: dependency }
     } catch (error) {
-        console.error("Erro ao atualizar dependência de tarefa:", error)
+        log.error({ err: error }, "Erro ao atualizar dependência de tarefa")
         return { success: false, error: "Erro ao atualizar dependência de tarefa" }
     }
 }
@@ -189,7 +192,7 @@ export async function deleteTaskDependency(id: string) {
         revalidatePath('/cronograma')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar dependência de tarefa:", error)
+        log.error({ err: error }, "Erro ao deletar dependência de tarefa")
         return { success: false, error: "Erro ao deletar dependência de tarefa" }
     }
 }
@@ -216,7 +219,7 @@ export async function getTaskDependencies(taskId: string) {
 
         return { success: true, data: { predecessors, successors } }
     } catch (error) {
-        console.error("Erro ao buscar dependências de tarefa:", error)
+        log.error({ err: error }, "Erro ao buscar dependências de tarefa")
         return { success: false, error: "Erro ao buscar dependências de tarefa" }
     }
 }
@@ -238,7 +241,7 @@ export async function getTaskDependencyById(id: string) {
 
         return { success: true, data: dependency }
     } catch (error) {
-        console.error("Erro ao buscar dependência de tarefa:", error)
+        log.error({ err: error }, "Erro ao buscar dependência de tarefa")
         return { success: false, error: "Erro ao buscar dependência de tarefa" }
     }
 }
@@ -256,7 +259,7 @@ export async function getTaskPredecessors(taskId: string) {
 
         return { success: true, data: predecessors }
     } catch (error) {
-        console.error("Erro ao buscar predecessores:", error)
+        log.error({ err: error }, "Erro ao buscar predecessores")
         return { success: false, error: "Erro ao buscar predecessores" }
     }
 }
@@ -274,7 +277,7 @@ export async function getTaskSuccessors(taskId: string) {
 
         return { success: true, data: successors }
     } catch (error) {
-        console.error("Erro ao buscar sucessores:", error)
+        log.error({ err: error }, "Erro ao buscar sucessores")
         return { success: false, error: "Erro ao buscar sucessores" }
     }
 }

@@ -45,12 +45,12 @@ const profileSchema = z.object({
 
 const passwordSchema = z
   .object({
-    currentPassword: z.string().min(1, 'Senha atual obrigatoria'),
+    currentPassword: z.string().min(1, 'Senha atual obrigatória'),
     newPassword: z.string().min(8, 'Nova senha deve ter pelo menos 8 caracteres'),
-    confirmPassword: z.string().min(1, 'Confirmacao obrigatoria'),
+    confirmPassword: z.string().min(1, 'Confirmação obrigatória'),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
-    message: 'As senhas nao conferem',
+    message: 'As senhas não conferem',
     path: ['confirmPassword'],
   })
 
@@ -119,7 +119,7 @@ function PersonalInfoSection({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <User className="h-5 w-5" />
-          Informacoes Pessoais
+          Informações Pessoais
         </CardTitle>
         <CardDescription>Atualize seu nome e dados de contato</CardDescription>
       </CardHeader>
@@ -155,7 +155,7 @@ function PersonalInfoSection({
                     />
                   </FormControl>
                   <p className="text-xs text-muted-foreground">
-                    O email nao pode ser alterado por aqui. Contate o administrador.
+                    O email não pode ser alterado por aqui. Contate o administrador.
                   </p>
                   <FormMessage />
                 </FormItem>
@@ -167,7 +167,7 @@ function PersonalInfoSection({
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              Salvar Informacoes
+              Salvar Informações
             </Button>
           </form>
         </Form>
@@ -216,7 +216,7 @@ function SecuritySection() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Lock className="h-5 w-5" />
-          Seguranca
+          Segurança
         </CardTitle>
         <CardDescription>Altere sua senha de acesso ao sistema</CardDescription>
       </CardHeader>

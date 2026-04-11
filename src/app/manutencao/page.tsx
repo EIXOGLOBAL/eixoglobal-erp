@@ -28,7 +28,7 @@ export default function ManutencaoPage() {
         const data = await res.json()
         setInfo(data)
       } catch {
-        setInfo({ active: true, reason: 'Nao foi possivel conectar ao servidor.' })
+        setInfo({ active: true, reason: 'Não foi possível conectar ao servidor.' })
       }
     }
 
@@ -139,7 +139,7 @@ export default function ManutencaoPage() {
 
         {/* Heading */}
         <h1 className="text-3xl sm:text-4xl font-bold mb-4">
-          Sistema em Manutencao
+          Sistema em Manutenção
         </h1>
 
         {/* Reason */}

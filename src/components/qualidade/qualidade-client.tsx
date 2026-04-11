@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -9,6 +9,13 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -103,6 +110,27 @@ export function QualidadeClient({
   const [resolveNc, setResolveNc] = useState<NonConformity | null>(null)
   const [resolveOpen, setResolveOpen] = useState(false)
 
+  const [filterStatus, setFilterStatus] = useState<string>('ALL')
+  const [filterProject, setFilterProject] = useState<string>('ALL')
+  const [filterCategory, setFilterCategory] = useState<string>('ALL')
+
+  const categories = useMemo(() => {
+    const cats = new Set<string>()
+    checkpoints.forEach(cp => { if (cp.category) cats.add(cp.category) })
+    return Array.from(cats).sort()
+  }, [checkpoints])
+
+  const filteredCheckpoints = useMemo(() => {
+    return checkpoints.filter(cp => {
+      if (filterStatus !== 'ALL' && cp.status !== filterStatus) return false
+      if (filterProject !== 'ALL' && cp.projectId !== filterProject) return false
+      if (filterCategory !== 'ALL' && cp.category !== filterCategory) return false
+      return true
+    })
+  }, [checkpoints, filterStatus, filterProject, filterCategory])
+
+  const activeQFilters = [filterStatus !== 'ALL', filterProject !== 'ALL', filterCategory !== 'ALL'].filter(Boolean).length
+
   const openNCs = nonConformities.filter((nc) => nc.status === 'OPEN')
 
   return (
@@ -112,7 +140,7 @@ export function QualidadeClient({
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Clipboard className="h-5 w-5" />
-              Inspecoes de Qualidade
+              Inspeções de Qualidade
             </CardTitle>
             <CheckpointDialog
               companyId={companyId}
@@ -122,12 +150,71 @@ export function QualidadeClient({
           </div>
         </CardHeader>
         <CardContent>
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[160px] h-9">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos os status</SelectItem>
+                {Object.entries(STATUS_MAP).map(([value, info]) => (
+                  <SelectItem key={value} value={value}>{info.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterProject} onValueChange={setFilterProject}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue placeholder="Projeto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos os projetos</SelectItem>
+                {projects.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {categories.length > 0 && (
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Todas as categorias</SelectItem>
+                  {categories.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {activeQFilters > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9"
+                onClick={() => { setFilterStatus('ALL'); setFilterProject('ALL'); setFilterCategory('ALL') }}
+              >
+                Limpar filtros
+                <Badge variant="secondary" className="ml-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center">{activeQFilters}</Badge>
+              </Button>
+            )}
+
+            <span className="ml-auto text-sm text-muted-foreground self-center">{filteredCheckpoints.length} inspe&#231;&#227;o(&#245;es)</span>
+          </div>
+
           {checkpoints.length === 0 ? (
             <EmptyState
               icon={CheckCircle}
-              title="Nenhuma inspecao registrada"
-              description="Comece a registrar inspecoes de qualidade para acompanhar a conformidade dos processos."
+              title="Nenhuma inspe&#231;&#227;o registrada"
+              description="Comece a registrar inspe&#231;&#245;es de qualidade para acompanhar a conformidade dos processos."
             />
+          ) : filteredCheckpoints.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhuma inspe&#231;&#227;o encontrada com os filtros aplicados.
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -145,7 +232,7 @@ export function QualidadeClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {checkpoints.map((cp) => {
+                  {filteredCheckpoints.map((cp) => {
                     const statusInfo = STATUS_MAP[cp.status] || {
                       label: cp.status,
                       className: 'bg-gray-100 text-gray-800',

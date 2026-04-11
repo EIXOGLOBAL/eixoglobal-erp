@@ -17,6 +17,9 @@ export default async function FornecedoresPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
+    const userRole = session.user?.role as string
+    const canWrite = userRole !== 'USER'
+
     const result = await getSuppliersEnhanced({ companyId })
     const suppliers = result.success ? (result.data ?? []) : []
     const kpis = result.kpis
@@ -40,11 +43,13 @@ export default async function FornecedoresPage() {
                         Gerencie fornecedores e prestadores de servico vinculados a empresa
                     </p>
                 </div>
-                <CreateShortcut label="Novo Fornecedor">
-                    {({ open, onOpenChange }) => (
-                        <SupplierDialog companyId={companyId} open={open} onOpenChange={onOpenChange} />
-                    )}
-                </CreateShortcut>
+                {canWrite && (
+                    <CreateShortcut label="Novo Fornecedor">
+                        {({ open, onOpenChange }) => (
+                            <SupplierDialog companyId={companyId} open={open} onOpenChange={onOpenChange} />
+                        )}
+                    </CreateShortcut>
+                )}
             </div>
 
             {/* KPIs */}

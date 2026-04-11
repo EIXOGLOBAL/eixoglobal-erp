@@ -7,6 +7,9 @@ import { Decimal } from "@prisma/client/runtime/client"
 import { toNumber } from "@/lib/formatters"
 import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'budget' })
 
 const budgetSchema = z.object({
     name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
@@ -40,7 +43,7 @@ export async function getBudgets(_companyId?: string) {
         })
         return { success: true, data: budgets }
     } catch (error) {
-        console.error("Erro ao buscar orçamentos:", error)
+        log.error({ err: error }, "Erro ao buscar orçamentos")
         return { success: false, data: [], error: "Erro ao buscar orçamentos" }
     }
 }
@@ -63,7 +66,7 @@ export async function getBudgetById(id: string) {
 
         return { success: true, data: budget }
     } catch (error) {
-        console.error("Erro ao buscar orçamento:", error)
+        log.error({ err: error }, "Erro ao buscar orçamento")
         return { success: false, error: "Erro ao buscar orçamento" }
     }
 }
@@ -71,6 +74,10 @@ export async function getBudgetById(id: string) {
 export async function createBudget(data: z.infer<typeof budgetSchema>) {
     try {
         const session = await assertAuthenticated()
+        // Check write permission - USER role cannot create budgets
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para criar orçamento" }
+        }
         if (session.user.companyId && data.companyId !== session.user.companyId) {
             return { success: false, error: "Acesso negado" }
         }
@@ -90,7 +97,7 @@ export async function createBudget(data: z.infer<typeof budgetSchema>) {
         revalidatePath('/orcamentos')
         return { success: true, data: budget }
     } catch (error: unknown) {
-        console.error("Erro ao criar orçamento:", error)
+        log.error({ err: error }, "Erro ao criar orçamento")
         const zodError = error as { issues?: { message: string }[] }
         if (zodError.issues) return { success: false, error: zodError.issues[0]?.message }
         return { success: false, error: error instanceof Error ? error.message : "Erro ao criar orçamento" }
@@ -99,7 +106,11 @@ export async function createBudget(data: z.infer<typeof budgetSchema>) {
 
 export async function updateBudget(id: string, data: Partial<z.infer<typeof budgetSchema>>) {
     try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check write permission - USER role cannot update budgets
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para editar orçamento" }
+        }
         const oldBudget = await prisma.budget.findUnique({ where: { id } })
         const budget = await prisma.budget.update({
             where: { id },
@@ -115,7 +126,7 @@ export async function updateBudget(id: string, data: Partial<z.infer<typeof budg
         revalidatePath(`/orcamentos/${id}`)
         return { success: true, data: budget }
     } catch (error) {
-        console.error("Erro ao atualizar orçamento:", error)
+        log.error({ err: error }, "Erro ao atualizar orçamento")
         return { success: false, error: "Erro ao atualizar orçamento" }
     }
 }
@@ -147,7 +158,7 @@ export async function addBudgetItem(budgetId: string, data: z.infer<typeof budge
         revalidatePath(`/orcamentos/${budgetId}`)
         return { success: true, data: item }
     } catch (error: unknown) {
-        console.error("Erro ao adicionar item:", error)
+        log.error({ err: error }, "Erro ao adicionar item")
         const zodError = error as { issues?: { message: string }[] }
         if (zodError.issues) return { success: false, error: zodError.issues[0]?.message }
         return { success: false, error: error instanceof Error ? error.message : "Erro ao adicionar item" }
@@ -181,7 +192,7 @@ export async function updateBudgetItem(itemId: string, budgetId: string, data: z
         revalidatePath(`/orcamentos/${budgetId}`)
         return { success: true, data: item }
     } catch (error: unknown) {
-        console.error("Erro ao atualizar item:", error)
+        log.error({ err: error }, "Erro ao atualizar item")
         const zodError = error as { issues?: { message: string }[] }
         if (zodError.issues) return { success: false, error: zodError.issues[0]?.message }
         return { success: false, error: error instanceof Error ? error.message : "Erro ao atualizar item" }
@@ -190,7 +201,11 @@ export async function updateBudgetItem(itemId: string, budgetId: string, data: z
 
 export async function deleteBudgetItem(itemId: string, budgetId: string) {
     try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir item" }
+        }
         const oldItem = await prisma.budgetItem.findUnique({ where: { id: itemId } })
         await prisma.budgetItem.delete({ where: { id: itemId } })
         await logDelete('BudgetItem', itemId, oldItem?.description || 'N/A', oldItem)
@@ -198,7 +213,7 @@ export async function deleteBudgetItem(itemId: string, budgetId: string) {
         revalidatePath(`/orcamentos/${budgetId}`)
         return { success: true }
     } catch (error) {
-        console.error("Erro ao remover item:", error)
+        log.error({ err: error }, "Erro ao remover item")
         return { success: false, error: "Erro ao remover item do orçamento" }
     }
 }
@@ -253,7 +268,11 @@ export async function reviseBudget(id: string) {
 
 export async function deleteBudget(id: string) {
     try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir orçamento" }
+        }
         const budget = await prisma.budget.findUnique({
             where: { id },
         })
@@ -266,7 +285,7 @@ export async function deleteBudget(id: string) {
         revalidatePath('/orcamentos')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar orçamento:", error)
+        log.error({ err: error }, "Erro ao deletar orçamento")
         return { success: false, error: "Erro ao deletar orçamento" }
     }
 }
@@ -388,7 +407,7 @@ export async function getBudgetWithMeasured(budgetId: string): Promise<{
             },
         }
     } catch (error) {
-        console.error("Erro ao buscar orçamento com medições:", error)
+        log.error({ err: error }, "Erro ao buscar orçamento com medições")
         return { success: false, error: "Erro ao buscar orçamento com medições" }
     }
 }
@@ -521,7 +540,7 @@ export async function getBudgetVsActual(budgetId: string): Promise<{ success: bo
             },
         }
     } catch (error) {
-        console.error("Erro ao buscar comparativo orçado vs realizado:", error)
+        log.error({ err: error }, "Erro ao buscar comparativo orçado vs realizado")
         return { success: false, error: "Erro ao buscar dados comparativos" }
     }
 }
@@ -604,7 +623,7 @@ export async function generateBudgetFromContract(contractId: string) {
 
         return { success: true, data: budget }
     } catch (error) {
-        console.error("Erro ao gerar orçamento a partir do contrato:", error)
+        log.error({ err: error }, "Erro ao gerar orçamento a partir do contrato")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao gerar orçamento a partir do contrato",

@@ -155,7 +155,7 @@ export function SystemOverview() {
       <Card>
         <CardContent className="flex items-center justify-center py-12">
           <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
-          <span className="text-muted-foreground">Carregando informacoes do sistema...</span>
+          <span className="text-muted-foreground">Carregando informações do sistema...</span>
         </CardContent>
       </Card>
     )
@@ -291,7 +291,7 @@ export function SystemOverview() {
             <div className="grid grid-cols-3 gap-2 pt-1 text-xs text-muted-foreground">
               <div>
                 <p className="font-medium text-foreground">{db.totalUsuarios}</p>
-                <p>Usuarios</p>
+                <p>Usuários</p>
               </div>
               <div>
                 <p className="font-medium text-foreground">{db.totalEmpresas}</p>

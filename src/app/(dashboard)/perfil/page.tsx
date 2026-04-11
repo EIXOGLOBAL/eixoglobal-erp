@@ -13,7 +13,7 @@ const roleLabels: Record<string, string> = {
   ADMIN: 'Administrador',
   MANAGER: 'Gerente',
   ENGINEER: 'Engenheiro',
-  USER: 'Usuario',
+  USER: 'Usuário',
 }
 
 export default async function PerfilPage() {
@@ -46,23 +46,23 @@ export default async function PerfilPage() {
           Meu Perfil
         </h2>
         <p className="text-muted-foreground">
-          Gerencie suas informacoes pessoais e preferencias
+          Gerencie suas informações pessoais e preferências
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Informacoes da Conta</CardTitle>
+          <CardTitle>Informações da Conta</CardTitle>
           <CardDescription>Dados vinculados ao seu acesso no sistema</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-muted-foreground">Usuario</p>
+              <p className="text-muted-foreground">Usuário</p>
               <p className="font-medium mt-1">{user.username}</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Funcao</p>
+              <p className="text-muted-foreground">Função</p>
               <Badge className="mt-1">{roleLabels[user.role] || user.role}</Badge>
             </div>
             <div>

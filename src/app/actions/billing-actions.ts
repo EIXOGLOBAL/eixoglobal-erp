@@ -7,6 +7,9 @@ import { getSession } from "@/lib/auth"
 import { logCreate, logUpdate, logAction } from '@/lib/audit-logger'
 import { BillingStatus } from "@/lib/generated/prisma/client"
 import { billingService } from "@/services/billing"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'billing' })
 
 // ============================================================================
 // SCHEMAS
@@ -95,7 +98,7 @@ export async function createBilling(data: z.infer<typeof createBillingSchema>) {
         revalidatePath('/financeiro/faturamento')
         return { success: true, data: billing }
     } catch (error) {
-        console.error("Erro ao criar faturamento:", error)
+        log.error({ err: error }, "Erro ao criar faturamento")
         return { success: false, error: error instanceof Error ? error.message : "Erro ao criar faturamento" }
     }
 }
@@ -149,7 +152,7 @@ export async function updateBillingStatus(data: z.infer<typeof updateStatusSchem
         revalidatePath('/financeiro/faturamento')
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao atualizar status:", error)
+        log.error({ err: error }, "Erro ao atualizar status")
         return { success: false, error: "Erro ao atualizar status do faturamento" }
     }
 }
@@ -199,7 +202,7 @@ export async function getBillingRecords(companyId: string) {
             })),
         }
     } catch (error) {
-        console.error("Erro ao buscar faturamentos:", error)
+        log.error({ err: error }, "Erro ao buscar faturamentos")
         return { success: false, data: [], error: "Erro ao buscar faturamentos" }
     }
 }
@@ -256,7 +259,7 @@ export async function getBillingSummary(companyId: string) {
             }
         }
     } catch (error) {
-        console.error("Erro ao calcular resumo de faturamento:", error)
+        log.error({ err: error }, "Erro ao calcular resumo de faturamento")
         return { success: false, error: "Erro ao calcular resumo" }
     }
 }
@@ -300,7 +303,7 @@ export async function getBillingFormData(companyId: string) {
             }
         }
     } catch (error) {
-        console.error("Erro ao buscar dados do formulário:", error)
+        log.error({ err: error }, "Erro ao buscar dados do formulário")
         return { success: false, error: "Erro ao buscar dados" }
     }
 }
@@ -339,7 +342,7 @@ export async function deleteBilling(id: string) {
         revalidatePath('/financeiro/faturamento')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao excluir faturamento:", error)
+        log.error({ err: error }, "Erro ao excluir faturamento")
         return { success: false, error: "Erro ao excluir faturamento" }
     }
 }

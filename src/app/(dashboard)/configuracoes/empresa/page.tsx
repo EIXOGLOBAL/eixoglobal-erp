@@ -21,7 +21,7 @@ export default async function EmpresaSettingsPage() {
                     className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Voltar para Configuracoes
+                    Voltar para Configurações
                 </Link>
                 <Card>
                     <CardContent className="py-10 text-center">
@@ -46,14 +46,14 @@ export default async function EmpresaSettingsPage() {
                         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
                     >
                         <ArrowLeft className="h-4 w-4" />
-                        Voltar para Configuracoes
+                        Voltar para Configurações
                     </Link>
                     <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
                         <Building2 className="h-8 w-8" />
                         Dados da Empresa
                     </h2>
                     <p className="text-muted-foreground">
-                        Gerencie as informacoes cadastrais da sua empresa
+                        Gerencie as informações cadastrais da sua empresa
                     </p>
                 </div>
             </div>

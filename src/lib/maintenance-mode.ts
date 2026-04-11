@@ -67,7 +67,7 @@ export function enableMaintenance(
 
   const state: MaintenanceState = {
     active: true,
-    reason: reason || "Manutencao programada do sistema",
+    reason: reason || "Manutenção programada do sistema",
     enabledAt: now.toISOString(),
     enabledBy: adminId,
     estimatedEnd,

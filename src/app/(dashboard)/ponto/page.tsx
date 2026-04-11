@@ -89,7 +89,7 @@ export default async function PontoPage() {
             Controle de Ponto
           </h1>
           <p className="text-muted-foreground">
-            Gestao de ponto e registro de horas dos funcionarios
+            Gestão de ponto e registro de horas dos funcionários
           </p>
         </div>
         <ClockInDialog projects={projects} />
@@ -115,7 +115,7 @@ export default async function PontoPage() {
                     {todayEntries}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Funcionarios
+                    Funcionários
                   </p>
                 </div>
                 <Users className="h-8 w-8 text-green-600/20" />
@@ -147,7 +147,7 @@ export default async function PontoPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase">
-                Pendentes Aprovacao
+                Pendentes Aprovação
               </CardTitle>
             </CardHeader>
             <CardContent>

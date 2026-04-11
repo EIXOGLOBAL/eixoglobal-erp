@@ -35,7 +35,7 @@ export default function ConfiguracoesError({
         </CardHeader>
         <CardContent className="space-y-2">
           <h2 className="text-xl font-semibold tracking-tight">
-            Erro ao carregar configuracoes
+            Erro ao carregar configurações
           </h2>
           <p className="text-sm text-muted-foreground">
             Ocorreu um erro inesperado ao carregar esta pagina. Nossa equipe foi

@@ -49,7 +49,7 @@ const fmtNumber = (n: number) => new Intl.NumberFormat('pt-BR', { minimumFractio
 const statusLabel: Record<string, string> = {
     IN_PROGRESS: 'Em Andamento',
     PLANNING: 'Planejamento',
-    COMPLETED: 'Concluido',
+    COMPLETED: 'Concluído',
     ON_HOLD: 'Pausado',
     CANCELLED: 'Cancelado',
     BIDDING: 'Licitacao',
@@ -155,9 +155,9 @@ export default async function RelatoriosPage() {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Relatorios</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Relatórios</h1>
                 <p className="text-muted-foreground">
-                    Visao consolidada de todos os modulos — {now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+                    Visão consolidada de todos os módulos — {now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
                 </p>
             </div>
 
@@ -166,7 +166,7 @@ export default async function RelatoriosPage() {
                 <div>
                     <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                         <DollarSign className="h-5 w-5" />
-                        Resultado Financeiro do Mes
+                        Resultado Financeiro do Mês
                     </h2>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                         <Card>
@@ -178,7 +178,7 @@ export default async function RelatoriosPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-green-700">{fmt(consolidated.receitaTotal)}</div>
-                                <p className="text-xs text-muted-foreground mt-1">Entradas no periodo</p>
+                                <p className="text-xs text-muted-foreground mt-1">Entradas no período</p>
                             </CardContent>
                         </Card>
 
@@ -191,7 +191,7 @@ export default async function RelatoriosPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-red-600">{fmt(consolidated.despesaTotal)}</div>
-                                <p className="text-xs text-muted-foreground mt-1">Saidas no periodo</p>
+                                <p className="text-xs text-muted-foreground mt-1">Saídas no período</p>
                             </CardContent>
                         </Card>
 
@@ -263,7 +263,7 @@ export default async function RelatoriosPage() {
                     </Card>
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Aguardando Aprovacao</CardTitle>
+                            <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Aguardando Aprovação</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold text-orange-600">
@@ -522,7 +522,7 @@ export default async function RelatoriosPage() {
             <div>
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <FileText className="h-5 w-5" />
-                    Relatorios por Modulo
+                    Relatórios por Módulo
                 </h2>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 
@@ -532,7 +532,7 @@ export default async function RelatoriosPage() {
                             <div className="flex items-center justify-between">
                                 <CardTitle className="flex items-center gap-2 text-base">
                                     <Ruler className="h-4 w-4 text-blue-600" />
-                                    Medicoes
+                                    Medições
                                 </CardTitle>
                                 <Button variant="ghost" size="sm" asChild>
                                     <Link href="/measurements">
@@ -540,7 +540,7 @@ export default async function RelatoriosPage() {
                                     </Link>
                                 </Button>
                             </div>
-                            <CardDescription>Boletins de medicao por status</CardDescription>
+                            <CardDescription>Boletins de medição por status</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <RelatoriosMedicoesPorStatus stats={bulletinStats.map(s => ({
@@ -571,7 +571,7 @@ export default async function RelatoriosPage() {
                                     </Link>
                                 </Button>
                             </div>
-                            <CardDescription>Lancamentos do mes corrente</CardDescription>
+                            <CardDescription>Lançamentos do mês corrente</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <RelatoriosFinanceiro
@@ -609,7 +609,7 @@ export default async function RelatoriosPage() {
                                         }`} />
                                         <span className="text-muted-foreground capitalize">
                                             {s.status === 'ACTIVE' ? 'Ativo' :
-                                             s.status === 'COMPLETED' ? 'Concluido' :
+                                             s.status === 'COMPLETED' ? 'Concluído' :
                                              s.status === 'DRAFT' ? 'Rascunho' : 'Cancelado'}
                                         </span>
                                     </div>
@@ -636,7 +636,7 @@ export default async function RelatoriosPage() {
                                     </Link>
                                 </Button>
                             </div>
-                            <CardDescription>Quadro de funcionarios</CardDescription>
+                            <CardDescription>Quadro de funcionários</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {employeeStats.map(s => (
@@ -724,7 +724,7 @@ export default async function RelatoriosPage() {
                                         }`} />
                                         <span className="text-muted-foreground">
                                             {s.status === 'IN_PROGRESS' ? 'Em Andamento' :
-                                             s.status === 'COMPLETED' ? 'Concluido' :
+                                             s.status === 'COMPLETED' ? 'Concluído' :
                                              s.status === 'ON_HOLD' ? 'Pausado' :
                                              s.status === 'PLANNING' ? 'Planejamento' : 'Cancelado'}
                                         </span>

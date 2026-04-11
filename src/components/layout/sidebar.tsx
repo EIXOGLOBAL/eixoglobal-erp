@@ -204,7 +204,10 @@ const sistemaSection = {
             icon: Settings,
             items: [
                 { title: "Geral", href: "/configuracoes", icon: Settings },
+                { title: "BDI", href: "/configuracoes/bdi", icon: Calculator },
+                { title: "Calendario", href: "/configuracoes/calendario", icon: CalendarDays },
                 { title: "Sistema", href: "/configuracoes/sistema", icon: Shield },
+                { title: "Fluxos de Aprovacao", href: "/configuracoes/fluxos-aprovacao", icon: GitBranch },
             ],
         },
     ]

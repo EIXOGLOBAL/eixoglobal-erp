@@ -4,6 +4,9 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { assertAuthenticated } from "@/lib/auth-helpers"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'maintenance-plan' })
 
 // ============================================================================
 // SCHEMAS
@@ -46,7 +49,7 @@ export async function createMaintenancePlanItem(
         revalidatePath(`/equipamentos/${equipmentId}`)
         return { success: true, data: item }
     } catch (error) {
-        console.error("Erro ao criar item do plano de manutenção:", error)
+        log.error({ err: error }, "Erro ao criar item do plano de manutenção")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar item do plano de manutenção"
@@ -86,7 +89,7 @@ export async function updateMaintenancePlanItem(
         revalidatePath(`/equipamentos/${item.equipmentId}`)
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao atualizar item do plano de manutenção:", error)
+        log.error({ err: error }, "Erro ao atualizar item do plano de manutenção")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao atualizar item do plano de manutenção"
@@ -111,7 +114,7 @@ export async function deleteMaintenancePlanItem(itemId: string) {
         revalidatePath(`/equipamentos/${item.equipmentId}`)
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar item do plano de manutenção:", error)
+        log.error({ err: error }, "Erro ao deletar item do plano de manutenção")
         return {
             success: false,
             error: "Erro ao deletar item do plano de manutenção"
@@ -134,7 +137,7 @@ export async function getMaintenancePlanItems(equipmentId: string) {
 
         return items
     } catch (error) {
-        console.error("Erro ao buscar itens do plano de manutenção:", error)
+        log.error({ err: error }, "Erro ao buscar itens do plano de manutenção")
         return []
     }
 }
@@ -153,7 +156,7 @@ export async function getMaintenancePlanItemById(itemId: string) {
 
         return item
     } catch (error) {
-        console.error("Erro ao buscar item do plano de manutenção:", error)
+        log.error({ err: error }, "Erro ao buscar item do plano de manutenção")
         return null
     }
 }
@@ -196,7 +199,7 @@ export async function markMaintenanceAsPerformed(itemId: string) {
         revalidatePath(`/equipamentos/${item.equipmentId}`)
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao marcar manutenção como realizada:", error)
+        log.error({ err: error }, "Erro ao marcar manutenção como realizada")
         return {
             success: false,
             error: "Erro ao marcar manutenção como realizada"
@@ -227,7 +230,7 @@ export async function getOverdueMaintenanceItems(equipmentId: string) {
 
         return overdueItems
     } catch (error) {
-        console.error("Erro ao buscar manutenções atrasadas:", error)
+        log.error({ err: error }, "Erro ao buscar manutenções atrasadas")
         return []
     }
 }
@@ -256,7 +259,7 @@ export async function getUpcomingMaintenanceItems(equipmentId: string, daysAhead
 
         return upcomingItems
     } catch (error) {
-        console.error("Erro ao buscar manutenções próximas:", error)
+        log.error({ err: error }, "Erro ao buscar manutenções próximas")
         return []
     }
 }

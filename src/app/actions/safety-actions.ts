@@ -6,6 +6,9 @@ import type { SafetyIncidentType } from "@/lib/generated/prisma/client"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'safety' })
 
 // ============================================================================
 // SCHEMAS
@@ -123,7 +126,7 @@ export async function reportIncident(data: z.infer<typeof incidentSchema>) {
     revalidatePath('/qualidade')
     return { success: true, data: { ...incident, nonConformity } }
   } catch (error) {
-    console.error("Erro ao reportar incidente:", error)
+    log.error({ err: error }, "Erro ao reportar incidente")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao reportar incidente",
@@ -161,7 +164,7 @@ export async function updateIncident(
     revalidatePath('/seguranca-trabalho')
     return { success: true, data: incident }
   } catch (error) {
-    console.error("Erro ao atualizar incidente:", error)
+    log.error({ err: error }, "Erro ao atualizar incidente")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao atualizar incidente",
@@ -215,7 +218,7 @@ export async function getIncidents(
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar incidentes:", error)
+    log.error({ err: error }, "Erro ao buscar incidentes")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar incidentes",
@@ -241,7 +244,7 @@ export async function getIncidentById(id: string) {
 
     return { success: true, data: incident }
   } catch (error) {
-    console.error("Erro ao buscar incidente:", error)
+    log.error({ err: error }, "Erro ao buscar incidente")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar incidente",
@@ -255,6 +258,11 @@ export async function closeIncident(
 ) {
   const session = await getSession()
   if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+  // Check write permission - USER role cannot close incidents
+  if (session.user.role === 'USER') {
+    return { success: false, error: 'Sem permissão para fechar incidente' }
+  }
 
   try {
     const validated = incidentCloseSchema.parse(data)
@@ -278,7 +286,7 @@ export async function closeIncident(
     revalidatePath('/seguranca-trabalho')
     return { success: true, data: incident }
   } catch (error) {
-    console.error("Erro ao encerrar incidente:", error)
+    log.error({ err: error }, "Erro ao encerrar incidente")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao encerrar incidente",
@@ -318,7 +326,7 @@ export async function createInspection(data: z.infer<typeof inspectionSchema>) {
     revalidatePath('/seguranca-trabalho')
     return { success: true, data: inspection }
   } catch (error) {
-    console.error("Erro ao criar inspeção:", error)
+    log.error({ err: error }, "Erro ao criar inspeção")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao criar inspeção",
@@ -366,7 +374,7 @@ export async function completeInspection(
     revalidatePath('/seguranca-trabalho')
     return { success: true, data: updated }
   } catch (error) {
-    console.error("Erro ao completar inspeção:", error)
+    log.error({ err: error }, "Erro ao completar inspeção")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao completar inspeção",
@@ -422,7 +430,7 @@ export async function getInspections(
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar inspeções:", error)
+    log.error({ err: error }, "Erro ao buscar inspeções")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar inspeções",
@@ -494,7 +502,7 @@ export async function getSafetyDashboard(projectId?: string) {
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar dashboard de segurança:", error)
+    log.error({ err: error }, "Erro ao buscar dashboard de segurança")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar dashboard",

@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'training' })
 
 const trainingSchema = z.object({
     title: z.string().min(3, "Título deve ter no mínimo 3 caracteres"),
@@ -25,6 +28,11 @@ export async function createTraining(data: z.infer<typeof trainingSchema>) {
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot create trainings
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para criar treinamento" }
+        }
 
         // Verify company access
         if (data.companyId !== session.user.companyId) {
@@ -55,7 +63,7 @@ export async function createTraining(data: z.infer<typeof trainingSchema>) {
         revalidatePath('/rh/treinamentos')
         return { success: true, data: training }
     } catch (error) {
-        console.error("Erro ao criar treinamento:", error)
+        log.error({ err: error }, "Erro ao criar treinamento")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar treinamento",
@@ -67,6 +75,11 @@ export async function updateTraining(id: string, data: z.infer<typeof trainingSc
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot update trainings
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para editar treinamento" }
+        }
 
         // Verify training belongs to user's company
         const training = await prisma.training.findUnique({
@@ -100,7 +113,7 @@ export async function updateTraining(id: string, data: z.infer<typeof trainingSc
         revalidatePath('/rh/treinamentos')
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao atualizar treinamento:", error)
+        log.error({ err: error }, "Erro ao atualizar treinamento")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao atualizar treinamento",
@@ -135,7 +148,7 @@ export async function deleteTraining(id: string) {
         revalidatePath('/rh/treinamentos')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar treinamento:", error)
+        log.error({ err: error }, "Erro ao deletar treinamento")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao deletar treinamento",
@@ -161,7 +174,7 @@ export async function getTrainings(companyId: string) {
             cost: t.cost ? Number(t.cost) : null,
         }))
     } catch (error) {
-        console.error("Erro ao buscar treinamentos:", error)
+        log.error({ err: error }, "Erro ao buscar treinamentos")
         return []
     }
 }
@@ -201,7 +214,7 @@ export async function addParticipant(trainingId: string, employeeId: string) {
         revalidatePath('/rh/treinamentos')
         return { success: true, data: participant }
     } catch (error) {
-        console.error("Erro ao adicionar participante:", error)
+        log.error({ err: error }, "Erro ao adicionar participante")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao adicionar participante",
@@ -246,7 +259,7 @@ export async function removeParticipant(trainingId: string, employeeId: string) 
         revalidatePath('/rh/treinamentos')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao remover participante:", error)
+        log.error({ err: error }, "Erro ao remover participante")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao remover participante",
@@ -295,7 +308,7 @@ export async function markAttendance(
         revalidatePath('/rh/treinamentos')
         return { success: true, data: participant }
     } catch (error) {
-        console.error("Erro ao atualizar presença:", error)
+        log.error({ err: error }, "Erro ao atualizar presença")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao atualizar presença",
@@ -333,7 +346,7 @@ export async function getTrainingParticipants(trainingId: string) {
 
         return { success: true, data: participants }
     } catch (error) {
-        console.error("Erro ao buscar participantes:", error)
+        log.error({ err: error }, "Erro ao buscar participantes")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao buscar participantes",
@@ -404,7 +417,7 @@ export async function getEmployeeCertifications(employeeId: string) {
             notes: p.notes,
         }))
     } catch (error) {
-        console.error("Erro ao buscar certificações do funcionário:", error)
+        log.error({ err: error }, "Erro ao buscar certificações do funcionário")
         return []
     }
 }

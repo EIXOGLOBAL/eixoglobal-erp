@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { assertAuthenticated, assertRole } from '@/lib/auth-helpers'
 import { logAction } from '@/lib/audit-logger'
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'ai-config' })
 
 // ============================================================================
 // Tipos
@@ -53,7 +56,7 @@ export async function getAIUserSettings(): Promise<{ success: boolean; data?: AI
       })),
     }
   } catch (error) {
-    console.error('[ai-config] Erro ao listar configuracoes:', error)
+    log.error({ err: error }, '[ai-config] Erro ao listar configuracoes')
     return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }
   }
 }
@@ -106,7 +109,7 @@ export async function updateUserAIAccess(
 
     return { success: true }
   } catch (error) {
-    console.error('[ai-config] Erro ao atualizar acesso IA:', error)
+    log.error({ err: error }, '[ai-config] Erro ao atualizar acesso IA')
     return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }
   }
 }

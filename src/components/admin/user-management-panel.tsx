@@ -69,8 +69,8 @@ const ROLE_OPTIONS = [
   { value: 'MANAGER', label: 'Gerente' },
   { value: 'ENGINEER', label: 'Engenheiro' },
   { value: 'SUPERVISOR', label: 'Supervisor' },
-  { value: 'USER', label: 'Usuario' },
-  { value: 'SAFETY_OFFICER', label: 'Tec. Seguranca' },
+  { value: 'USER', label: 'Usuário' },
+  { value: 'SAFETY_OFFICER', label: 'Tec. Segurança' },
   { value: 'ACCOUNTANT', label: 'Contador' },
   { value: 'HR_ANALYST', label: 'Analista RH' },
 ]
@@ -269,7 +269,7 @@ export function UserManagementPanel({ initialData }: UserManagementPanelProps) {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Usuários</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -330,7 +330,7 @@ export function UserManagementPanel({ initialData }: UserManagementPanelProps) {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nome, email ou usuario..."
+                placeholder="Buscar por nome, email ou usuário..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9"
@@ -421,7 +421,7 @@ export function UserManagementPanel({ initialData }: UserManagementPanelProps) {
               {users.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                    Nenhum usuario encontrado
+                    Nenhum usuário encontrado
                   </TableCell>
                 </TableRow>
               ) : (

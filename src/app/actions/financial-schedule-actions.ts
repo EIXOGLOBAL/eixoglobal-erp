@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { toNumber } from "@/lib/formatters"
 import { assertAuthenticated } from "@/lib/auth-helpers"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'financial-schedule' })
 
 const financialScheduleItemSchema = z.object({
     contractId: z.string().uuid("ID do contrato inválido"),
@@ -54,7 +57,7 @@ export async function createFinancialScheduleItem(data: z.infer<typeof financial
         revalidatePath('/contratos')
         return { success: true, data: item }
     } catch (error) {
-        console.error("Erro ao criar item de planejamento financeiro:", error)
+        log.error({ err: error }, "Erro ao criar item de planejamento financeiro")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar item de planejamento financeiro",
@@ -104,7 +107,7 @@ export async function updateFinancialScheduleItem(id: string, data: z.infer<type
         revalidatePath('/contratos')
         return { success: true, data: item }
     } catch (error) {
-        console.error("Erro ao atualizar item de planejamento financeiro:", error)
+        log.error({ err: error }, "Erro ao atualizar item de planejamento financeiro")
         return { success: false, error: "Erro ao atualizar item de planejamento financeiro" }
     }
 }
@@ -125,7 +128,7 @@ export async function deleteFinancialScheduleItem(id: string) {
         revalidatePath('/contratos')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar item de planejamento financeiro:", error)
+        log.error({ err: error }, "Erro ao deletar item de planejamento financeiro")
         return { success: false, error: "Erro ao deletar item de planejamento financeiro" }
     }
 }
@@ -149,7 +152,7 @@ export async function getFinancialScheduleItemsByContract(contractId: string) {
         })
         return { success: true, data: items }
     } catch (error) {
-        console.error("Erro ao buscar itens de planejamento financeiro:", error)
+        log.error({ err: error }, "Erro ao buscar itens de planejamento financeiro")
         return { success: false, error: "Erro ao buscar itens de planejamento financeiro" }
     }
 }
@@ -168,7 +171,7 @@ export async function getFinancialScheduleItemById(id: string) {
 
         return { success: true, data: item }
     } catch (error) {
-        console.error("Erro ao buscar item de planejamento financeiro:", error)
+        log.error({ err: error }, "Erro ao buscar item de planejamento financeiro")
         return { success: false, error: "Erro ao buscar item de planejamento financeiro" }
     }
 }
@@ -194,7 +197,7 @@ export async function getFinancialScheduleSummary(contractId: string) {
             }
         }
     } catch (error) {
-        console.error("Erro ao buscar resumo de planejamento financeiro:", error)
+        log.error({ err: error }, "Erro ao buscar resumo de planejamento financeiro")
         return { success: false, error: "Erro ao buscar resumo de planejamento financeiro" }
     }
 }

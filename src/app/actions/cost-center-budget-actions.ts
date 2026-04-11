@@ -5,6 +5,9 @@ import { getSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { revalidatePath } from 'next/cache'
 import { toNumber } from '@/lib/formatters'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'cost-center-budget' })
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -123,7 +126,7 @@ export async function setCostCenterBudget(
     revalidatePath('/financeiro/centros-de-custo')
     return { success: true, data: budget }
   } catch (error) {
-    console.error('Erro ao definir orçamento:', error)
+    log.error({ err: error }, 'Erro ao definir orçamento')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao definir orçamento do centro de custo.',
@@ -188,7 +191,7 @@ export async function deleteCostCenterBudget(
     revalidatePath('/financeiro/centros-de-custo')
     return { success: true }
   } catch (error) {
-    console.error('Erro ao excluir orçamento:', error)
+    log.error({ err: error }, 'Erro ao excluir orçamento')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao excluir orçamento.',
@@ -256,7 +259,7 @@ export async function getCostCenterBudgetReport(companyId: string, year: number)
 
     return { success: true, data: report }
   } catch (error) {
-    console.error('Erro ao gerar relatório de orçamento:', error)
+    log.error({ err: error }, 'Erro ao gerar relatório de orçamento')
     return { success: false, data: [] as CostCenterBudgetReportItem[], error: 'Erro ao gerar relatório.' }
   }
 }
@@ -326,7 +329,7 @@ export async function getCostCenterHierarchy(companyId: string, year?: number) {
 
     return { success: true, data: roots }
   } catch (error) {
-    console.error('Erro ao buscar hierarquia:', error)
+    log.error({ err: error }, 'Erro ao buscar hierarquia')
     return { success: false, data: [] as CostCenterHierarchyNode[], error: 'Erro ao buscar hierarquia.' }
   }
 }
@@ -360,7 +363,7 @@ export async function getRecentFinancialRecords(costCenterId: string) {
       })),
     }
   } catch (error) {
-    console.error('Erro ao buscar registros financeiros:', error)
+    log.error({ err: error }, 'Erro ao buscar registros financeiros')
     return { success: false, data: [], error: 'Erro ao buscar registros.' }
   }
 }

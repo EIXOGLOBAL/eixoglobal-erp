@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'quality' })
 
 // ============================================================================
 // SCHEMAS
@@ -55,6 +58,11 @@ export async function createCheckpoint(data: z.infer<typeof checkpointSchema>) {
   const session = await getSession()
   if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
 
+  // Check write permission - USER role cannot create checkpoints
+  if (session.user.role === 'USER') {
+    return { success: false, error: 'Sem permissão para criar checkpoint de qualidade' }
+  }
+
   try {
     const validated = checkpointSchema.parse(data)
 
@@ -81,7 +89,7 @@ export async function createCheckpoint(data: z.infer<typeof checkpointSchema>) {
     revalidatePath('/qualidade')
     return { success: true, data: checkpoint }
   } catch (error) {
-    console.error("Erro ao criar ponto de controle:", error)
+    log.error({ err: error }, "Erro ao criar ponto de controle")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao criar ponto de controle",
@@ -119,7 +127,7 @@ export async function updateCheckpoint(
     revalidatePath('/qualidade')
     return { success: true, data: checkpoint }
   } catch (error) {
-    console.error("Erro ao atualizar ponto de controle:", error)
+    log.error({ err: error }, "Erro ao atualizar ponto de controle")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao atualizar ponto de controle",
@@ -130,6 +138,11 @@ export async function updateCheckpoint(
 export async function deleteCheckpoint(id: string) {
   const session = await getSession()
   if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+  // Check delete permission
+  if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+    return { success: false, error: "Sem permissão para excluir checkpoint" }
+  }
 
   try {
     const old = await prisma.qualityCheckpoint.findUnique({ where: { id } })
@@ -143,7 +156,7 @@ export async function deleteCheckpoint(id: string) {
     revalidatePath('/qualidade')
     return { success: true }
   } catch (error) {
-    console.error("Erro ao deletar ponto de controle:", error)
+    log.error({ err: error }, "Erro ao deletar ponto de controle")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao deletar ponto de controle",
@@ -197,7 +210,7 @@ export async function getCheckpoints(
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar pontos de controle:", error)
+    log.error({ err: error }, "Erro ao buscar pontos de controle")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar pontos de controle",
@@ -226,7 +239,7 @@ export async function getCheckpointById(id: string) {
 
     return { success: true, data: checkpoint }
   } catch (error) {
-    console.error("Erro ao buscar ponto de controle:", error)
+    log.error({ err: error }, "Erro ao buscar ponto de controle")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar ponto de controle",
@@ -278,7 +291,7 @@ export async function performInspection(
     revalidatePath('/qualidade')
     return { success: true, data: updatedCheckpoint }
   } catch (error) {
-    console.error("Erro ao realizar inspeção:", error)
+    log.error({ err: error }, "Erro ao realizar inspeção")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao realizar inspeção",
@@ -331,7 +344,7 @@ export async function createNonConformity(
     revalidatePath('/qualidade')
     return { success: true, data: nonConformity }
   } catch (error) {
-    console.error("Erro ao criar não conformidade:", error)
+    log.error({ err: error }, "Erro ao criar não conformidade")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao criar não conformidade",
@@ -371,7 +384,7 @@ export async function resolveNonConformity(
     revalidatePath('/qualidade')
     return { success: true, data: nonConformity }
   } catch (error) {
-    console.error("Erro ao resolver não conformidade:", error)
+    log.error({ err: error }, "Erro ao resolver não conformidade")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao resolver não conformidade",
@@ -446,7 +459,7 @@ export async function getQualityDashboard(projectId?: string) {
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar dashboard de qualidade:", error)
+    log.error({ err: error }, "Erro ao buscar dashboard de qualidade")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar dashboard",

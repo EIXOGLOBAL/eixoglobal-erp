@@ -65,6 +65,8 @@ import {
     ToggleRight,
     Search,
 } from "lucide-react"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
 
 type Supplier = {
     id: string
@@ -121,6 +123,28 @@ const categoryColors: Record<SupplierCategory, string> = {
 
 function isCategoryKey(value: string): value is SupplierCategory {
     return value in categoryLabels
+}
+
+const supplierExportColumns: ExportColumn[] = [
+    { key: 'name', label: 'Razao Social' },
+    { key: 'tradeName', label: 'Nome Fantasia' },
+    { key: 'cnpj', label: 'CNPJ' },
+    { key: 'email', label: 'E-mail' },
+    { key: 'phone', label: 'Telefone' },
+    { key: 'location', label: 'Cidade/UF' },
+    { key: 'categoryName', label: 'Categoria' },
+    { key: 'docsCount', label: 'Documentos' },
+    { key: 'statusLabel', label: 'Status' },
+]
+
+function mapSuppliersForExport(list: Supplier[]): Record<string, unknown>[] {
+    return list.map(s => ({
+        ...s,
+        location: [s.city, s.state].filter(Boolean).join('/') || '',
+        categoryName: categoryLabels[isCategoryKey(s.category) ? s.category : 'OTHER'],
+        docsCount: s._count.fiscalNotes,
+        statusLabel: s.isActive ? 'Ativo' : 'Inativo',
+    }))
 }
 
 interface SuppliersClientProps {
@@ -288,13 +312,22 @@ export function SuppliersClient({ companyId, suppliers }: SuppliersClientProps) 
                     />
                 </div>
 
-                <Dialog open={open} onOpenChange={setOpen}>
-                    <DialogTrigger asChild>
-                        <Button onClick={openCreate}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Novo Fornecedor
-                        </Button>
-                    </DialogTrigger>
+                <div className="flex items-center gap-2">
+                    <ExportButton
+                        data={mapSuppliersForExport(filteredSuppliers)}
+                        columns={supplierExportColumns}
+                        filename="fornecedores"
+                        title="Fornecedores"
+                        sheetName="Fornecedores"
+                        size="sm"
+                    />
+                    <Dialog open={open} onOpenChange={setOpen}>
+                        <DialogTrigger asChild>
+                            <Button onClick={openCreate}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Novo Fornecedor
+                            </Button>
+                        </DialogTrigger>
 
                     <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
@@ -534,6 +567,7 @@ export function SuppliersClient({ companyId, suppliers }: SuppliersClientProps) 
                         </Form>
                     </DialogContent>
                 </Dialog>
+                </div>
             </div>
 
             {/* Table */}

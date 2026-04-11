@@ -135,9 +135,15 @@ interface Budget {
     project: { id: string; name: string; code: string | null }
 }
 
+interface BDIInfo {
+    name: string
+    percentage: number
+}
+
 interface BudgetDetailClientProps {
     budget: Budget
     companyId: string
+    bdiInfo?: BDIInfo | null
 }
 
 function BudgetItemDialog({
@@ -311,7 +317,7 @@ function BudgetItemDialog({
     )
 }
 
-export function BudgetDetailClient({ budget, companyId }: BudgetDetailClientProps) {
+export function BudgetDetailClient({ budget, companyId, bdiInfo }: BudgetDetailClientProps) {
     const { toast } = useToast()
     const router = useRouter()
     const [addItemOpen, setAddItemOpen] = useState(false)
@@ -445,10 +451,10 @@ export function BudgetDetailClient({ budget, companyId }: BudgetDetailClientProp
             </div>
 
             {/* Info Cards */}
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
+                        <CardTitle className="text-sm font-medium">Custo Direto</CardTitle>
                         <DollarSign className="h-4 w-4 text-blue-600" />
                     </CardHeader>
                     <CardContent>
@@ -456,6 +462,22 @@ export function BudgetDetailClient({ budget, companyId }: BudgetDetailClientProp
                         <p className="text-xs text-muted-foreground">{budget.items.length} item(ns) no orçamento</p>
                     </CardContent>
                 </Card>
+                {bdiInfo && bdiInfo.percentage > 0 && (
+                    <Card className="border-teal-200 dark:border-teal-900">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Preço de Venda (c/ BDI)</CardTitle>
+                            <DollarSign className="h-4 w-4 text-teal-600" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold tabular-nums text-teal-700 dark:text-teal-400">
+                                {formatBRL(budget.totalValue * (1 + bdiInfo.percentage / 100))}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                BDI: {bdiInfo.name} ({bdiInfo.percentage.toFixed(2)}%)
+                            </p>
+                        </CardContent>
+                    </Card>
+                )}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Projeto</CardTitle>
@@ -662,13 +684,35 @@ export function BudgetDetailClient({ budget, companyId }: BudgetDetailClientProp
                                     <TableFooter>
                                         <TableRow>
                                             <TableCell colSpan={isDraft ? 8 : 8} className="pl-6 font-semibold">
-                                                Total Geral
+                                                Total Custo Direto
                                             </TableCell>
                                             <TableCell className="text-right tabular-nums font-bold text-base pr-0">
                                                 {formatBRL(budget.totalValue)}
                                             </TableCell>
                                             {isDraft && <TableCell className="pr-6" />}
                                         </TableRow>
+                                        {bdiInfo && bdiInfo.percentage > 0 && (
+                                            <>
+                                                <TableRow className="bg-teal-50/50 dark:bg-teal-950/20">
+                                                    <TableCell colSpan={isDraft ? 8 : 8} className="pl-6 text-sm text-muted-foreground">
+                                                        BDI ({bdiInfo.name} - {bdiInfo.percentage.toFixed(2)}%)
+                                                    </TableCell>
+                                                    <TableCell className="text-right tabular-nums text-sm pr-0">
+                                                        {formatBRL(budget.totalValue * bdiInfo.percentage / 100)}
+                                                    </TableCell>
+                                                    {isDraft && <TableCell className="pr-6" />}
+                                                </TableRow>
+                                                <TableRow className="bg-teal-50/80 dark:bg-teal-950/30">
+                                                    <TableCell colSpan={isDraft ? 8 : 8} className="pl-6 font-semibold text-teal-700 dark:text-teal-400">
+                                                        Preço de Venda
+                                                    </TableCell>
+                                                    <TableCell className="text-right tabular-nums font-bold text-base pr-0 text-teal-700 dark:text-teal-400">
+                                                        {formatBRL(budget.totalValue * (1 + bdiInfo.percentage / 100))}
+                                                    </TableCell>
+                                                    {isDraft && <TableCell className="pr-6" />}
+                                                </TableRow>
+                                            </>
+                                        )}
                                     </TableFooter>
                                 </Table>
                             )}

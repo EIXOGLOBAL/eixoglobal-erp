@@ -4,8 +4,13 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { WeatherCondition, DailyReportStatus } from "@/lib/generated/prisma/client"
+import { getSession } from "@/lib/auth"
 import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
+import { assertCanDelete } from "@/lib/permissions"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'daily-report' })
 
 // ============================================================================
 // SCHEMAS
@@ -43,6 +48,14 @@ export async function createDailyReport(
     companyId: string
 ) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot create daily reports
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para criar RDO" }
+        }
+
         const validated = reportSchema.parse(data)
 
         // Check uniqueness date + projectId
@@ -81,7 +94,7 @@ export async function createDailyReport(
         revalidatePath('/rdo')
         return { success: true, data: report }
     } catch (error) {
-        console.error("Erro ao criar RDO:", error)
+        log.error({ err: error }, "Erro ao criar RDO")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar RDO"
@@ -115,7 +128,7 @@ export async function updateDailyReport(id: string, data: z.infer<typeof reportS
         revalidatePath(`/rdo/${id}`)
         return { success: true, data: report }
     } catch (error) {
-        console.error("Erro ao atualizar RDO:", error)
+        log.error({ err: error }, "Erro ao atualizar RDO")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao atualizar RDO"
@@ -125,7 +138,9 @@ export async function updateDailyReport(id: string, data: z.infer<typeof reportS
 
 export async function deleteDailyReport(id: string) {
     try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check delete permission
+        assertCanDelete(session.user)
         const report = await prisma.dailyReport.findUnique({ where: { id } })
 
         if (!report) {
@@ -146,7 +161,7 @@ export async function deleteDailyReport(id: string) {
         revalidatePath('/rdo')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar RDO:", error)
+        log.error({ err: error }, "Erro ao deletar RDO")
         return {
             success: false,
             error: "Erro ao deletar RDO"
@@ -175,7 +190,7 @@ export async function getDailyReports(companyId: string, projectId?: string) {
 
         return reports
     } catch (error) {
-        console.error("Erro ao buscar RDOs:", error)
+        log.error({ err: error }, "Erro ao buscar RDOs")
         return []
     }
 }
@@ -209,7 +224,7 @@ export async function getDailyReportById(id: string) {
 
         return report
     } catch (error) {
-        console.error("Erro ao buscar RDO:", error)
+        log.error({ err: error }, "Erro ao buscar RDO")
         return null
     }
 }
@@ -237,7 +252,7 @@ export async function addWorker(reportId: string, role: string, count: number) {
         revalidatePath(`/rdo/${reportId}`)
         return { success: true, data: worker }
     } catch (error) {
-        console.error("Erro ao adicionar efetivo:", error)
+        log.error({ err: error }, "Erro ao adicionar efetivo")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao adicionar efetivo"
@@ -266,7 +281,7 @@ export async function updateWorker(workerId: string, role: string, count: number
         revalidatePath(`/rdo/${worker.reportId}`)
         return { success: true, data: worker }
     } catch (error) {
-        console.error("Erro ao atualizar efetivo:", error)
+        log.error({ err: error }, "Erro ao atualizar efetivo")
         return {
             success: false,
             error: "Erro ao atualizar efetivo"
@@ -293,7 +308,7 @@ export async function deleteWorker(workerId: string) {
         revalidatePath(`/rdo/${worker.reportId}`)
         return { success: true }
     } catch (error) {
-        console.error("Erro ao remover efetivo:", error)
+        log.error({ err: error }, "Erro ao remover efetivo")
         return {
             success: false,
             error: "Erro ao remover efetivo"
@@ -327,7 +342,7 @@ export async function addActivity(reportId: string, data: z.infer<typeof activit
         revalidatePath(`/rdo/${reportId}`)
         return { success: true, data: activity }
     } catch (error) {
-        console.error("Erro ao adicionar atividade:", error)
+        log.error({ err: error }, "Erro ao adicionar atividade")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao adicionar atividade"
@@ -359,7 +374,7 @@ export async function updateActivity(activityId: string, data: z.infer<typeof ac
         revalidatePath(`/rdo/${activity.reportId}`)
         return { success: true, data: activity }
     } catch (error) {
-        console.error("Erro ao atualizar atividade:", error)
+        log.error({ err: error }, "Erro ao atualizar atividade")
         return {
             success: false,
             error: "Erro ao atualizar atividade"
@@ -386,7 +401,7 @@ export async function deleteActivity(activityId: string) {
         revalidatePath(`/rdo/${activity.reportId}`)
         return { success: true }
     } catch (error) {
-        console.error("Erro ao remover atividade:", error)
+        log.error({ err: error }, "Erro ao remover atividade")
         return {
             success: false,
             error: "Erro ao remover atividade"
@@ -412,7 +427,7 @@ export async function submitDailyReport(id: string) {
         revalidatePath(`/rdo/${id}`)
         return { success: true, data: report }
     } catch (error) {
-        console.error("Erro ao submeter RDO:", error)
+        log.error({ err: error }, "Erro ao submeter RDO")
         return {
             success: false,
             error: "Erro ao submeter RDO"
@@ -434,7 +449,7 @@ export async function approveDailyReport(id: string) {
         revalidatePath(`/rdo/${id}`)
         return { success: true, data: report }
     } catch (error) {
-        console.error("Erro ao aprovar RDO:", error)
+        log.error({ err: error }, "Erro ao aprovar RDO")
         return {
             success: false,
             error: "Erro ao aprovar RDO"

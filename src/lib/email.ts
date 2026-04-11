@@ -1,100 +1,179 @@
 'use server'
 
 import nodemailer from 'nodemailer'
+import type Mail from 'nodemailer/lib/mailer'
+import { baseTemplate } from './email-base'
 
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: false,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-})
+// ============================================================================
+// CONFIGURAÇÃO SMTP
+// ============================================================================
 
-const FROM_EMAIL = process.env.EMAIL_FROM || 'noreply@eixoglobal.com.br'
+const SMTP_HOST = process.env.SMTP_HOST
+const SMTP_PORT = Number(process.env.SMTP_PORT) || 587
+const SMTP_USER = process.env.SMTP_USER
+const SMTP_PASS = process.env.SMTP_PASS
+const SMTP_FROM = process.env.SMTP_FROM || 'noreply@eixoglobal.com.br'
 const APP_NAME = 'Eixo Global ERP'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://erp.eixoglobal.com.br'
 
-// ============================================================================
-// BASE TEMPLATE
-// ============================================================================
+function isSmtpConfigured(): boolean {
+    return !!(SMTP_HOST && SMTP_USER && SMTP_PASS)
+}
 
-function baseTemplate(content: string): string {
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f4f4f5; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .card { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .header { text-align: center; margin-bottom: 24px; }
-        .header h1 { color: #18181b; font-size: 20px; margin: 0; }
-        .header .logo { font-size: 24px; font-weight: 700; color: #2563eb; margin-bottom: 8px; }
-        .content { color: #3f3f46; font-size: 15px; line-height: 1.6; }
-        .btn { display: inline-block; background: #2563eb; color: #fff !important; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0; }
-        .footer { text-align: center; color: #a1a1aa; font-size: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e4e4e7; }
-        .info-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 16px; margin: 16px 0; }
-        .warning-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 16px 0; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="card">
-            <div class="header">
-                <div class="logo">EIXO GLOBAL</div>
-                <h1>${APP_NAME}</h1>
-            </div>
-            <div class="content">
-                ${content}
-            </div>
-            <div class="footer">
-                <p>${APP_NAME} &copy; ${new Date().getFullYear()}</p>
-                <p>Este é um email automático. Não responda.</p>
-            </div>
-        </div>
-    </div>
-</body>
-</html>`
+let _transporter: Mail | null = null
+
+function getTransporter(): Mail | null {
+    if (!isSmtpConfigured()) return null
+    if (!_transporter) {
+        _transporter = nodemailer.createTransport({
+            host: SMTP_HOST,
+            port: SMTP_PORT,
+            secure: SMTP_PORT === 465,
+            auth: {
+                user: SMTP_USER,
+                pass: SMTP_PASS,
+            },
+        })
+    }
+    return _transporter
 }
 
 // ============================================================================
-// SEND EMAIL
+// RATE LIMIT — max 10 emails/minuto
 // ============================================================================
 
-export async function sendEmail(options: {
+const RATE_LIMIT_WINDOW_MS = 60_000 // 1 minuto
+const RATE_LIMIT_MAX = 10
+
+const emailTimestamps: number[] = []
+
+function checkRateLimit(): boolean {
+    const now = Date.now()
+    // Remove timestamps fora da janela
+    while (emailTimestamps.length > 0 && emailTimestamps[0] < now - RATE_LIMIT_WINDOW_MS) {
+        emailTimestamps.shift()
+    }
+    return emailTimestamps.length < RATE_LIMIT_MAX
+}
+
+function recordEmailSent(): void {
+    emailTimestamps.push(Date.now())
+}
+
+// ============================================================================
+// SEND EMAIL — com retry (2 tentativas) e fallback silencioso
+// ============================================================================
+
+export interface SendEmailOptions {
     to: string
     subject: string
     html: string
     text?: string
-}) {
-    try {
-        if (!process.env.SMTP_USER) {
-            console.warn('[EMAIL] SMTP não configurado — email não enviado:', options.subject)
-            return { success: true, skipped: true }
+}
+
+export interface SendEmailResult {
+    success: boolean
+    messageId?: string
+    skipped?: boolean
+    rateLimited?: boolean
+    error?: string
+}
+
+const MAX_RETRIES = 2
+
+export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
+    // Fallback silencioso se SMTP não configurado
+    if (!isSmtpConfigured()) {
+        console.warn('[EMAIL] SMTP não configurado — email não enviado:', options.subject)
+        return { success: true, skipped: true }
+    }
+
+    // Rate limit
+    if (!checkRateLimit()) {
+        console.warn('[EMAIL] Rate limit atingido (max 10/min) — email adiado:', options.subject)
+        return { success: false, rateLimited: true, error: 'Rate limit atingido. Tente novamente em instantes.' }
+    }
+
+    const transporter = getTransporter()
+    if (!transporter) {
+        console.warn('[EMAIL] Transporter indisponível')
+        return { success: false, error: 'Transporter indisponível' }
+    }
+
+    let lastError: Error | null = null
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const info = await transporter.sendMail({
+                from: `"${APP_NAME}" <${SMTP_FROM}>`,
+                to: options.to,
+                subject: options.subject,
+                html: options.html,
+                text: options.text,
+            })
+
+            recordEmailSent()
+            console.log(`[EMAIL] Enviado (tentativa ${attempt}):`, info.messageId)
+            return { success: true, messageId: info.messageId }
+        } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error))
+            console.error(`[EMAIL] Erro na tentativa ${attempt}/${MAX_RETRIES}:`, lastError.message)
+
+            if (attempt < MAX_RETRIES) {
+                // Aguarda 1 segundo antes de tentar novamente
+                await new Promise(resolve => setTimeout(resolve, 1000))
+            }
         }
+    }
 
-        const info = await transporter.sendMail({
-            from: `"${APP_NAME}" <${FROM_EMAIL}>`,
-            to: options.to,
-            subject: options.subject,
-            html: options.html,
-            text: options.text,
-        })
+    console.error('[EMAIL] Falha após todas as tentativas:', options.subject)
+    return { success: false, error: lastError?.message || 'Erro ao enviar email' }
+}
 
-        console.log('[EMAIL] Enviado:', info.messageId)
-        return { success: true, messageId: info.messageId }
+// ============================================================================
+// VERIFICAR CONEXÃO SMTP
+// ============================================================================
+
+export async function verifySmtpConnection(): Promise<{ connected: boolean; error?: string }> {
+    if (!isSmtpConfigured()) {
+        return { connected: false, error: 'SMTP não configurado' }
+    }
+
+    const transporter = getTransporter()
+    if (!transporter) {
+        return { connected: false, error: 'Transporter indisponível' }
+    }
+
+    try {
+        await transporter.verify()
+        return { connected: true }
     } catch (error) {
-        console.error('[EMAIL] Erro ao enviar:', error)
-        return { success: false, error: error instanceof Error ? error.message : 'Erro ao enviar email' }
+        const message = error instanceof Error ? error.message : String(error)
+        return { connected: false, error: message }
     }
 }
 
 // ============================================================================
-// EMAIL TEMPLATES
+// STATUS DO SERVIÇO
+// ============================================================================
+
+export async function getEmailServiceStatus() {
+    const now = Date.now()
+    const recentEmails = emailTimestamps.filter(t => t >= now - RATE_LIMIT_WINDOW_MS)
+    return {
+        configured: isSmtpConfigured(),
+        host: SMTP_HOST || 'não configurado',
+        port: SMTP_PORT,
+        from: SMTP_FROM,
+        rateLimitUsage: `${recentEmails.length}/${RATE_LIMIT_MAX}`,
+        rateLimitRemaining: RATE_LIMIT_MAX - recentEmails.length,
+    }
+}
+
+// baseTemplate importado de ./email-base (evita export sync em 'use server')
+
+// ============================================================================
+// EMAIL TEMPLATES (legado — mantidos para compatibilidade)
 // ============================================================================
 
 export async function sendWelcomeEmail(to: string, name: string) {

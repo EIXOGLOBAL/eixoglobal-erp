@@ -6,6 +6,9 @@ import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import type { Role } from "@/lib/generated/prisma/enums"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'approval-workflow' })
 
 // ============================================================================
 // SCHEMAS
@@ -86,10 +89,10 @@ export async function createWorkflow(data: z.infer<typeof workflowSchema>) {
 
     await logCreate('ApprovalWorkflow', workflow.id, workflow.name || 'N/A', validated)
 
-    revalidatePath('/workflows')
+    revalidatePath('/configuracoes/fluxos-aprovacao')
     return { success: true, data: workflow }
   } catch (error) {
-    console.error("Erro ao criar workflow:", error)
+    log.error({ err: error }, "Erro ao criar workflow")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao criar workflow",
@@ -135,10 +138,10 @@ export async function updateWorkflow(
 
     await logUpdate('ApprovalWorkflow', id, workflow.name || 'N/A', oldWorkflow, workflow)
 
-    revalidatePath('/workflows')
+    revalidatePath('/configuracoes/fluxos-aprovacao')
     return { success: true, data: workflow }
   } catch (error) {
-    console.error("Erro ao atualizar workflow:", error)
+    log.error({ err: error }, "Erro ao atualizar workflow")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao atualizar workflow",
@@ -159,10 +162,10 @@ export async function deleteWorkflow(id: string) {
 
     await logDelete('ApprovalWorkflow', id, oldWorkflow?.name || 'N/A', oldWorkflow)
 
-    revalidatePath('/workflows')
+    revalidatePath('/configuracoes/fluxos-aprovacao')
     return { success: true }
   } catch (error) {
-    console.error("Erro ao deletar workflow:", error)
+    log.error({ err: error }, "Erro ao deletar workflow")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao deletar workflow",
@@ -210,7 +213,7 @@ export async function getWorkflows(
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar workflows:", error)
+    log.error({ err: error }, "Erro ao buscar workflows")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar workflows",
@@ -265,7 +268,7 @@ export async function submitForApproval(
     revalidatePath('/approvals')
     return { success: true, data: request }
   } catch (error) {
-    console.error("Erro ao submeter para aprovacao:", error)
+    log.error({ err: error }, "Erro ao submeter para aprovacao")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao submeter para aprovacao",
@@ -313,7 +316,7 @@ export async function approveRequest(
     revalidatePath('/approvals')
     return { success: true, data: updated }
   } catch (error) {
-    console.error("Erro ao aprovar solicitacao:", error)
+    log.error({ err: error }, "Erro ao aprovar solicitacao")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao aprovar solicitacao",
@@ -366,7 +369,7 @@ export async function rejectRequest(
     revalidatePath('/approvals')
     return { success: true, data: updated }
   } catch (error) {
-    console.error("Erro ao rejeitar solicitacao:", error)
+    log.error({ err: error }, "Erro ao rejeitar solicitacao")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao rejeitar solicitacao",
@@ -408,7 +411,7 @@ export async function getMyPendingApprovals() {
       data: requests,
     }
   } catch (error) {
-    console.error("Erro ao buscar aprovacoes pendentes:", error)
+    log.error({ err: error }, "Erro ao buscar aprovacoes pendentes")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar aprovacoes pendentes",
@@ -445,11 +448,242 @@ export async function getApprovalHistory(
       data: requests,
     }
   } catch (error) {
-    console.error("Erro ao buscar historico de aprovacoes:", error)
+    log.error({ err: error }, "Erro ao buscar historico de aprovacoes")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar historico",
       data: null,
+    }
+  }
+}
+
+// ============================================================================
+// STATUS & PERMISSION QUERIES (for reusable components)
+// ============================================================================
+
+export async function getApprovalStatus(
+  entityType: string,
+  entityId: string
+) {
+  try {
+    const request = await prisma.approvalRequest.findFirst({
+      where: {
+        entityType,
+        entityId,
+      },
+      include: {
+        requestedBy: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    if (!request) {
+      return { success: true, data: null }
+    }
+
+    return {
+      success: true,
+      data: {
+        id: request.id,
+        status: request.status,
+        currentLevel: request.currentLevel,
+        requestedBy: request.requestedBy,
+        createdAt: request.createdAt,
+        updatedAt: request.updatedAt,
+      },
+    }
+  } catch (error) {
+    log.error({ err: error }, "Erro ao buscar status de aprovacao")
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao buscar status",
+      data: null,
+    }
+  }
+}
+
+export async function canUserApprove(
+  entityType: string,
+  entityId: string
+) {
+  const session = await getSession()
+  if (!session?.user?.id) {
+    return { success: false, error: 'Nao autenticado', canApprove: false }
+  }
+
+  try {
+    const request = await prisma.approvalRequest.findFirst({
+      where: {
+        entityType,
+        entityId,
+        status: 'PENDING',
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    if (!request) {
+      return { success: true, canApprove: false, reason: 'Nenhuma solicitacao pendente' }
+    }
+
+    // Cannot approve own request
+    if (request.requestedById === session.user.id) {
+      return { success: true, canApprove: false, reason: 'Nao pode aprovar propria solicitacao' }
+    }
+
+    // Find the workflow for this entity type
+    const workflow = await prisma.approvalWorkflow.findFirst({
+      where: {
+        entityType,
+        companyId: session.user.companyId!,
+        isActive: true,
+      },
+      include: {
+        levels: {
+          where: { level: request.currentLevel },
+        },
+      },
+    })
+
+    if (!workflow || workflow.levels.length === 0) {
+      // No workflow configured: ADMIN and MANAGER can approve by default
+      const userRole = session.user.role as string
+      const canApprove = userRole === 'ADMIN' || userRole === 'MANAGER'
+      return { success: true, canApprove, requestId: request.id }
+    }
+
+    const currentLevelConfig = workflow.levels[0]
+
+    // Check if specific user is required
+    if (currentLevelConfig.specificUserId) {
+      const canApprove = currentLevelConfig.specificUserId === session.user.id
+      return { success: true, canApprove, requestId: request.id }
+    }
+
+    // Check if user has the required role
+    if (currentLevelConfig.roleRequired) {
+      const canApprove = session.user.role === currentLevelConfig.roleRequired
+      return { success: true, canApprove, requestId: request.id }
+    }
+
+    // No specific restriction: ADMIN and MANAGER can approve
+    const userRole = session.user.role as string
+    const canApprove = userRole === 'ADMIN' || userRole === 'MANAGER'
+    return { success: true, canApprove, requestId: request.id }
+  } catch (error) {
+    log.error({ err: error }, "Erro ao verificar permissao de aprovacao")
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao verificar permissao",
+      canApprove: false,
+    }
+  }
+}
+
+export async function toggleWorkflowActive(id: string) {
+  const session = await getSession()
+  if (!session?.user?.id) return { success: false, error: 'Nao autenticado' }
+
+  try {
+    const workflow = await prisma.approvalWorkflow.findUnique({ where: { id } })
+    if (!workflow) return { success: false, error: 'Workflow nao encontrado' }
+
+    const updated = await prisma.approvalWorkflow.update({
+      where: { id },
+      data: { isActive: !workflow.isActive },
+    })
+
+    await logUpdate('ApprovalWorkflow', id, workflow.name, workflow, updated)
+
+    revalidatePath('/configuracoes/fluxos-aprovacao')
+    return { success: true, data: updated }
+  } catch (error) {
+    log.error({ err: error }, "Erro ao alternar status do workflow")
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao alternar status",
+    }
+  }
+}
+
+export async function getWorkflowStats() {
+  const session = await getSession()
+  if (!session?.user?.id) return { success: false, error: 'Nao autenticado', data: null }
+
+  try {
+    const companyId = session.user.companyId!
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const [totalWorkflows, activeWorkflows, pendingApprovals, approvalsToday] = await Promise.all([
+      prisma.approvalWorkflow.count({ where: { companyId } }),
+      prisma.approvalWorkflow.count({ where: { companyId, isActive: true } }),
+      prisma.approvalRequest.count({ where: { companyId, status: 'PENDING' } }),
+      prisma.approvalRequest.count({
+        where: {
+          companyId,
+          updatedAt: { gte: today },
+          status: { in: ['APPROVED', 'REJECTED'] },
+        },
+      }),
+    ])
+
+    return {
+      success: true,
+      data: { totalWorkflows, activeWorkflows, pendingApprovals, approvalsToday },
+    }
+  } catch (error) {
+    log.error({ err: error }, "Erro ao buscar estatisticas de workflow")
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao buscar estatisticas",
+      data: null,
+    }
+  }
+}
+
+export async function addApprovalComment(
+  entityType: string,
+  entityId: string,
+  comments: string
+) {
+  const session = await getSession()
+  if (!session?.user?.id) return { success: false, error: 'Nao autenticado' }
+
+  try {
+    if (!comments.trim()) {
+      return { success: false, error: 'Comentario nao pode ser vazio' }
+    }
+
+    const request = await prisma.approvalRequest.findFirst({
+      where: {
+        entityType,
+        entityId,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    if (!request) {
+      return { success: false, error: 'Solicitacao de aprovacao nao encontrada' }
+    }
+
+    const history = await prisma.approvalHistory.create({
+      data: {
+        requestId: request.id,
+        level: request.currentLevel,
+        action: 'COMMENTED',
+        userId: session.user.id,
+        comments,
+      },
+    })
+
+    revalidatePath('/approvals')
+    return { success: true, data: history }
+  } catch (error) {
+    log.error({ err: error }, "Erro ao adicionar comentario")
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao adicionar comentario",
     }
   }
 }

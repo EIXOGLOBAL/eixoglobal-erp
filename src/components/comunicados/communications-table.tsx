@@ -52,6 +52,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ExportButton } from '@/components/ui/export-button'
+import type { ExportColumn } from '@/lib/export-utils'
+
+const commExportColumns: ExportColumn[] = [
+  { key: 'title', label: 'Titulo' },
+  { key: 'priorityPtBr', label: 'Prioridade' },
+  { key: 'audiencePtBr', label: 'Publico' },
+  { key: 'authorName', label: 'Autor' },
+  { key: 'readsCount', label: 'Leituras' },
+  { key: 'createdAt', label: 'Data' },
+  { key: 'statusPtBr', label: 'Status' },
+]
 
 type Priority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 
@@ -95,7 +107,7 @@ const audienceLabels: Record<string, string> = {
   SAFETY_OFFICER: 'Seg. Trabalho',
   ACCOUNTANT: 'Contadores',
   HR_ANALYST: 'RH',
-  USER: 'Usuarios',
+  USER: 'Usuários',
 }
 
 export function CommunicationsTable({
@@ -194,7 +206,24 @@ export function CommunicationsTable({
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Lista de Comunicados</CardTitle>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              <ExportButton
+                data={filtered.map(c => ({
+                  ...c,
+                  priorityPtBr: priorityConfig[c.priority].label,
+                  audiencePtBr: audienceLabels[c.targetAudience] || c.targetAudience,
+                  authorName: c.author.name ?? 'Usuario',
+                  readsCount: `${c._count.reads}/${totalUsers}`,
+                  statusPtBr: c.expiresAt && new Date(c.expiresAt).getTime() < Date.now()
+                    ? 'Expirado'
+                    : c.reads.some(r => r.userId === currentUserId) ? 'Lido' : 'Novo',
+                }))}
+                columns={commExportColumns}
+                filename="comunicados"
+                title="Comunicados"
+                sheetName="Comunicados"
+                size="sm"
+              />
               <Input
                 placeholder="Buscar..."
                 value={search}
@@ -467,7 +496,7 @@ export function CommunicationsTable({
           <DialogHeader>
             <DialogTitle>Confirmar Exclusao</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja excluir este comunicado? Esta acao nao pode
+              Tem certeza que deseja excluir este comunicado? Esta ação não pode
               ser desfeita.
             </DialogDescription>
           </DialogHeader>

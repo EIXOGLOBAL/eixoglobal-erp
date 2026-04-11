@@ -32,8 +32,20 @@ import {
 } from "@/components/ui/select"
 import { MoreHorizontal, Eye, Edit, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { ExportExcelButton } from "@/components/ui/export-excel-button"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
 import { formatDate } from "@/lib/formatters"
+
+const projectExportColumns: ExportColumn[] = [
+    { key: 'code', label: 'Codigo' },
+    { key: 'name', label: 'Nome' },
+    { key: 'companyName', label: 'Empresa' },
+    { key: 'startDate', label: 'Inicio' },
+    { key: 'endDate', label: 'Termino' },
+    { key: 'budgetFmt', label: 'Orcamento', format: (v) => String(v ?? '') },
+    { key: 'statusPtBr', label: 'Status' },
+    { key: 'measurementsCount', label: 'Medicoes' },
+]
 
 interface ProjectsTableProps {
     data: any[]
@@ -126,6 +138,21 @@ export function ProjectsTable({ data, companies, clients = [] }: ProjectsTablePr
                         <SelectItem value="CANCELLED">Cancelado</SelectItem>
                     </SelectContent>
                 </Select>
+                <ExportButton
+                    data={filtered.map(p => ({
+                        ...p,
+                        code: p.code || '',
+                        companyName: p.company?.name || 'N/A',
+                        budgetFmt: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(p.budget || 0)),
+                        statusPtBr: statusLabels[p.status] || p.status,
+                        measurementsCount: String(p._count?.measurements || 0),
+                    }))}
+                    columns={projectExportColumns}
+                    filename="projetos"
+                    title="Projetos"
+                    sheetName="Projetos"
+                    size="sm"
+                />
                 <span className="text-sm text-muted-foreground self-center">
                     {filtered.length} projeto(s)
                 </span>

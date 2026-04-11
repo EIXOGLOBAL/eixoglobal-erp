@@ -164,7 +164,7 @@ export function CheckpointDialog({
           </DialogTitle>
           <DialogDescription>
             {checkpoint
-              ? 'Atualize as informacoes do ponto de controle.'
+              ? 'Atualize as informações do ponto de controle.'
               : 'Cadastre um novo ponto de controle de qualidade.'}
           </DialogDescription>
         </DialogHeader>

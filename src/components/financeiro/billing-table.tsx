@@ -8,6 +8,9 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
+import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
     DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -17,6 +20,10 @@ import {
 import { updateBillingStatus, deleteBilling } from "@/app/actions/billing-actions"
 import { useToast } from "@/hooks/use-toast"
 import { formatDate, formatCurrency } from "@/lib/formatters"
+import { DateRangeFilter, type DateRange } from "@/components/ui/date-range-filter"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
+import { formatCurrency as fmtCurrency, formatDate as fmtDateExport } from "@/lib/export-utils"
 
 const STATUS_COLORS: Record<string, string> = {
     DRAFT: 'bg-gray-100 text-gray-800',
@@ -35,6 +42,29 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 type StatusFilter = 'ALL' | 'DRAFT' | 'ISSUED' | 'PAID' | 'OVERDUE'
+
+const exportColumns: ExportColumn[] = [
+    { key: 'number', label: 'Numero' },
+    { key: 'description', label: 'Descricao' },
+    { key: 'clientName', label: 'Cliente' },
+    { key: 'projectName', label: 'Projeto' },
+    { key: 'contractId', label: 'Contrato' },
+    { key: 'bulletinNumber', label: 'Boletim' },
+    { key: 'dueDate', label: 'Vencimento', format: (v) => v ? fmtDateExport(v as string) : '' },
+    { key: 'value', label: 'Valor (R$)', format: (v) => fmtCurrency(v as number) },
+    { key: 'statusLabel', label: 'Status' },
+]
+
+function mapBillingForExport(records: BillingRecord[]): Record<string, unknown>[] {
+    return records.map(r => ({
+        ...r,
+        clientName: r.client?.displayName || '',
+        projectName: r.project?.name || '',
+        contractId: r.contract?.identifier || '',
+        bulletinNumber: r.measurementBulletin?.number || '',
+        statusLabel: STATUS_LABELS[r.status] || r.status,
+    }))
+}
 
 interface BillingRecord {
     id: string
@@ -64,6 +94,23 @@ export function BillingTable({ records }: BillingTableProps) {
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
     const [loadingId, setLoadingId] = useState<string | null>(null)
+
+    // Advanced filters
+    const [dateRange, setDateRange] = useState<DateRange>({ from: '', to: '' })
+    const [filterProject, setFilterProject] = useState('ALL')
+    const [filterClient, setFilterClient] = useState('ALL')
+
+    const uniqueProjects = useMemo(() => {
+        const items = new Map<string, string>()
+        records.forEach(r => { if (r.project) items.set(r.project.id, r.project.name) })
+        return Array.from(items.entries()).sort((a, b) => a[1].localeCompare(b[1]))
+    }, [records])
+
+    const uniqueClients = useMemo(() => {
+        const items = new Map<string, string>()
+        records.forEach(r => { if (r.client) items.set(r.client.id, r.client.displayName) })
+        return Array.from(items.entries()).sort((a, b) => a[1].localeCompare(b[1]))
+    }, [records])
 
     async function handleStatusChange(id: string, status: string) {
         setLoadingId(id)
@@ -110,9 +157,31 @@ export function BillingTable({ records }: BillingTableProps) {
 
             const matchesStatus = statusFilter === 'ALL' || r.status === statusFilter
 
+            // Date range filter (dueDate)
+            if (dateRange.from) {
+                const dueDate = new Date(r.dueDate).toISOString().split('T')[0]
+                if (dueDate < dateRange.from) return false
+            }
+            if (dateRange.to) {
+                const dueDate = new Date(r.dueDate).toISOString().split('T')[0]
+                if (dueDate > dateRange.to) return false
+            }
+
+            // Project filter
+            if (filterProject !== 'ALL') {
+                if (filterProject === '__none__' && r.project !== null) return false
+                if (filterProject !== '__none__' && r.project?.id !== filterProject) return false
+            }
+
+            // Client filter
+            if (filterClient !== 'ALL') {
+                if (filterClient === '__none__' && r.client !== null) return false
+                if (filterClient !== '__none__' && r.client?.id !== filterClient) return false
+            }
+
             return matchesSearch && matchesStatus
         })
-    }, [records, search, statusFilter])
+    }, [records, search, statusFilter, dateRange, filterProject, filterClient])
 
     return (
         <div className="space-y-3">
@@ -121,7 +190,7 @@ export function BillingTable({ records }: BillingTableProps) {
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder="Buscar por descricao, numero, cliente..."
+                        placeholder="Buscar por descrição, número, cliente..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="pl-8"
@@ -144,9 +213,54 @@ export function BillingTable({ records }: BillingTableProps) {
                     ))}
                 </div>
 
+                <ExportButton
+                    data={mapBillingForExport(filtered)}
+                    columns={exportColumns}
+                    filename="faturamento"
+                    title="Relatorio de Faturamento"
+                    sheetName="Faturamento"
+                    size="sm"
+                />
                 <span className="text-xs text-muted-foreground whitespace-nowrap ml-auto">
                     {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
                 </span>
+            </div>
+
+            {/* Advanced Filters */}
+            <div className="flex flex-wrap items-end gap-3 p-3 border rounded-md bg-muted/10">
+                <DateRangeFilter value={dateRange} onChange={setDateRange} />
+
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-muted-foreground">Projeto</label>
+                    <Select value={filterProject} onValueChange={setFilterProject}>
+                        <SelectTrigger className="h-9 w-[180px] text-sm">
+                            <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Todos</SelectItem>
+                            <SelectItem value="__none__">Sem projeto</SelectItem>
+                            {uniqueProjects.map(([id, name]) => (
+                                <SelectItem key={id} value={id}>{name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-muted-foreground">Cliente</label>
+                    <Select value={filterClient} onValueChange={setFilterClient}>
+                        <SelectTrigger className="h-9 w-[180px] text-sm">
+                            <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Todos</SelectItem>
+                            <SelectItem value="__none__">Sem cliente</SelectItem>
+                            {uniqueClients.map(([id, name]) => (
+                                <SelectItem key={id} value={id}>{name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
 
             {/* Table */}

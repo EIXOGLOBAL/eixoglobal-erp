@@ -5,6 +5,9 @@ import { getSession } from '@/lib/auth'
 import { logAction } from '@/lib/audit-logger'
 import { runFullFraudAnalysis } from '@/lib/fraud-detection'
 import { getErrorStats } from '@/lib/error-tracker'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'monitoring' })
 
 // ============================================================================
 // SYSTEM HEALTH
@@ -35,7 +38,7 @@ export async function getSystemHealthLogs(params?: {
 
     return { success: true, data: logs }
   } catch (error) {
-    console.error('Erro ao buscar health logs:', error)
+    log.error({ err: error }, 'Erro ao buscar health logs')
     return { success: false, error: 'Erro ao buscar logs de saúde' }
   }
 }
@@ -89,7 +92,7 @@ export async function getAnomalies(params?: {
       },
     }
   } catch (error) {
-    console.error('Erro ao buscar anomalias:', error)
+    log.error({ err: error }, 'Erro ao buscar anomalias')
     return { success: false, error: 'Erro ao buscar anomalias' }
   }
 }
@@ -207,7 +210,7 @@ export async function runFraudAnalysis() {
 
     return { success: true, data: result }
   } catch (error) {
-    console.error('Erro na análise de fraude:', error)
+    log.error({ err: error }, 'Erro na análise de fraude')
     return { success: false, error: 'Erro na análise de fraude' }
   }
 }
@@ -283,7 +286,7 @@ export async function getMonitoringDashboard() {
       },
     }
   } catch (error) {
-    console.error('Erro ao buscar dashboard de monitoramento:', error)
+    log.error({ err: error }, 'Erro ao buscar dashboard de monitoramento')
     return { success: false, error: 'Erro ao buscar dashboard' }
   }
 }

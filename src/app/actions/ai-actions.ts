@@ -5,6 +5,9 @@ import { getSession } from '@/lib/auth'
 import { resolveAIPermissions, type AIPermissions, type AiAccessLevel } from '@/lib/permissions'
 import { logAction } from '@/lib/audit-logger'
 import { aiComplete, getActiveApiKey } from '@/lib/ai-client'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'ai' })
 
 // ============================================================================
 // Rate Limiting (diferenciado por permissão)
@@ -60,7 +63,7 @@ async function callAI(
   try {
     const active = await getActiveApiKey()
     if (!active) {
-      return { error: 'Provedor de IA nao configurado. Acesse Configuracoes > IA.' }
+      return { error: 'Provedor de IA não configurado. Acesse Configurações > IA.' }
     }
 
     const response = await aiComplete({
@@ -71,7 +74,7 @@ async function callAI(
 
     return { content: response.content }
   } catch (error) {
-    console.error('[AI] Erro ao chamar provedor:', error)
+    log.error({ err: error }, '[AI] Erro ao chamar provedor')
     return { error: error instanceof Error ? error.message : 'Erro desconhecido' }
   }
 }
@@ -274,7 +277,7 @@ Forneça uma análise estruturada em JSON com:
         timestamp: new Date().toISOString(),
       }
     } catch (parseError) {
-      console.error('[AI] Erro ao parsear JSON:', parseError)
+      log.error({ err: parseError }, '[AI] Erro ao parsear JSON')
       return {
         overallScore: 50,
         status: 'atenção',
@@ -298,7 +301,7 @@ Forneça uma análise estruturada em JSON com:
       }
     }
   } catch (error) {
-    console.error('[AI] Erro ao analisar saúde do sistema:', error)
+    log.error({ err: error }, '[AI] Erro ao analisar saúde do sistema')
     return {
       error: error instanceof Error ? error.message : 'Erro ao analisar saúde do sistema',
     }
@@ -439,7 +442,7 @@ Forneça análise em JSON:
         timestamp: new Date().toISOString(),
       }
     } catch (parseError) {
-      console.error('[AI] Erro ao parsear análise do projeto:', parseError)
+      log.error({ err: parseError }, '[AI] Erro ao parsear análise do projeto')
       return {
         projectId,
         projectName: project.name,
@@ -456,7 +459,7 @@ Forneça análise em JSON:
       }
     }
   } catch (error) {
-    console.error('[AI] Erro ao analisar saúde do projeto:', error)
+    log.error({ err: error }, '[AI] Erro ao analisar saúde do projeto')
     return { error: error instanceof Error ? error.message : 'Erro ao analisar projeto' }
   }
 }
@@ -637,7 +640,7 @@ Forneça em JSON:
         timestamp: new Date().toISOString(),
       }
     } catch (parseError) {
-      console.error('[AI] Erro ao parsear anomalias:', parseError)
+      log.error({ err: parseError }, '[AI] Erro ao parsear anomalias')
       return {
         anomalies: [
           {
@@ -652,7 +655,7 @@ Forneça em JSON:
       }
     }
   } catch (error) {
-    console.error('[AI] Erro ao detectar anomalias:', error)
+    log.error({ err: error }, '[AI] Erro ao detectar anomalias')
     return { error: error instanceof Error ? error.message : 'Erro ao detectar anomalias' }
   }
 }
@@ -746,7 +749,7 @@ Formato: HTML estruturado, máximo 2500 palavras.
       generatedAt: new Date().toISOString(),
     }
   } catch (error) {
-    console.error('[AI] Erro ao gerar relatório:', error)
+    log.error({ err: error }, '[AI] Erro ao gerar relatório')
     return { error: error instanceof Error ? error.message : 'Erro ao gerar relatório' }
   }
 }
@@ -812,7 +815,7 @@ Responda sempre em português brasileiro de forma clara, profissional e concisa.
       timestamp: new Date().toISOString(),
     }
   } catch (error) {
-    console.error('[AI] Erro no chat:', error)
+    log.error({ err: error }, '[AI] Erro no chat')
     return { error: error instanceof Error ? error.message : 'Erro ao processar mensagem' }
   }
 }

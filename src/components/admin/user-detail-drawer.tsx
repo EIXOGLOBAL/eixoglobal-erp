@@ -45,18 +45,18 @@ const MODULE_LABELS: { key: keyof ModuleAccessMap; label: string }[] = [
   { key: 'moduleProjects', label: 'Projetos' },
   { key: 'moduleContracts', label: 'Contratos' },
   { key: 'moduleFinancial', label: 'Financeiro' },
-  { key: 'moduleBudgets', label: 'Orcamentos' },
-  { key: 'moduleMeasurements', label: 'Medicoes' },
+  { key: 'moduleBudgets', label: 'Orçamentos' },
+  { key: 'moduleMeasurements', label: 'Medições' },
   { key: 'modulePurchases', label: 'Compras' },
   { key: 'moduleInventory', label: 'Estoque' },
   { key: 'moduleEquipment', label: 'Equipamentos' },
-  { key: 'moduleRentals', label: 'Locacoes' },
-  { key: 'moduleEmployees', label: 'Funcionarios' },
+  { key: 'moduleRentals', label: 'Locações' },
+  { key: 'moduleEmployees', label: 'Funcionários' },
   { key: 'moduleTimesheet', label: 'Ponto' },
   { key: 'moduleDocuments', label: 'Documentos' },
   { key: 'moduleQuality', label: 'Qualidade' },
-  { key: 'moduleSafety', label: 'Seguranca' },
-  { key: 'moduleDailyReports', label: 'Diarios de Obra' },
+  { key: 'moduleSafety', label: 'Segurança' },
+  { key: 'moduleDailyReports', label: 'Diários de Obra' },
   { key: 'moduleTraining', label: 'Treinamentos' },
   { key: 'moduleBilling', label: 'Faturamento' },
   { key: 'moduleCostCenters', label: 'Centros de Custo' },
@@ -216,8 +216,8 @@ export function UserDetailDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg p-0">
         <SheetHeader className="px-6 pt-6 pb-4 border-b">
-          <SheetTitle>Detalhes do Usuario</SheetTitle>
-          <SheetDescription>Informacoes completas e gerenciamento</SheetDescription>
+          <SheetTitle>Detalhes do Usuário</SheetTitle>
+          <SheetDescription>Informações completas e gerenciamento</SheetDescription>
         </SheetHeader>
 
         {loading ? (
@@ -260,7 +260,7 @@ export function UserDetailDrawer({
               {/* Info grid */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Informacoes
+                  Informações
                 </h4>
                 <div className="grid gap-3">
                   <div className="flex items-center gap-3 text-sm">
@@ -280,7 +280,7 @@ export function UserDetailDrawer({
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-muted-foreground">Ultimo login:</span>
+                    <span className="text-muted-foreground">Último login:</span>
                     <span>{formatDate(detail.lastLoginAt)}</span>
                   </div>
                   {detail.blockedAt && (
@@ -305,7 +305,7 @@ export function UserDetailDrawer({
               {/* Quick actions */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Acoes Rapidas
+                  Ações Rápidas
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -319,7 +319,7 @@ export function UserDetailDrawer({
                     ) : (
                       <Power className="h-4 w-4 mr-2" />
                     )}
-                    {detail.isActive ? 'Desativar' : 'Ativar'} Usuario
+                    {detail.isActive ? 'Desativar' : 'Ativar'} Usuário
                   </Button>
                   <Button
                     variant="outline"
@@ -415,7 +415,7 @@ export function UserDetailDrawer({
           </ScrollArea>
         ) : (
           <div className="flex items-center justify-center h-64 text-muted-foreground">
-            Selecione um usuario para ver detalhes
+            Selecione um usuário para ver detalhes
           </div>
         )}
       </SheetContent>

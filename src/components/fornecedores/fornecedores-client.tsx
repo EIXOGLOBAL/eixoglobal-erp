@@ -41,6 +41,18 @@ import {
 } from "lucide-react"
 import { toggleSupplierStatus } from "@/app/actions/supplier-actions"
 import { SupplierDialog, type SupplierForDialog } from "@/components/fornecedores/supplier-dialog"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
+
+const supplierExportColumns: ExportColumn[] = [
+    { key: 'name', label: 'Nome / Razao Social' },
+    { key: 'tradeName', label: 'Nome Fantasia' },
+    { key: 'cnpj', label: 'CNPJ / CPF' },
+    { key: 'categoryPtBr', label: 'Categoria' },
+    { key: 'ratingStr', label: 'Avaliacao' },
+    { key: 'docsCount', label: 'Documentos' },
+    { key: 'statusPtBr', label: 'Status' },
+]
 
 const CATEGORY_LABELS: Record<string, string> = {
     MATERIALS: "Materiais",
@@ -176,6 +188,22 @@ export function FornecedoresClient({ suppliers, companyId }: FornecedoresClientP
                     <AlertTriangle className="h-4 w-4 mr-1" />
                     Docs Vencendo
                 </Button>
+                <ExportButton
+                    data={filteredSuppliers.map(s => ({
+                        ...s,
+                        tradeName: s.tradeName || '',
+                        cnpj: s.cnpj || '',
+                        categoryPtBr: CATEGORY_LABELS[s.category] ?? s.category,
+                        ratingStr: s.rating !== null && s.rating !== undefined ? `${s.rating.toFixed(1)}` : 'Sem avaliacao',
+                        docsCount: String(s._count.documents),
+                        statusPtBr: s.isActive ? 'Ativo' : 'Inativo',
+                    }))}
+                    columns={supplierExportColumns}
+                    filename="fornecedores"
+                    title="Fornecedores"
+                    sheetName="Fornecedores"
+                    size="sm"
+                />
             </div>
 
             {filteredSuppliers.length === 0 ? (

@@ -13,6 +13,18 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { FileSpreadsheet, ArrowRight } from "lucide-react"
 import { formatDate } from "@/lib/formatters"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
+
+const budgetExportColumns: ExportColumn[] = [
+    { key: 'code', label: 'Codigo' },
+    { key: 'name', label: 'Nome' },
+    { key: 'description', label: 'Descricao' },
+    { key: 'projectName', label: 'Projeto' },
+    { key: 'totalValueFmt', label: 'Valor Total', format: (v) => String(v ?? '') },
+    { key: 'statusPtBr', label: 'Status' },
+    { key: 'createdAt', label: 'Data' },
+]
 
 const STATUS_LABELS: Record<string, string> = {
     DRAFT: "Em Elaboração",
@@ -62,6 +74,25 @@ interface OrcamentosClientProps {
 export function OrcamentosClient({ budgets }: OrcamentosClientProps) {
     return (
         <>
+            {budgets.length > 0 && (
+                <div className="flex justify-end mb-4">
+                    <ExportButton
+                        data={budgets.map(b => ({
+                            ...b,
+                            code: b.code || '',
+                            description: b.description || '',
+                            projectName: b.project.name,
+                            totalValueFmt: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(b.totalValue),
+                            statusPtBr: STATUS_LABELS[b.status] ?? b.status,
+                        }))}
+                        columns={budgetExportColumns}
+                        filename="orcamentos"
+                        title="Orcamentos"
+                        sheetName="Orcamentos"
+                        size="sm"
+                    />
+                </div>
+            )}
             {budgets.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                     <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 opacity-30" />

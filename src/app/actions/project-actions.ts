@@ -10,6 +10,9 @@ import { assertCanDelete } from "@/lib/permissions"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'project' })
 
 const projectSchema = z.object({
     name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres"),
@@ -45,6 +48,14 @@ const projectSchema = z.object({
 
 export async function createProject(data: z.infer<typeof projectSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+        // Check write permission - USER role cannot create projects
+        if (session.user.role === 'USER') {
+            return { success: false, error: 'Sem permissão para criar projeto' }
+        }
+
         const _parsed = projectSchema.safeParse(data)
         if (!_parsed.success) return { success: false, error: _parsed.error.issues[0]?.message ?? 'Dados inválidos' }
         const validated = _parsed.data
@@ -87,6 +98,14 @@ export async function createProject(data: z.infer<typeof projectSchema>) {
 
 export async function updateProject(id: string, data: z.infer<typeof projectSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+        // Check write permission - USER role cannot update projects
+        if (session.user.role === 'USER') {
+            return { success: false, error: 'Sem permissão para editar projeto' }
+        }
+
         const _parsed = projectSchema.safeParse(data)
         if (!_parsed.success) return { success: false, error: _parsed.error.issues[0]?.message ?? 'Dados inválidos' }
         const validated = _parsed.data
@@ -386,7 +405,7 @@ export async function getProjectStatusHistory(projectId: string) {
         })
         return { success: true, data: history }
     } catch (error) {
-        console.error("Erro ao buscar histórico de status:", error)
+        log.error({ err: error }, "Erro ao buscar histórico de status")
         return { success: false, error: "Erro ao buscar histórico de status", data: [] }
     }
 }
@@ -500,7 +519,7 @@ export async function getProjectLaborCost(projectId: string): Promise<{ success:
             data: { employees, totalHours, totalCost, averageCostPerHour },
         }
     } catch (error: any) {
-        console.error("Erro ao calcular custo de mão de obra:", error)
+        log.error({ err: error }, "Erro ao calcular custo de mão de obra")
         return { success: false, error: error.message || "Erro ao calcular custo de mão de obra" }
     }
 }

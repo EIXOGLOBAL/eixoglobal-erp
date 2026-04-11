@@ -7,6 +7,9 @@ import { createNotificationForMany } from "./notification-actions"
 import { notifyUsers } from "@/lib/sse-notifications"
 import { getSession } from "@/lib/auth"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'vacation' })
 
 const vacationSchema = z.object({
     employeeId: z.string().uuid(),
@@ -60,7 +63,7 @@ export async function createVacationRequest(data: VacationInput) {
         revalidatePath('/dep-pessoal/ferias')
         return { success: true, data: request }
     } catch (error) {
-        console.error("Erro ao criar solicitação:", error)
+        log.error({ err: error }, "Erro ao criar solicitação")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar solicitação",
@@ -113,7 +116,7 @@ export async function updateVacationRequest(id: string, data: VacationInput) {
         revalidatePath('/dep-pessoal/ferias')
         return { success: true, data: request }
     } catch (error) {
-        console.error("Erro ao atualizar solicitação:", error)
+        log.error({ err: error }, "Erro ao atualizar solicitação")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao atualizar solicitação",
@@ -155,7 +158,7 @@ export async function deleteVacationRequest(id: string) {
         revalidatePath('/dep-pessoal/ferias')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao excluir solicitação:", error)
+        log.error({ err: error }, "Erro ao excluir solicitação")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao excluir solicitação",
@@ -206,7 +209,7 @@ export async function approveVacationRequest(id: string, approvedBy: string) {
         revalidatePath('/dep-pessoal/ferias')
         return { success: true, data: request }
     } catch (error) {
-        console.error("Erro ao aprovar solicitação:", error)
+        log.error({ err: error }, "Erro ao aprovar solicitação")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao aprovar solicitação",
@@ -257,7 +260,7 @@ export async function rejectVacationRequest(id: string, reason: string) {
         revalidatePath('/dep-pessoal/ferias')
         return { success: true, data: request }
     } catch (error) {
-        console.error("Erro ao rejeitar solicitação:", error)
+        log.error({ err: error }, "Erro ao rejeitar solicitação")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao rejeitar solicitação",
@@ -291,7 +294,7 @@ export async function getVacationRequests(companyId: string) {
 
         return requests
     } catch (error) {
-        console.error("Erro ao buscar solicitações:", error)
+        log.error({ err: error }, "Erro ao buscar solicitações")
         return []
     }
 }

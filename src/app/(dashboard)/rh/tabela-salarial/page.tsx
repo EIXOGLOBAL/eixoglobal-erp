@@ -20,6 +20,7 @@ import {
 import { SalaryTableDialog } from "@/components/rh/salary-table-dialog"
 import { SalaryGradeDialog } from "@/components/rh/salary-grade-dialog"
 import { DeleteSalaryTableButton, DeleteSalaryGradeButton } from "@/components/rh/salary-table-actions-client"
+import { SalaryTableExportButton } from "@/components/rh/salary-table-export-button"
 import { LayoutList, Award, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatDate } from "@/lib/formatters"
@@ -61,7 +62,21 @@ export default async function TabelaSalarialPage() {
                         Gerencie as tabelas e grades salariais da empresa
                     </p>
                 </div>
-                <SalaryTableDialog companyId={companyId} />
+                <div className="flex items-center gap-2">
+                    <SalaryTableExportButton tables={tables.map(t => ({
+                        name: t.name,
+                        isActive: t.isActive,
+                        grades: t.grades.map(g => ({
+                            jobTitle: g.jobTitle,
+                            level: g.level,
+                            baseSalary: Number(g.baseSalary),
+                            benefits: Number(g.benefits),
+                            taxRate: Number(g.taxRate),
+                            costPerHour: Number(g.costPerHour),
+                        })),
+                    }))} />
+                    <SalaryTableDialog companyId={companyId} />
+                </div>
             </div>
 
             {/* KPIs */}

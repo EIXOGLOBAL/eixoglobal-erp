@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'fiscal-note' })
 
 const fiscalNoteSchema = z.object({
     number: z.string().min(1, "Número é obrigatório"),
@@ -65,7 +68,7 @@ export async function createFiscalNote(data: z.infer<typeof fiscalNoteSchema>) {
         revalidatePath('/financeiro/notas')
         return { success: true, data: { ...note, value: Number(note.value) } }
     } catch (error) {
-        console.error("Erro ao criar nota fiscal:", error)
+        log.error({ err: error }, "Erro ao criar nota fiscal")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar nota fiscal"
@@ -114,7 +117,7 @@ export async function updateFiscalNote(id: string, data: z.infer<typeof fiscalNo
         revalidatePath('/financeiro/notas')
         return { success: true, data: { ...updatedNote, value: Number(updatedNote.value) } }
     } catch (error) {
-        console.error("Erro ao atualizar nota fiscal:", error)
+        log.error({ err: error }, "Erro ao atualizar nota fiscal")
         return { success: false, error: "Erro ao atualizar nota fiscal" }
     }
 }
@@ -142,7 +145,7 @@ export async function updateFiscalNoteStatus(id: string, status: 'DRAFT' | 'ISSU
         revalidatePath('/financeiro/notas')
         return { success: true, data: { ...updated, value: Number(updated.value) } }
     } catch (error) {
-        console.error("Erro ao atualizar status da nota:", error)
+        log.error({ err: error }, "Erro ao atualizar status da nota")
         return { success: false, error: "Erro ao atualizar nota fiscal" }
     }
 }
@@ -177,7 +180,7 @@ export async function deleteFiscalNote(id: string) {
         revalidatePath('/financeiro/notas')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar nota fiscal:", error)
+        log.error({ err: error }, "Erro ao deletar nota fiscal")
         return { success: false, error: "Erro ao deletar nota fiscal" }
     }
 }
@@ -195,7 +198,7 @@ export async function getFiscalNotes(companyId: string) {
 
         return notes.map(n => ({ ...n, value: Number(n.value) }))
     } catch (error) {
-        console.error("Erro ao buscar notas fiscais:", error)
+        log.error({ err: error }, "Erro ao buscar notas fiscais")
         return []
     }
 }
@@ -249,7 +252,7 @@ export async function getFiscalNoteById(id: string) {
 
         return { success: true, data: { ...note, value: Number(note.value) } }
     } catch (error) {
-        console.error("Erro ao buscar nota fiscal:", error)
+        log.error({ err: error }, "Erro ao buscar nota fiscal")
         return { success: false, error: "Erro ao buscar nota fiscal" }
     }
 }

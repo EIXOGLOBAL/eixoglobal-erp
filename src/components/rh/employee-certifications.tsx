@@ -248,7 +248,7 @@ export function EmployeeCertifications({ certifications }: { certifications: Cer
                 </Table>
             ) : (
                 <div className="text-center py-10 text-muted-foreground text-sm">
-                    Nenhuma certificacao ou treinamento registrado para este funcionario.
+                    Nenhuma certificação ou treinamento registrado para este funcionário.
                 </div>
             )}
         </div>

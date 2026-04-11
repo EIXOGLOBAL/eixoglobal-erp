@@ -36,7 +36,7 @@ describe('WhatsApp Service', () => {
       })
 
       expect(result.success).toBe(false)
-      expect(result.error).toContain('not configured')
+      expect(result.error).toContain('nao configurado')
     })
 
     it('should return error response structure', async () => {
@@ -159,13 +159,13 @@ describe('WhatsApp Service', () => {
       expect(result).toBeDefined()
     })
 
-    it('should accept média severity', async () => {
+    it('should accept media severity', async () => {
       const result = await whatsappService.notifyIncident({
         phone: '5511999999999',
         incidentType: 'Alert',
         incidentId: 'INC-002',
         description: 'Moderate issue',
-        severity: 'média'
+        severity: 'media'
       })
 
       expect(result).toBeDefined()
@@ -183,13 +183,13 @@ describe('WhatsApp Service', () => {
       expect(result).toBeDefined()
     })
 
-    it('should accept crítica severity', async () => {
+    it('should accept critica severity', async () => {
       const result = await whatsappService.notifyIncident({
         phone: '5511999999999',
         incidentType: 'Critical',
         incidentId: 'INC-004',
         description: 'Critical issue',
-        severity: 'crítica'
+        severity: 'critica'
       })
 
       expect(result).toBeDefined()
@@ -213,7 +213,7 @@ describe('WhatsApp Service', () => {
         incidentType: 'Security',
         incidentId: 'INC-SEC-001',
         description: 'Unauthorized access attempt',
-        severity: 'crítica'
+        severity: 'critica'
       })
 
       expect(result).toBeDefined()
@@ -225,7 +225,7 @@ describe('WhatsApp Service', () => {
         incidentType: 'System',
         incidentId: 'INC-SYS-001',
         description: 'Complete service outage',
-        severity: 'crítica'
+        severity: 'critica'
       })
 
       expect(result).toBeDefined()

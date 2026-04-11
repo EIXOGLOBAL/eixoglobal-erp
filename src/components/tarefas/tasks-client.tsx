@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DateRangeFilter, type DateRange } from "@/components/ui/date-range-filter"
 import { LayoutGrid, List, Plus, Search } from "lucide-react"
 import { STATUS_LABELS, PRIORITY_LABELS, type WorkTaskStatus, type WorkTaskPriority } from "@/lib/task-utils"
 
@@ -35,6 +36,9 @@ export function TasksClient({
   const [filterStatus, setFilterStatus] = useState("ALL")
   const [filterPriority, setFilterPriority] = useState("ALL")
   const [filterMyTasks, setFilterMyTasks] = useState(false)
+  const [filterProject, setFilterProject] = useState("ALL")
+  const [filterAssignee, setFilterAssignee] = useState("ALL")
+  const [filterDateRange, setFilterDateRange] = useState<DateRange>({ from: '', to: '' })
   const [createOpen, setCreateOpen] = useState(false)
   const [editTask, setEditTask] = useState<TaskCardData | null>(null)
   const [editOpen, setEditOpen] = useState(false)
@@ -45,9 +49,19 @@ export function TasksClient({
       if (filterStatus !== "ALL" && t.status !== filterStatus) return false
       if (filterPriority !== "ALL" && t.priority !== filterPriority) return false
       if (filterMyTasks && !t.assignments.some(a => a.user.id === currentUserId)) return false
+      if (filterProject !== "ALL" && t.project?.id !== filterProject) return false
+      if (filterAssignee !== "ALL" && !t.assignments.some(a => a.user.id === filterAssignee)) return false
+      if (filterDateRange.from && t.dueDate) {
+        const due = new Date(t.dueDate).toISOString().split('T')[0]
+        if (due < filterDateRange.from) return false
+      }
+      if (filterDateRange.to && t.dueDate) {
+        const due = new Date(t.dueDate).toISOString().split('T')[0]
+        if (due > filterDateRange.to) return false
+      }
       return true
     })
-  }, [tasks, search, filterStatus, filterPriority, filterMyTasks, currentUserId])
+  }, [tasks, search, filterStatus, filterPriority, filterMyTasks, filterProject, filterAssignee, filterDateRange, currentUserId])
 
   function handleTaskClick(task: TaskCardData) {
     router.push(`/tarefas/${task.id}`)
@@ -61,7 +75,7 @@ export function TasksClient({
   function handleCreated(_: unknown) { window.location.reload() }
   function handleUpdated(_: unknown) { window.location.reload() }
 
-  const activeFilters = [filterStatus !== "ALL", filterPriority !== "ALL", filterMyTasks].filter(Boolean).length
+  const activeFilters = [filterStatus !== "ALL", filterPriority !== "ALL", filterMyTasks, filterProject !== "ALL", filterAssignee !== "ALL", filterDateRange.from || filterDateRange.to].filter(Boolean).length
 
   return (
     <div className="space-y-4">
@@ -88,12 +102,30 @@ export function TasksClient({
             ))}
           </SelectContent>
         </Select>
+        <Select value={filterProject} onValueChange={setFilterProject}>
+          <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Projeto" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos os Projetos</SelectItem>
+            {projects.map(p => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+          <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Responsável" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos</SelectItem>
+            {companyUsers.map(u => (
+              <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button variant={filterMyTasks ? "default" : "outline"} size="sm" onClick={() => setFilterMyTasks(v => !v)} className="h-9">
           Minhas Tarefas
         </Button>
         {activeFilters > 0 && (
           <Button variant="ghost" size="sm" className="h-9 text-muted-foreground"
-            onClick={() => { setFilterStatus("ALL"); setFilterPriority("ALL"); setFilterMyTasks(false) }}>
+            onClick={() => { setFilterStatus("ALL"); setFilterPriority("ALL"); setFilterMyTasks(false); setFilterProject("ALL"); setFilterAssignee("ALL"); setFilterDateRange({ from: '', to: '' }) }}>
             Limpar filtros
             <Badge variant="secondary" className="ml-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center">{activeFilters}</Badge>
           </Button>
@@ -113,6 +145,17 @@ export function TasksClient({
           </Button>
         </div>
       </div>
+
+      {(filterDateRange.from || filterDateRange.to || activeFilters > 2) && (
+        <DateRangeFilter value={filterDateRange} onChange={setFilterDateRange} />
+      )}
+      {!filterDateRange.from && !filterDateRange.to && activeFilters <= 2 && (
+        <div className="flex">
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setFilterDateRange({ from: '', to: '' })}>
+            Filtrar por Prazo
+          </Button>
+        </div>
+      )}
 
       {view === "kanban" ? (
         <KanbanBoard tasks={filtered} onTaskClick={handleTaskClick} onTasksReorder={setTasks} currentUserId={currentUserId} />

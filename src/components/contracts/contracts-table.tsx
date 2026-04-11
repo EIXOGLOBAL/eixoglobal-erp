@@ -4,7 +4,8 @@ import { useState } from "react"
 import Link from "next/link"
 import { ContractDialog } from "./contract-dialog"
 import { ContractExecutionSparkline } from "./contract-execution-sparkline"
-import { ContractsExportCSV } from "./contracts-export-csv"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
 import { deleteContract } from "@/app/actions/contract-actions"
 import {
     Table,
@@ -65,6 +66,20 @@ const statusLabels: Record<string, string> = {
     COMPLETED: "Concluído",
     CANCELLED: "Cancelado",
 }
+
+const contractExportColumns: ExportColumn[] = [
+    { key: 'identifier', label: 'Identificador' },
+    { key: 'projectName', label: 'Projeto' },
+    { key: 'contractorName', label: 'Contratada' },
+    { key: 'value', label: 'Valor', format: (v) => {
+        if (!v) return 'R$ 0,00'
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v))
+    }},
+    { key: 'executionPercent', label: 'Execucao (%)' },
+    { key: 'startDate', label: 'Inicio' },
+    { key: 'endDate', label: 'Termino' },
+    { key: 'statusPtBr', label: 'Status' },
+]
 
 export function ContractsTable({ data, projects, contractors, companyId }: ContractsTableProps) {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -152,7 +167,27 @@ export function ContractsTable({ data, projects, contractors, companyId }: Contr
                         <SelectItem value="CANCELLED">Cancelado</SelectItem>
                     </SelectContent>
                 </Select>
-                <ContractsExportCSV contracts={filtered} />
+                <ExportButton
+                    data={filtered.map(c => {
+                        const contractValue = Number(c.value || 0)
+                        const totalMeasured = c.bulletins
+                            ?.filter((b: any) => ['APPROVED', 'BILLED'].includes(b.status))
+                            .reduce((sum: number, b: any) => sum + Number(b.totalValue || 0), 0) ?? 0
+                        const execPct = contractValue > 0 ? ((totalMeasured / contractValue) * 100).toFixed(1) + '%' : '0%'
+                        return {
+                            ...c,
+                            projectName: c.project?.name || 'N/A',
+                            contractorName: c.contractor?.name || '-',
+                            executionPercent: execPct,
+                            statusPtBr: statusLabels[c.status] || c.status,
+                        }
+                    })}
+                    columns={contractExportColumns}
+                    filename="contratos"
+                    title="Contratos"
+                    sheetName="Contratos"
+                    size="sm"
+                />
                 <span className="text-sm text-muted-foreground">
                     {filtered.length} contrato(s) •{' '}
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(totalValue)}

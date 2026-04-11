@@ -1,7 +1,9 @@
 import { getSession } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
 import { getBudgetWithMeasured } from "@/app/actions/budget-actions"
+import { getDefaultBDIConfig } from "@/app/actions/bdi-config-actions"
 import { BudgetDetailClient } from "@/components/orcamentos/budget-detail-client"
+import { toNumber } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -30,5 +32,12 @@ export default async function BudgetDetailPage({ params }: BudgetPageProps) {
         redirect("/orcamentos")
     }
 
-    return <BudgetDetailClient budget={budget} companyId={companyId} />
+    const bdiResult = await getDefaultBDIConfig(companyId)
+    const bdiConfig = bdiResult.success ? bdiResult.data : null
+    const bdiInfo = bdiConfig ? {
+        name: bdiConfig.name,
+        percentage: toNumber(bdiConfig.percentage),
+    } : null
+
+    return <BudgetDetailClient budget={budget} companyId={companyId} bdiInfo={bdiInfo} />
 }

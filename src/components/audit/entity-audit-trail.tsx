@@ -89,7 +89,7 @@ const ACTION_CONFIG: Record<
     badgeVariant: 'destructive',
   },
   APPROVE: {
-    label: 'Aprovacao',
+    label: 'Aprovação',
     icon: CheckCircle,
     color: 'text-green-600',
     dot: 'bg-green-500',

@@ -6,6 +6,9 @@ import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import type { DocumentFileCategory } from "@/lib/generated/prisma/enums"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'document' })
 
 // ============================================================================
 // SCHEMAS
@@ -65,6 +68,11 @@ export async function createFolder(data: z.infer<typeof folderSchema>) {
   const session = await getSession()
   if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
 
+  // Check write permission - USER role cannot create folders
+  if (session.user.role === 'USER') {
+    return { success: false, error: 'Sem permissão para criar pasta' }
+  }
+
   try {
     const validated = folderSchema.parse(data)
 
@@ -83,10 +91,10 @@ export async function createFolder(data: z.infer<typeof folderSchema>) {
 
     await logCreate('DocumentFolder', folder.id, folder.name, validated)
 
-    revalidatePath('/documents')
+    revalidatePath('/documentos')
     return { success: true, data: folder }
   } catch (error) {
-    console.error("Erro ao criar pasta:", error)
+    log.error({ err: error }, "Erro ao criar pasta")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao criar pasta",
@@ -113,7 +121,7 @@ export async function getFolders(projectId?: string) {
 
     return { success: true, data: folders }
   } catch (error) {
-    console.error("Erro ao buscar pastas:", error)
+    log.error({ err: error }, "Erro ao buscar pastas")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar pastas",
@@ -131,6 +139,11 @@ export async function uploadDocument(
 ) {
   const session = await getSession()
   if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+  // Check write permission - USER role cannot upload documents
+  if (session.user.role === 'USER') {
+    return { success: false, error: 'Sem permissão para enviar documento' }
+  }
 
   try {
     const validated = documentSchema.parse(data)
@@ -156,10 +169,10 @@ export async function uploadDocument(
 
     await logCreate('DocumentFile', document.id, document.name, validated)
 
-    revalidatePath('/documents')
+    revalidatePath('/documentos')
     return { success: true, data: document }
   } catch (error) {
-    console.error("Erro ao fazer upload do documento:", error)
+    log.error({ err: error }, "Erro ao fazer upload do documento")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao fazer upload do documento",
@@ -218,7 +231,7 @@ export async function getDocuments(
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar documentos:", error)
+    log.error({ err: error }, "Erro ao buscar documentos")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar documentos",
@@ -250,7 +263,7 @@ export async function getDocumentById(id: string) {
 
     return { success: true, data: document }
   } catch (error) {
-    console.error("Erro ao buscar documento:", error)
+    log.error({ err: error }, "Erro ao buscar documento")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar documento",
@@ -301,10 +314,10 @@ export async function createVersion(
     })
 
 
-    revalidatePath('/documents')
+    revalidatePath('/documentos')
     return { success: true, data: version }
   } catch (error) {
-    console.error("Erro ao criar versão do documento:", error)
+    log.error({ err: error }, "Erro ao criar versão do documento")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao criar versão",
@@ -315,6 +328,11 @@ export async function createVersion(
 export async function deleteDocument(id: string) {
   const session = await getSession()
   if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+  // Check delete permission
+  if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+    return { success: false, error: "Sem permissão para excluir documento" }
+  }
 
   try {
     const document = await prisma.documentFile.findUnique({
@@ -338,10 +356,10 @@ export async function deleteDocument(id: string) {
 
     await logDelete('DocumentFile', id, document.name, document)
 
-    revalidatePath('/documents')
+    revalidatePath('/documentos')
     return { success: true }
   } catch (error) {
-    console.error("Erro ao deletar documento:", error)
+    log.error({ err: error }, "Erro ao deletar documento")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao deletar documento",
@@ -383,7 +401,7 @@ export async function searchDocuments(query: string) {
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar documentos:", error)
+    log.error({ err: error }, "Erro ao buscar documentos")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar documentos",
@@ -391,6 +409,169 @@ export async function searchDocuments(query: string) {
     }
   }
 }
+
+// ============================================================================
+// RENAME & MOVE OPERATIONS
+// ============================================================================
+
+export async function renameDocument(id: string, newName: string) {
+  const session = await getSession()
+  if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+  try {
+    if (!newName || newName.trim().length === 0) {
+      return { success: false, error: 'Nome é obrigatório' }
+    }
+
+    const document = await prisma.documentFile.findUnique({ where: { id } })
+    if (!document) return { success: false, error: 'Documento não encontrado' }
+
+    const updated = await prisma.documentFile.update({
+      where: { id },
+      data: { name: newName.trim() },
+    })
+
+    await logUpdate('DocumentFile', id, document.name, { name: document.name }, { name: newName.trim() })
+
+    revalidatePath('/documentos')
+    return { success: true, data: updated }
+  } catch (error) {
+    log.error({ err: error }, "Erro ao renomear documento")
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao renomear documento",
+    }
+  }
+}
+
+export async function moveDocument(id: string, targetFolderId: string | null) {
+  const session = await getSession()
+  if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+  try {
+    const document = await prisma.documentFile.findUnique({ where: { id } })
+    if (!document) return { success: false, error: 'Documento não encontrado' }
+
+    const updated = await prisma.documentFile.update({
+      where: { id },
+      data: { folderId: targetFolderId },
+      include: {
+        folder: { select: { id: true, name: true } },
+      },
+    })
+
+    await logUpdate('DocumentFile', id, document.name, { folderId: document.folderId }, { folderId: targetFolderId })
+
+    revalidatePath('/documentos')
+    return { success: true, data: updated }
+  } catch (error) {
+    log.error({ err: error }, "Erro ao mover documento")
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao mover documento",
+    }
+  }
+}
+
+export async function renameFolder(id: string, newName: string) {
+  const session = await getSession()
+  if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+  try {
+    if (!newName || newName.trim().length === 0) {
+      return { success: false, error: 'Nome é obrigatório' }
+    }
+
+    const folder = await prisma.documentFolder.findUnique({ where: { id } })
+    if (!folder) return { success: false, error: 'Pasta não encontrada' }
+
+    const updated = await prisma.documentFolder.update({
+      where: { id },
+      data: { name: newName.trim() },
+    })
+
+    await logUpdate('DocumentFolder', id, folder.name, { name: folder.name }, { name: newName.trim() })
+
+    revalidatePath('/documentos')
+    return { success: true, data: updated }
+  } catch (error) {
+    log.error({ err: error }, "Erro ao renomear pasta")
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao renomear pasta",
+    }
+  }
+}
+
+export async function deleteFolder(id: string) {
+  const session = await getSession()
+  if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+  // Check delete permission
+  if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+    return { success: false, error: "Sem permissão para excluir pasta" }
+  }
+
+  try {
+    const folder = await prisma.documentFolder.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { documents: true, children: true } },
+      },
+    })
+
+    if (!folder) return { success: false, error: 'Pasta não encontrada' }
+
+    if (folder._count.documents > 0 || folder._count.children > 0) {
+      return { success: false, error: 'Pasta não está vazia. Remova os documentos e subpastas primeiro.' }
+    }
+
+    await prisma.documentFolder.delete({ where: { id } })
+
+    await logDelete('DocumentFolder', id, folder.name, folder)
+
+    revalidatePath('/documentos')
+    return { success: true }
+  } catch (error) {
+    log.error({ err: error }, "Erro ao deletar pasta")
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao deletar pasta",
+    }
+  }
+}
+
+export async function getFolderBreadcrumb(folderId: string) {
+  try {
+    const breadcrumb: Array<{ id: string; name: string }> = []
+    let currentId: string | null = folderId
+
+    while (currentId) {
+      const folder = await prisma.documentFolder.findUnique({
+        where: { id: currentId },
+        select: { id: true, name: true, parentId: true },
+      })
+
+      if (!folder) break
+
+      breadcrumb.unshift({ id: folder.id, name: folder.name })
+      currentId = folder.parentId
+    }
+
+    return { success: true, data: breadcrumb }
+  } catch (error) {
+    log.error({ err: error }, "Erro ao buscar breadcrumb da pasta")
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao buscar breadcrumb",
+      data: [],
+    }
+  }
+}
+
+// ============================================================================
+// SEARCH & ANALYTICS
+// ============================================================================
 
 export async function getDocumentStats(folderId?: string) {
   try {
@@ -436,7 +617,7 @@ export async function getDocumentStats(folderId?: string) {
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar estatísticas de documentos:", error)
+    log.error({ err: error }, "Erro ao buscar estatísticas de documentos")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar estatísticas",

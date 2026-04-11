@@ -122,10 +122,10 @@ export default async function SegurancaTrabalhoPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Seguranca do Trabalho
+            Segurança do Trabalho
           </h1>
           <p className="text-muted-foreground">
-            Gestao de seguranca, acidentes e prevencao
+            Gestão de segurança, acidentes e prevenção
           </p>
         </div>
       </div>
@@ -204,7 +204,7 @@ export default async function SegurancaTrabalhoPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase">
-                Inspecoes no Mes
+                Inspeções no Mês
               </CardTitle>
             </CardHeader>
             <CardContent>

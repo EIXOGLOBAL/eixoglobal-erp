@@ -5,6 +5,9 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'rental' })
 
 // ============================================================================
 // SCHEMAS
@@ -66,7 +69,7 @@ export async function getRentalItems(companyId?: string) {
     })
     return { success: true, data: items }
   } catch (error) {
-    console.error('Erro ao buscar itens de locação:', error)
+    log.error({ err: error }, 'Erro ao buscar itens de locação')
     return { success: false, error: 'Erro ao buscar itens de locação', data: [] }
   }
 }
@@ -94,14 +97,18 @@ export async function getRentalItemById(id: string) {
 
     return { success: true, data: item }
   } catch (error) {
-    console.error('Erro ao buscar item de locação:', error)
+    log.error({ err: error }, 'Erro ao buscar item de locação')
     return { success: false, error: 'Erro ao buscar item de locação' }
   }
 }
 
 export async function createRentalItem(data: z.infer<typeof rentalItemSchema>) {
   try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check write permission - USER role cannot create rental items
+        if (session.user.role === 'USER') {
+            return { success: false, error: 'Sem permissão para criar item de locação' }
+        }
     const validated = rentalItemSchema.parse(data)
     const item = await prisma.rentalItem.create({
       data: {
@@ -120,7 +127,7 @@ export async function createRentalItem(data: z.infer<typeof rentalItemSchema>) {
     revalidatePath('/locacoes')
     return { success: true, data: item }
   } catch (error) {
-    console.error('Erro ao criar item de locação:', error)
+    log.error({ err: error }, 'Erro ao criar item de locação')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao criar item de locação',
@@ -130,7 +137,11 @@ export async function createRentalItem(data: z.infer<typeof rentalItemSchema>) {
 
 export async function updateRentalItem(id: string, data: z.infer<typeof rentalItemSchema>) {
   try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check write permission - USER role cannot update rental items
+        if (session.user.role === 'USER') {
+            return { success: false, error: 'Sem permissão para editar item de locação' }
+        }
     const oldItem = await prisma.rentalItem.findUnique({ where: { id } })
     const validated = rentalItemSchema.parse(data)
     const item = await prisma.rentalItem.update({
@@ -150,14 +161,18 @@ export async function updateRentalItem(id: string, data: z.infer<typeof rentalIt
     revalidatePath('/locacoes')
     return { success: true, data: item }
   } catch (error) {
-    console.error('Erro ao atualizar item de locação:', error)
+    log.error({ err: error }, 'Erro ao atualizar item de locação')
     return { success: false, error: 'Erro ao atualizar item de locação' }
   }
 }
 
 export async function deleteRentalItem(id: string) {
   try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: 'Sem permissão para excluir item de locação' }
+        }
     const activeRentals = await prisma.rental.findFirst({
       where: { itemId: id, status: 'ACTIVE' },
     })
@@ -170,7 +185,7 @@ export async function deleteRentalItem(id: string) {
     revalidatePath('/locacoes')
     return { success: true }
   } catch (error) {
-    console.error('Erro ao excluir item:', error)
+    log.error({ err: error }, 'Erro ao excluir item')
     return { success: false, error: 'Erro ao excluir item de locação' }
   }
 }
@@ -201,7 +216,7 @@ export async function getRentals(filters?: {
     })
     return { success: true, data: rentals }
   } catch (error) {
-    console.error('Erro ao buscar locações:', error)
+    log.error({ err: error }, 'Erro ao buscar locações')
     return { success: false, error: 'Erro ao buscar locações', data: [] }
   }
 }
@@ -225,14 +240,18 @@ export async function getRentalById(id: string) {
 
     return { success: true, data: rental }
   } catch (error) {
-    console.error('Erro ao buscar locação:', error)
+    log.error({ err: error }, 'Erro ao buscar locação')
     return { success: false, error: 'Erro ao buscar locação' }
   }
 }
 
 export async function createRental(data: z.infer<typeof rentalSchema>) {
   try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check write permission - USER role cannot create rentals
+        if (session.user.role === 'USER') {
+            return { success: false, error: 'Sem permissão para criar locação' }
+        }
     const validated = rentalSchema.parse(data)
     const rental = await prisma.rental.create({
       data: {
@@ -253,7 +272,7 @@ export async function createRental(data: z.infer<typeof rentalSchema>) {
     revalidatePath('/locacoes')
     return { success: true, data: rental }
   } catch (error) {
-    console.error('Erro ao criar locação:', error)
+    log.error({ err: error }, 'Erro ao criar locação')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao criar locação',
@@ -263,7 +282,11 @@ export async function createRental(data: z.infer<typeof rentalSchema>) {
 
 export async function updateRental(id: string, data: z.infer<typeof rentalSchema>) {
   try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check write permission - USER role cannot update rentals
+        if (session.user.role === 'USER') {
+            return { success: false, error: 'Sem permissão para editar locação' }
+        }
     const oldRental = await prisma.rental.findUnique({ where: { id } })
     const validated = rentalSchema.parse(data)
     const rental = await prisma.rental.update({
@@ -284,7 +307,7 @@ export async function updateRental(id: string, data: z.infer<typeof rentalSchema
     revalidatePath(`/locacoes/${id}`)
     return { success: true, data: rental }
   } catch (error) {
-    console.error('Erro ao atualizar locação:', error)
+    log.error({ err: error }, 'Erro ao atualizar locação')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao atualizar locação',
@@ -294,7 +317,11 @@ export async function updateRental(id: string, data: z.infer<typeof rentalSchema
 
 export async function deleteRental(id: string) {
   try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: 'Sem permissão para excluir locação' }
+        }
     const rental = await prisma.rental.findUnique({
       where: { id },
       include: {
@@ -315,7 +342,7 @@ export async function deleteRental(id: string) {
     revalidatePath('/locacoes')
     return { success: true }
   } catch (error) {
-    console.error('Erro ao excluir locação:', error)
+    log.error({ err: error }, 'Erro ao excluir locação')
     return { success: false, error: 'Erro ao excluir locação' }
   }
 }
@@ -335,7 +362,7 @@ export async function returnRental(id: string, actualEndDate: string) {
     revalidatePath(`/locacoes/${id}`)
     return { success: true, data: rental }
   } catch (error) {
-    console.error('Erro ao devolver locação:', error)
+    log.error({ err: error }, 'Erro ao devolver locação')
     return { success: false, error: 'Erro ao devolver locação' }
   }
 }
@@ -352,7 +379,7 @@ export async function cancelRental(id: string) {
     revalidatePath(`/locacoes/${id}`)
     return { success: true, data: rental }
   } catch (error) {
-    console.error('Erro ao cancelar locação:', error)
+    log.error({ err: error }, 'Erro ao cancelar locação')
     return { success: false, error: 'Erro ao cancelar locação' }
   }
 }
@@ -390,7 +417,7 @@ export async function addRentalPayment(data: z.infer<typeof paymentSchema>) {
     revalidatePath(`/locacoes/${validated.rentalId}`)
     return { success: true, data: payment }
   } catch (error) {
-    console.error('Erro ao registrar pagamento:', error)
+    log.error({ err: error }, 'Erro ao registrar pagamento')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao registrar pagamento',
@@ -407,7 +434,7 @@ export async function getRentalPayments(rentalId: string) {
     })
     return { success: true, data: payments }
   } catch (error) {
-    console.error('Erro ao buscar pagamentos:', error)
+    log.error({ err: error }, 'Erro ao buscar pagamentos')
     return { success: false, error: 'Erro ao buscar pagamentos', data: [] }
   }
 }
@@ -459,7 +486,7 @@ export async function getRentalKPIs(companyId: string) {
       },
     }
   } catch (error) {
-    console.error('Erro ao calcular KPIs:', error)
+    log.error({ err: error }, 'Erro ao calcular KPIs')
     return {
       success: false,
       error: 'Erro ao calcular KPIs',

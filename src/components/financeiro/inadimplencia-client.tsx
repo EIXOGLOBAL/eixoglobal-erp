@@ -1,12 +1,19 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useMemo, useTransition } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -24,6 +31,10 @@ import {
   MessageSquare,
   FileText,
 } from 'lucide-react'
+import { DateRangeFilter, type DateRange } from '@/components/ui/date-range-filter'
+import { ExportButton } from '@/components/ui/export-button'
+import type { ExportColumn } from '@/lib/export-utils'
+import { formatCurrency } from '@/lib/export-utils'
 import {
   markAsPaid,
   registerCollection,
@@ -72,6 +83,20 @@ const bucketColor: Record<string, string> = {
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
+const exportColumns: ExportColumn[] = [
+  { key: 'description', label: 'Descricao' },
+  { key: 'category', label: 'Categoria' },
+  { key: 'projectName', label: 'Projeto' },
+  { key: 'dueDate', label: 'Vencimento', format: (v) => {
+    if (!v) return ''
+    return new Date(v as string).toLocaleDateString('pt-BR')
+  }},
+  { key: 'daysOverdue', label: 'Dias em Atraso' },
+  { key: 'amount', label: 'Valor (R$)', format: (v) => formatCurrency(v as number) },
+  { key: 'agingBucket', label: 'Faixa de Atraso' },
+  { key: 'status', label: 'Status' },
+]
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -82,6 +107,18 @@ export function InadimplenciaClient({ records }: InadimplenciaClientProps) {
   const [isPending, startTransition] = useTransition()
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [activeBucket, setActiveBucket] = useState<string>('todos')
+
+  // Advanced Filters
+  const [dateRange, setDateRange] = useState<DateRange>({ from: '', to: '' })
+  const [minAmount, setMinAmount] = useState('')
+  const [maxAmount, setMaxAmount] = useState('')
+  const [filterProject, setFilterProject] = useState<string>('ALL')
+
+  const uniqueProjects = useMemo(() => {
+    const names = new Set<string>()
+    records.forEach(r => { if (r.projectName) names.add(r.projectName) })
+    return Array.from(names).sort()
+  }, [records])
 
   // Collection Dialog
   const [collectionOpen, setCollectionOpen] = useState(false)
@@ -104,9 +141,36 @@ export function InadimplenciaClient({ records }: InadimplenciaClientProps) {
   const [notesViewOpen, setNotesViewOpen] = useState(false)
   const [notesViewRecord, setNotesViewRecord] = useState<OverdueRecord | null>(null)
 
-  const filtered = activeBucket === 'todos'
-    ? records
-    : records.filter(r => r.agingBucket === activeBucket)
+  const filtered = useMemo(() => {
+    return records.filter(r => {
+      // Bucket filter (existing)
+      if (activeBucket !== 'todos' && r.agingBucket !== activeBucket) return false
+
+      // Date range filter
+      if (dateRange.from) {
+        const dueDate = new Date(r.dueDate).toISOString().split('T')[0]
+        if (dueDate < dateRange.from) return false
+      }
+      if (dateRange.to) {
+        const dueDate = new Date(r.dueDate).toISOString().split('T')[0]
+        if (dueDate > dateRange.to) return false
+      }
+
+      // Amount range filter
+      const minVal = parseFloat(minAmount)
+      if (!isNaN(minVal) && r.amount < minVal) return false
+      const maxVal = parseFloat(maxAmount)
+      if (!isNaN(maxVal) && r.amount > maxVal) return false
+
+      // Project filter
+      if (filterProject !== 'ALL') {
+        if (filterProject === '__none__' && r.projectName !== null) return false
+        if (filterProject !== '__none__' && r.projectName !== filterProject) return false
+      }
+
+      return true
+    })
+  }, [records, activeBucket, dateRange, minAmount, maxAmount, filterProject])
 
   const totalFiltered = filtered.reduce((acc, r) => acc + r.amount, 0)
 
@@ -226,7 +290,7 @@ export function InadimplenciaClient({ records }: InadimplenciaClientProps) {
   return (
     <div className="space-y-4">
       {/* Bucket Filter Tabs */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           variant={activeBucket === 'todos' ? 'default' : 'outline'}
           size="sm"
@@ -249,7 +313,67 @@ export function InadimplenciaClient({ records }: InadimplenciaClientProps) {
             </Button>
           )
         })}
+        <div className="ml-auto">
+          <ExportButton
+            data={filtered as unknown as Record<string, unknown>[]}
+            columns={exportColumns}
+            filename="inadimplencia"
+            title="Relatorio de Inadimplencia"
+            sheetName="Inadimplencia"
+            size="sm"
+          />
+        </div>
       </div>
+
+      {/* Advanced Filters */}
+      <Card>
+        <CardContent className="pt-4 pb-3">
+          <div className="flex flex-wrap items-end gap-4">
+            <DateRangeFilter value={dateRange} onChange={setDateRange} />
+
+            <div className="flex items-end gap-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-muted-foreground">Valor Min</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={minAmount}
+                  onChange={(e) => setMinAmount(e.target.value)}
+                  className="h-9 w-[120px] text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-muted-foreground">Valor Max</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={maxAmount}
+                  onChange={(e) => setMaxAmount(e.target.value)}
+                  className="h-9 w-[120px] text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-muted-foreground">Projeto</label>
+              <Select value={filterProject} onValueChange={setFilterProject}>
+                <SelectTrigger className="h-9 w-[180px] text-sm">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Todos</SelectItem>
+                  <SelectItem value="__none__">Sem projeto</SelectItem>
+                  {uniqueProjects.map(p => (
+                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Records Table */}
       <Card>

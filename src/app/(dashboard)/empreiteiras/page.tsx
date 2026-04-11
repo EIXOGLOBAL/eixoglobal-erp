@@ -15,6 +15,9 @@ export default async function EmpreiteirasPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
+    const userRole = session.user?.role as string
+    const canWrite = userRole !== 'USER'
+
     const result = await getContractors(companyId)
     const contractors = result.success ? (result.data || []) : []
 
@@ -32,7 +35,7 @@ export default async function EmpreiteirasPage() {
                         Gerencie empreiteiras e subcontratadas vinculadas aos contratos
                     </p>
                 </div>
-                <ContractorDialog companyId={companyId} />
+                {canWrite && <ContractorDialog companyId={companyId} />}
             </div>
 
             {/* KPIs */}

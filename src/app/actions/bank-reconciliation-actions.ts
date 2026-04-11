@@ -7,6 +7,9 @@ import { revalidatePath } from 'next/cache'
 import { detectFileFormat, parseOFX, parseCSV } from '@/lib/statement-parser'
 import { autoReconcile, getSuggestions } from '@/lib/reconciliation-engine'
 import { toNumber } from '@/lib/formatters'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'bank-reconciliation' })
 
 // ============================================================================
 // IMPORT BANK STATEMENT
@@ -125,7 +128,7 @@ export async function importBankStatement(formData: FormData) {
       },
     }
   } catch (error) {
-    console.error('Erro ao importar extrato:', error)
+    log.error({ err: error }, 'Erro ao importar extrato')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao importar extrato bancário',
@@ -200,7 +203,7 @@ export async function manualReconcile(
     revalidatePath('/financeiro/conciliacao')
     return { success: true }
   } catch (error) {
-    console.error('Erro na conciliação manual:', error)
+    log.error({ err: error }, 'Erro na conciliação manual')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro na conciliação manual',
@@ -254,7 +257,7 @@ export async function ignoreTransaction(transactionId: string, reason: string) {
     revalidatePath('/financeiro/conciliacao')
     return { success: true }
   } catch (error) {
-    console.error('Erro ao ignorar transação:', error)
+    log.error({ err: error }, 'Erro ao ignorar transação')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao ignorar transação',
@@ -343,7 +346,7 @@ export async function createFinancialRecordFromTransaction(
     revalidatePath('/financeiro')
     return { success: true, data: record }
   } catch (error) {
-    console.error('Erro ao criar lançamento da transação:', error)
+    log.error({ err: error }, 'Erro ao criar lançamento da transação')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao criar lançamento',
@@ -402,7 +405,7 @@ export async function getStatements(bankAccountId?: string) {
 
     return { success: true as const, data: statementsWithStats }
   } catch (error) {
-    console.error('Erro ao buscar extratos:', error)
+    log.error({ err: error }, 'Erro ao buscar extratos')
     return { success: false as const, error: 'Erro ao buscar extratos' }
   }
 }
@@ -462,7 +465,7 @@ export async function getStatementTransactions(statementId: string, filter?: str
       })),
     }
   } catch (error) {
-    console.error('Erro ao buscar transações:', error)
+    log.error({ err: error }, 'Erro ao buscar transações')
     return { success: false as const, error: 'Erro ao buscar transações' }
   }
 }
@@ -526,7 +529,7 @@ export async function getReconciliationSummary(bankAccountId: string, period: st
       },
     }
   } catch (error) {
-    console.error('Erro ao buscar resumo de conciliação:', error)
+    log.error({ err: error }, 'Erro ao buscar resumo de conciliação')
     return { success: false as const, error: 'Erro ao buscar resumo' }
   }
 }
@@ -552,7 +555,7 @@ export async function getReconciliationSuggestions(transactionId: string) {
       })),
     }
   } catch (error) {
-    console.error('Erro ao buscar sugestões:', error)
+    log.error({ err: error }, 'Erro ao buscar sugestões')
     return { success: false as const, error: 'Erro ao buscar sugestões' }
   }
 }
@@ -593,7 +596,7 @@ export async function parseStatementPreview(formData: FormData) {
       },
     }
   } catch (error) {
-    console.error('Erro ao analisar extrato:', error)
+    log.error({ err: error }, 'Erro ao analisar extrato')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao analisar arquivo',
@@ -692,7 +695,7 @@ export async function getUnreconciledRecords(search?: string) {
 
     return { success: true as const, data: unreconciled }
   } catch (error) {
-    console.error('Erro ao buscar registros nao conciliados:', error)
+    log.error({ err: error }, 'Erro ao buscar registros nao conciliados')
     return { success: false as const, error: 'Erro ao buscar registros' }
   }
 }
@@ -759,7 +762,7 @@ export async function getBankStatementsOverview() {
 
     return { success: true as const, data: enriched }
   } catch (error) {
-    console.error('Erro ao buscar visao geral dos extratos:', error)
+    log.error({ err: error }, 'Erro ao buscar visao geral dos extratos')
     return { success: false as const, error: 'Erro ao buscar extratos' }
   }
 }
@@ -836,7 +839,7 @@ export async function reconcileRecord(
     revalidatePath('/financeiro/conciliacao')
     return { success: true }
   } catch (error) {
-    console.error('Erro na conciliacao:', error)
+    log.error({ err: error }, 'Erro na conciliacao')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro na conciliacao',

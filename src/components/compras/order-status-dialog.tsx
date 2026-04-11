@@ -24,7 +24,7 @@ import { Loader2, ArrowRightLeft } from "lucide-react"
 
 const STATUS_LABELS: Record<string, string> = {
     DRAFT: "Rascunho",
-    PENDING_APPROVAL: "Aguardando Aprovacao",
+    PENDING_APPROVAL: "Aguardando Aprovação",
     APPROVED: "Aprovado",
     ORDERED: "Pedido Realizado",
     PARTIALLY_RECEIVED: "Recebimento Parcial",

@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
       message.includes('modelo') ||
       message.includes('Timeout')
     ) {
-      message += '. Verifique as configuracoes de IA em Configuracoes > IA.'
+      message += '. Verifique as configurações de IA em Configurações > IA.'
     }
 
     return Response.json({ error: message }, { status: 500 })

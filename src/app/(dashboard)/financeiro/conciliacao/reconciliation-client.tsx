@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useTransition } from 'react'
+import { useState, useMemo, useCallback, useTransition } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -67,6 +67,10 @@ import {
   ArrowLeftRight,
   LayoutPanelLeft,
 } from 'lucide-react'
+import { ExportButton } from '@/components/ui/export-button'
+import type { ExportColumn } from '@/lib/export-utils'
+import { formatCurrency as fmtCurrencyExport, formatDate as fmtDateExport } from '@/lib/export-utils'
+import { DateRangeFilter, type DateRange } from '@/components/ui/date-range-filter'
 
 // ============================================================================
 // TYPES
@@ -178,6 +182,31 @@ const STATUS_FILTERS = [
   { value: 'IGNORED', label: 'Ignoradas' },
 ]
 
+const reconciliationStatusLabels: Record<string, string> = {
+  MATCHED: 'Conciliada',
+  PENDING: 'Pendente',
+  DIVERGENT: 'Divergente',
+  IGNORED: 'Ignorada',
+}
+
+const reconciliationExportColumns: ExportColumn[] = [
+  { key: 'date', label: 'Data', format: (v) => v ? fmtDateExport(v as string) : '' },
+  { key: 'description', label: 'Descricao' },
+  { key: 'typeName', label: 'Tipo' },
+  { key: 'amount', label: 'Valor (R$)', format: (v) => fmtCurrencyExport(v as number) },
+  { key: 'statusName', label: 'Status Conciliacao' },
+  { key: 'linkedRecord', label: 'Registro Vinculado' },
+]
+
+function mapTransactionsForExport(txns: Transaction[]): Record<string, unknown>[] {
+  return txns.map(t => ({
+    ...t,
+    typeName: t.type === 'CREDIT' ? 'Credito' : 'Debito',
+    statusName: reconciliationStatusLabels[t.reconciliationStatus] || t.reconciliationStatus,
+    linkedRecord: t.financialRecord?.description || '',
+  }))
+}
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -197,6 +226,9 @@ export function ReconciliationClient({
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+
+  // Advanced filters
+  const [txnDateRange, setTxnDateRange] = useState<DateRange>({ from: '', to: '' })
 
   // Import Dialog
   const [importOpen, setImportOpen] = useState(false)
@@ -572,6 +604,17 @@ export function ReconciliationClient({
     }
   }
 
+  // Filter transactions by date range (client-side)
+  const filteredTransactions = useMemo(() => {
+    if (!txnDateRange.from && !txnDateRange.to) return transactions
+    return transactions.filter(txn => {
+      const txnDate = new Date(txn.date).toISOString().split('T')[0]
+      if (txnDateRange.from && txnDate < txnDateRange.from) return false
+      if (txnDateRange.to && txnDate > txnDateRange.to) return false
+      return true
+    })
+  }, [transactions, txnDateRange])
+
   // Filter suggestions by search
   const filteredSuggestions = suggestionSearch.trim()
     ? suggestions.filter(
@@ -916,6 +959,16 @@ export function ReconciliationClient({
                   ? `Transações — ${selectedStatement.bankAccount.name} (${selectedStatement.period})`
                   : 'Selecione um extrato'}
               </CardTitle>
+              {selectedStatement && transactions.length > 0 && (
+                <ExportButton
+                  data={mapTransactionsForExport(transactions)}
+                  columns={reconciliationExportColumns}
+                  filename="conciliacao_bancaria"
+                  title="Conciliacao Bancaria"
+                  sheetName="Transacoes"
+                  size="sm"
+                />
+              )}
             </div>
             {selectedStatement && (
               <div className="flex gap-1 flex-wrap mt-2">
@@ -933,6 +986,11 @@ export function ReconciliationClient({
             )}
           </CardHeader>
           <CardContent className="flex-1 overflow-auto p-0">
+            {selectedStatement && (
+              <div className="px-4 pt-3 pb-2 border-b">
+                <DateRangeFilter value={txnDateRange} onChange={setTxnDateRange} className="flex-wrap" />
+              </div>
+            )}
             {!selectedStatement ? (
               <div className="flex items-center justify-center h-full text-muted-foreground text-sm p-8">
                 Selecione um extrato na lista à esquerda para visualizar as transações
@@ -941,7 +999,7 @@ export function ReconciliationClient({
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : transactions.length === 0 ? (
+            ) : filteredTransactions.length === 0 ? (
               <div className="flex items-center justify-center h-full text-muted-foreground text-sm p-8">
                 Nenhuma transação encontrada para o filtro selecionado
               </div>
@@ -958,7 +1016,7 @@ export function ReconciliationClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.map(txn => (
+                  {filteredTransactions.map(txn => (
                     <TableRow
                       key={txn.id}
                       className={`cursor-pointer ${

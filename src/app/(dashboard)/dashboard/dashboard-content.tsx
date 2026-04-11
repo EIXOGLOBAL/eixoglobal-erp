@@ -608,7 +608,7 @@ export function DashboardContent({
         {/* Row 2 - RH, Orcamentos & Equipamentos */}
         <AnimatedNumberKPI
           icon={Users}
-          label="Funcionarios Alocados"
+          label="Funcionários Alocados"
           value={kpis.allocatedEmployees}
           subtitle={`${allocationPct}% de ${kpis.totalActiveEmployees} ativos`}
           iconColor="text-purple-600"
@@ -616,7 +616,7 @@ export function DashboardContent({
         />
         <AnimatedNumberKPI
           icon={Calculator}
-          label="Orcamentos em Aprovacao"
+          label="Orçamentos em Aprovação"
           value={kpis.pendingBudgets}
           subtitle="Rascunhos pendentes"
           iconColor="text-indigo-600"
@@ -624,9 +624,9 @@ export function DashboardContent({
         />
         <AnimatedNumberKPI
           icon={Wrench}
-          label="Equipamentos em Manutencao"
+          label="Equipamentos em Manutenção"
           value={kpis.equipmentsInMaintenance}
-          subtitle="Status manutencao"
+          subtitle="Status manutenção"
           iconColor="text-yellow-600"
           href="/equipamentos"
           badge={
@@ -637,9 +637,9 @@ export function DashboardContent({
         />
         <AnimatedCurrencyKPI
           icon={Wallet}
-          label="Resultado do Periodo"
+          label="Resultado do Período"
           value={kpis.periodRevenue - kpis.periodExpenses}
-          subtitle={kpis.periodRevenue - kpis.periodExpenses >= 0 ? 'Superavit' : 'Deficit'}
+          subtitle={kpis.periodRevenue - kpis.periodExpenses >= 0 ? 'Superávit' : 'Déficit'}
           iconColor={kpis.periodRevenue - kpis.periodExpenses >= 0 ? 'text-green-600' : 'text-red-600'}
           href="/financeiro/fluxo-de-caixa"
         />
@@ -651,9 +651,9 @@ export function DashboardContent({
       <section>
         <div className="flex items-center gap-2 mb-3">
           <AlertTriangle className="h-5 w-5 text-amber-500" />
-          <h2 className="text-lg font-semibold tracking-tight">Painel de Atencao</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Painel de Atenção</h2>
           <Badge variant="outline" className="text-[10px] text-muted-foreground">
-            Itens que requerem acao
+            Itens que requerem ação
           </Badge>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -661,7 +661,7 @@ export function DashboardContent({
             icon={FileText}
             label="Boletins Pendentes"
             value={kpis.pendingBulletins}
-            subtitle="Aguardando aprovacao"
+            subtitle="Aguardando aprovação"
             href="/measurements"
             severity={kpis.pendingBulletins > 5 ? 'high' : kpis.pendingBulletins > 0 ? 'medium' : 'ok'}
           />
@@ -675,7 +675,7 @@ export function DashboardContent({
           />
           <AttentionKPICard
             icon={ShieldAlert}
-            label="Incidentes de Seguranca"
+            label="Incidentes de Segurança"
             value={kpis.openSafetyIncidents}
             subtitle="Abertos"
             href="/seguranca-trabalho"
@@ -683,7 +683,7 @@ export function DashboardContent({
           />
           <AttentionKPICard
             icon={CircleOff}
-            label="Nao Conformidades"
+            label="Não Conformidades"
             value={kpis.openNonConformities}
             subtitle="Abertas"
             href="/qualidade"
@@ -785,7 +785,7 @@ export function DashboardContent({
         <Card className="col-span-1 bg-card border border-border/50">
           <CardHeader>
             <CardTitle>Status dos Projetos</CardTitle>
-            <CardDescription>Distribuicao por status</CardDescription>
+            <CardDescription>Distribuição por status</CardDescription>
           </CardHeader>
           <CardContent>
             {hasProjectData ? (

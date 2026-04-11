@@ -57,11 +57,11 @@ const KEY_PACKAGES: Record<string, string> = {
   "@prisma/client": "Banco de Dados",
   tailwindcss: "Estilo",
   "lucide-react": "UI",
-  recharts: "Graficos",
-  jose: "Seguranca",
-  bcryptjs: "Seguranca",
-  "date-fns": "Utilitario",
-  zod: "Validacao",
+  recharts: "Gráficos",
+  jose: "Segurança",
+  bcryptjs: "Segurança",
+  "date-fns": "Utilitário",
+  zod: "Validação",
 }
 
 // ---------------------------------------------------------------------------

@@ -73,10 +73,10 @@ const audienceOptions = [
   { value: 'MANAGER', label: 'Gerentes' },
   { value: 'ENGINEER', label: 'Engenheiros' },
   { value: 'SUPERVISOR', label: 'Supervisores' },
-  { value: 'SAFETY_OFFICER', label: 'Seguranca do Trabalho' },
+  { value: 'SAFETY_OFFICER', label: 'Segurança do Trabalho' },
   { value: 'ACCOUNTANT', label: 'Contadores' },
   { value: 'HR_ANALYST', label: 'RH' },
-  { value: 'USER', label: 'Usuarios' },
+  { value: 'USER', label: 'Usuários' },
 ]
 
 export function CommunicationDialog({
@@ -192,7 +192,7 @@ export function CommunicationDialog({
           </DialogTitle>
           <DialogDescription>
             {communication
-              ? 'Atualize as informacoes do comunicado.'
+              ? 'Atualize as informações do comunicado.'
               : 'Publique um novo comunicado para a equipe.'}
           </DialogDescription>
         </DialogHeader>

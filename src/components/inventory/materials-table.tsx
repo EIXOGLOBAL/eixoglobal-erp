@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,13 +22,34 @@ import {
     DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { MoreHorizontal, Pencil, ArrowUpDown, AlertTriangle, QrCode } from "lucide-react"
 import { changeMaterialStatus } from "@/app/actions/inventory-actions"
 import { useToast } from "@/hooks/use-toast"
 import { MaterialDialog } from "./material-dialog"
 import { MovementDialog } from "./movement-dialog"
 import Link from "next/link"
-import { ExportExcelButton } from "@/components/ui/export-excel-button"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
+
+const materialExportColumns: ExportColumn[] = [
+    { key: 'code', label: 'Codigo' },
+    { key: 'name', label: 'Nome' },
+    { key: 'categoryPtBr', label: 'Categoria' },
+    { key: 'unit', label: 'Unidade' },
+    { key: 'currentStock', label: 'Estoque Atual' },
+    { key: 'minStock', label: 'Estoque Minimo' },
+    { key: 'unitCostFmt', label: 'Custo Unitario', format: (v) => String(v ?? '') },
+    { key: 'totalValueFmt', label: 'Valor Total', format: (v) => String(v ?? '') },
+    { key: 'supplier', label: 'Fornecedor' },
+    { key: 'statusPtBr', label: 'Situacao' },
+]
 
 const CATEGORY_LABELS: Record<string, string> = {
     CEMENT: 'Cimento',
@@ -43,6 +64,19 @@ const CATEGORY_LABELS: Record<string, string> = {
     OTHER: 'Outros',
 }
 
+const STATUS_FILTER_LABELS: Record<string, string> = {
+    ALL: 'Todos os status',
+    ACTIVE: 'Ativo',
+    INACTIVE: 'Inativo',
+}
+
+const STOCK_LEVEL_LABELS: Record<string, string> = {
+    ALL: 'Todos os níveis',
+    LOW: 'Estoque Baixo',
+    ZERO: 'Sem Estoque',
+    NORMAL: 'Estoque Normal',
+}
+
 interface MaterialsTableProps {
     materials: any[]
     companyId: string
@@ -51,6 +85,23 @@ interface MaterialsTableProps {
 export function MaterialsTable({ materials, companyId }: MaterialsTableProps) {
     const { toast } = useToast()
     const [editingMaterial, setEditingMaterial] = useState<any>(null)
+    const [filterCategory, setFilterCategory] = useState<string>('ALL')
+    const [filterStatus, setFilterStatus] = useState<string>('ALL')
+    const [filterStockLevel, setFilterStockLevel] = useState<string>('ALL')
+
+    const filtered = useMemo(() => {
+        return materials.filter(m => {
+            if (filterCategory !== 'ALL' && m.category !== filterCategory) return false
+            if (filterStatus === 'ACTIVE' && !m.isActive) return false
+            if (filterStatus === 'INACTIVE' && m.isActive) return false
+            if (filterStockLevel === 'ZERO' && m.currentStock !== 0) return false
+            if (filterStockLevel === 'LOW' && !(m.currentStock > 0 && m.currentStock <= m.minStock && m.minStock > 0)) return false
+            if (filterStockLevel === 'NORMAL' && (m.currentStock === 0 || (m.currentStock <= m.minStock && m.minStock > 0))) return false
+            return true
+        })
+    }, [materials, filterCategory, filterStatus, filterStockLevel])
+
+    const activeFilters = [filterCategory !== 'ALL', filterStatus !== 'ALL', filterStockLevel !== 'ALL'].filter(Boolean).length
 
     async function handleChangeStatus(id: string, isActive: boolean, name: string) {
         const result = await changeMaterialStatus(id, isActive)
@@ -70,8 +121,82 @@ export function MaterialsTable({ materials, companyId }: MaterialsTableProps) {
         )
     }
 
+    const fmtCurrency = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+
     return (
         <>
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2 mb-4">
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-[180px] h-9">
+                    <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="ALL">Todas as categorias</SelectItem>
+                    {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-[160px] h-9">
+                    <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                    {Object.entries(STATUS_FILTER_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <Select value={filterStockLevel} onValueChange={setFilterStockLevel}>
+                <SelectTrigger className="w-[180px] h-9">
+                    <SelectValue placeholder="Nível de estoque" />
+                </SelectTrigger>
+                <SelectContent>
+                    {Object.entries(STOCK_LEVEL_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            {activeFilters > 0 && (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9"
+                    onClick={() => { setFilterCategory('ALL'); setFilterStatus('ALL'); setFilterStockLevel('ALL') }}
+                >
+                    Limpar filtros
+                    <Badge variant="secondary" className="ml-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center">{activeFilters}</Badge>
+                </Button>
+            )}
+
+            <span className="ml-auto text-sm text-muted-foreground self-center">{filtered.length} material(is)</span>
+        </div>
+
+        <div className="flex justify-end mb-4">
+            <ExportButton
+                data={filtered.map(m => {
+                    const isLow = m.currentStock <= m.minStock && m.minStock > 0
+                    const isZero = m.currentStock === 0
+                    return {
+                        ...m,
+                        categoryPtBr: CATEGORY_LABELS[m.category] || m.category,
+                        unitCostFmt: fmtCurrency(m.unitCost),
+                        totalValueFmt: fmtCurrency(m.currentStock * m.unitCost),
+                        supplier: m.supplier || '',
+                        statusPtBr: isZero ? 'Zerado' : isLow ? 'Baixo' : 'Normal',
+                    }
+                })}
+                columns={materialExportColumns}
+                filename="estoque_materiais"
+                title="Estoque - Materiais"
+                sheetName="Materiais"
+                size="sm"
+            />
+        </div>
         <Table>
             <TableHeader>
                 <TableRow>
@@ -88,7 +213,7 @@ export function MaterialsTable({ materials, companyId }: MaterialsTableProps) {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {materials.map((material) => {
+                {filtered.map((material) => {
                     const isLow = material.currentStock <= material.minStock && material.minStock > 0
                     const isZero = material.currentStock === 0
                     const totalValue = material.currentStock * material.unitCost

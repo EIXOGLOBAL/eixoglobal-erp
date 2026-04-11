@@ -9,6 +9,9 @@ import { assertCanDelete } from "@/lib/permissions"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'employee' })
 
 // ============================================================================
 // SCHEMAS DE VALIDAÇÃO
@@ -115,7 +118,7 @@ export async function createEmployee(data: z.infer<typeof employeeSchema>) {
         revalidatePath('/rh/funcionarios')
         return { success: true, data: employee }
     } catch (error) {
-        console.error("Erro ao criar funcionário:", error)
+        log.error({ err: error }, "Erro ao criar funcionário")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar funcionário"
@@ -190,7 +193,7 @@ export async function updateEmployee(id: string, data: z.infer<typeof employeeSc
         revalidatePath(`/rh/funcionarios/${id}`)
         return { success: true, data: employee }
     } catch (error) {
-        console.error("Erro ao atualizar funcionário:", error)
+        log.error({ err: error }, "Erro ao atualizar funcionário")
         return {
             success: false,
             error: "Erro ao atualizar funcionário"
@@ -229,7 +232,7 @@ export async function inactivateEmployee(id: string) {
         revalidatePath('/rh/funcionarios')
         return { success: true, data: employee }
     } catch (error) {
-        console.error("Erro ao inativar funcionário:", error)
+        log.error({ err: error }, "Erro ao inativar funcionário")
         return {
             success: false,
             error: "Erro ao inativar funcionário"
@@ -267,7 +270,7 @@ export async function changeEmployeeStatus(id: string, status: 'ACTIVE' | 'INACT
         revalidatePath(`/rh/funcionarios/${id}`)
         return { success: true, data: employee }
     } catch (error) {
-        console.error("Erro ao alterar status do funcionário:", error)
+        log.error({ err: error }, "Erro ao alterar status do funcionário")
         return { success: false, error: "Erro ao alterar status do funcionário" }
     }
 }
@@ -302,7 +305,7 @@ export async function updateMatricula(employeeId: string, matricula: string) {
         revalidatePath(`/rh/funcionarios/${employeeId}`)
         return { success: true, data: employee }
     } catch (error) {
-        console.error("Erro ao atualizar matrícula:", error)
+        log.error({ err: error }, "Erro ao atualizar matrícula")
         return { success: false, error: "Erro ao atualizar matrícula" }
     }
 }
@@ -357,7 +360,7 @@ export async function deleteEmployee(id: string) {
         revalidatePath('/rh/funcionarios')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar funcionário:", error)
+        log.error({ err: error }, "Erro ao deletar funcionário")
         return {
             success: false,
             error: "Erro ao deletar funcionário"
@@ -410,7 +413,7 @@ export async function getEmployees(params?: {
 
         return { success: true, data: mapped, pagination: paginatedResponse(mapped, total, page, pageSize).pagination }
     } catch (error) {
-        console.error("Erro ao buscar funcionários:", error)
+        log.error({ err: error }, "Erro ao buscar funcionários")
         return { success: false, error: error instanceof Error ? error.message : "Erro ao buscar funcionários", data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
@@ -505,7 +508,7 @@ export async function getEmployeeById(id: string) {
             })),
         }
     } catch (error) {
-        console.error("Erro ao buscar funcionário:", error)
+        log.error({ err: error }, "Erro ao buscar funcionário")
         return null
     }
 }
@@ -633,7 +636,7 @@ export async function getSalaryHistory(employeeId: string) {
             })),
         }
     } catch (error) {
-        console.error("Erro ao buscar histórico salarial:", error)
+        log.error({ err: error }, "Erro ao buscar histórico salarial")
         return { success: false, error: "Erro ao buscar histórico salarial", data: [] }
     }
 }
@@ -670,7 +673,7 @@ export async function updateEmployeeDepartment(employeeId: string, department: s
         revalidatePath('/rh/funcionarios')
         return { success: true, data: employee }
     } catch (error) {
-        console.error("Erro ao atualizar departamento:", error)
+        log.error({ err: error }, "Erro ao atualizar departamento")
         return { success: false, error: "Erro ao atualizar departamento" }
     }
 }
@@ -733,7 +736,7 @@ export async function updateEmployeeManager(employeeId: string, managerId: strin
         revalidatePath('/rh/funcionarios')
         return { success: true, data: employee }
     } catch (error) {
-        console.error("Erro ao atualizar gestor:", error)
+        log.error({ err: error }, "Erro ao atualizar gestor")
         return { success: false, error: "Erro ao atualizar gestor" }
     }
 }

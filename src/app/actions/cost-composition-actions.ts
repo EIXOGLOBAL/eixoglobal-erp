@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { assertAuthenticated } from "@/lib/auth-helpers"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'cost-composition' })
 
 // ============================================================================
 // SCHEMAS DE VALIDAÇÃO
@@ -165,7 +168,7 @@ export async function createCostComposition(
             data: composition,
         }
     } catch (error) {
-        console.error("Erro ao criar composição:", error)
+        log.error({ err: error }, "Erro ao criar composição")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar composição"
@@ -210,7 +213,7 @@ export async function updateCostComposition(
             data: composition,
         }
     } catch (error) {
-        console.error("Erro ao atualizar composição:", error)
+        log.error({ err: error }, "Erro ao atualizar composição")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao atualizar composição"
@@ -235,7 +238,7 @@ export async function deleteCostComposition(id: string): Promise<ActionResult> {
 
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar composição:", error)
+        log.error({ err: error }, "Erro ao deletar composição")
         return {
             success: false,
             error: "Erro ao deletar composição"
@@ -279,7 +282,7 @@ export async function getCostCompositions(companyId: string, projectId?: string)
             salePrice: Number(comp.salePrice),
         }))
     } catch (error) {
-        console.error("Erro ao buscar composições:", error)
+        log.error({ err: error }, "Erro ao buscar composições")
         return []
     }
 }
@@ -331,7 +334,7 @@ export async function getCostCompositionById(id: string) {
             })),
         }
     } catch (error) {
-        console.error("Erro ao buscar composição:", error)
+        log.error({ err: error }, "Erro ao buscar composição")
         return null
     }
 }
@@ -441,7 +444,7 @@ export async function duplicateCostComposition(
             data: newComposition,
         }
     } catch (error) {
-        console.error("Erro ao duplicar composição:", error)
+        log.error({ err: error }, "Erro ao duplicar composição")
         return {
             success: false,
             error: "Erro ao duplicar composição"
@@ -484,7 +487,7 @@ export async function addMaterial(
             data: material,
         }
     } catch (error) {
-        console.error("Erro ao adicionar material:", error)
+        log.error({ err: error }, "Erro ao adicionar material")
         return {
             success: false,
             error: "Erro ao adicionar material"
@@ -525,7 +528,7 @@ export async function updateMaterial(
             data: material,
         }
     } catch (error) {
-        console.error("Erro ao atualizar material:", error)
+        log.error({ err: error }, "Erro ao atualizar material")
         return {
             success: false,
             error: "Erro ao atualizar material"
@@ -562,7 +565,7 @@ export async function deleteMaterial(materialId: string): Promise<ActionResult> 
 
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar material:", error)
+        log.error({ err: error }, "Erro ao deletar material")
         return {
             success: false,
             error: "Erro ao deletar material"
@@ -602,7 +605,7 @@ export async function addLabor(
             data: labor,
         }
     } catch (error) {
-        console.error("Erro ao adicionar mão de obra:", error)
+        log.error({ err: error }, "Erro ao adicionar mão de obra")
         return {
             success: false,
             error: "Erro ao adicionar mão de obra"
@@ -640,7 +643,7 @@ export async function updateLabor(
             data: labor,
         }
     } catch (error) {
-        console.error("Erro ao atualizar mão de obra:", error)
+        log.error({ err: error }, "Erro ao atualizar mão de obra")
         return {
             success: false,
             error: "Erro ao atualizar mão de obra"
@@ -675,7 +678,7 @@ export async function deleteLabor(laborId: string): Promise<ActionResult> {
 
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar mão de obra:", error)
+        log.error({ err: error }, "Erro ao deletar mão de obra")
         return {
             success: false,
             error: "Erro ao deletar mão de obra"
@@ -716,7 +719,7 @@ export async function addEquipment(
             data: equipment,
         }
     } catch (error) {
-        console.error("Erro ao adicionar equipamento:", error)
+        log.error({ err: error }, "Erro ao adicionar equipamento")
         return {
             success: false,
             error: "Erro ao adicionar equipamento"
@@ -755,7 +758,7 @@ export async function updateEquipment(
             data: equipment,
         }
     } catch (error) {
-        console.error("Erro ao atualizar equipamento:", error)
+        log.error({ err: error }, "Erro ao atualizar equipamento")
         return {
             success: false,
             error: "Erro ao atualizar equipamento"
@@ -790,7 +793,7 @@ export async function deleteEquipment(equipmentId: string): Promise<ActionResult
 
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar equipamento:", error)
+        log.error({ err: error }, "Erro ao deletar equipamento")
         return {
             success: false,
             error: "Erro ao deletar equipamento"

@@ -4,6 +4,9 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { assertAuthenticated } from "@/lib/auth-helpers"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'equipment-document' })
 
 // ============================================================================
 // SCHEMAS
@@ -44,7 +47,7 @@ export async function createEquipmentDocument(
         revalidatePath(`/equipamentos/${equipmentId}`)
         return { success: true, data: document }
     } catch (error) {
-        console.error("Erro ao criar documento do equipamento:", error)
+        log.error({ err: error }, "Erro ao criar documento do equipamento")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar documento do equipamento"
@@ -82,7 +85,7 @@ export async function updateEquipmentDocument(
         revalidatePath(`/equipamentos/${document.equipmentId}`)
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao atualizar documento do equipamento:", error)
+        log.error({ err: error }, "Erro ao atualizar documento do equipamento")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao atualizar documento do equipamento"
@@ -107,7 +110,7 @@ export async function deleteEquipmentDocument(documentId: string) {
         revalidatePath(`/equipamentos/${document.equipmentId}`)
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar documento do equipamento:", error)
+        log.error({ err: error }, "Erro ao deletar documento do equipamento")
         return {
             success: false,
             error: "Erro ao deletar documento do equipamento"
@@ -128,7 +131,7 @@ export async function getEquipmentDocuments(equipmentId: string, type?: string) 
 
         return documents
     } catch (error) {
-        console.error("Erro ao buscar documentos do equipamento:", error)
+        log.error({ err: error }, "Erro ao buscar documentos do equipamento")
         return []
     }
 }
@@ -142,7 +145,7 @@ export async function getEquipmentDocumentById(documentId: string) {
 
         return document
     } catch (error) {
-        console.error("Erro ao buscar documento do equipamento:", error)
+        log.error({ err: error }, "Erro ao buscar documento do equipamento")
         return null
     }
 }
@@ -165,7 +168,7 @@ export async function getExpiredDocuments(equipmentId: string) {
 
         return expiredDocuments
     } catch (error) {
-        console.error("Erro ao buscar documentos expirados:", error)
+        log.error({ err: error }, "Erro ao buscar documentos expirados")
         return []
     }
 }

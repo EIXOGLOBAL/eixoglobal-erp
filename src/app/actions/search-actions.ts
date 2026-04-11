@@ -2,6 +2,9 @@
 
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'search' })
 
 export interface SearchResult {
   id: string
@@ -186,7 +189,7 @@ export async function globalSearch(query: string): Promise<SearchResponse> {
 
     return results
   } catch (error: any) {
-    console.error('Search error:', error)
+    log.error({ err: error }, 'Search error')
     return results
   }
 }
@@ -205,7 +208,7 @@ export async function getRecentSearches(limit: number = 5) {
     // For now, returning empty array
     return []
   } catch (error) {
-    console.error('Error fetching recent searches:', error)
+    log.error({ err: error }, 'Error fetching recent searches')
     return []
   }
 }
@@ -224,7 +227,7 @@ export async function saveSearch(query: string) {
     // For now, this is a placeholder
     return { success: true }
   } catch (error) {
-    console.error('Error saving search:', error)
+    log.error({ err: error }, 'Error saving search')
     return { success: false }
   }
 }

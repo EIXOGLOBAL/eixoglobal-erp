@@ -269,7 +269,7 @@ async function callAnthropicSDK(
 export async function aiComplete(options: AICompletionOptions): Promise<AICompletionResult> {
   const active = await getActiveApiKey()
   if (!active) {
-    throw new Error('Nenhum provedor de IA configurado. Acesse Configuracoes > IA.')
+    throw new Error('Nenhum provedor de IA configurado. Acesse Configurações > IA.')
   }
 
   const { provider, apiKey } = active
@@ -297,7 +297,7 @@ export async function aiComplete(options: AICompletionOptions): Promise<AIComple
 export async function aiCompleteFast(options: AICompletionOptions): Promise<AICompletionResult> {
   const active = await getActiveApiKey()
   if (!active) {
-    throw new Error('Nenhum provedor de IA configurado. Acesse Configuracoes > IA.')
+    throw new Error('Nenhum provedor de IA configurado. Acesse Configurações > IA.')
   }
 
   const { provider, apiKey } = active
@@ -324,7 +324,7 @@ export async function aiCompleteFast(options: AICompletionOptions): Promise<AICo
 export async function aiStream(options: AICompletionOptions): Promise<ReadableStream> {
   const active = await getActiveApiKey()
   if (!active) {
-    throw new Error('Nenhum provedor de IA configurado. Acesse Configuracoes > IA.')
+    throw new Error('Nenhum provedor de IA configurado. Acesse Configurações > IA.')
   }
 
   const { provider, apiKey } = active

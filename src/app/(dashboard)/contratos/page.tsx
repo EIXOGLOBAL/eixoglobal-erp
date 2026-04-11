@@ -24,6 +24,9 @@ export default async function ContractsPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
+    const userRole = session.user?.role as string
+    const canWrite = userRole !== 'USER'
+
     const contractsRes = await getContracts({ companyId })
     const contracts = contractsRes.success ? contractsRes.data : []
 
@@ -70,17 +73,19 @@ export default async function ContractsPage() {
                         Gerencie contratos, aditivos e reajustes.
                     </p>
                 </div>
-                <CreateShortcut label="Novo Contrato">
-                    {({ open, onOpenChange }) => (
-                        <ContractDialog
-                            projects={projects}
-                            contractors={contractors}
-                            companyId={companyId}
-                            open={open}
-                            onOpenChange={onOpenChange}
-                        />
-                    )}
-                </CreateShortcut>
+                {canWrite && (
+                    <CreateShortcut label="Novo Contrato">
+                        {({ open, onOpenChange }) => (
+                            <ContractDialog
+                                projects={projects}
+                                contractors={contractors}
+                                companyId={companyId}
+                                open={open}
+                                onOpenChange={onOpenChange}
+                            />
+                        )}
+                    </CreateShortcut>
+                )}
             </div>
 
             {/* KPI Cards */}

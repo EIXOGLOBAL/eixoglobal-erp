@@ -181,7 +181,7 @@ export function PdfViewer({
             onError={handleError}
           >
             <p className="p-4 text-muted-foreground text-sm">
-              Seu navegador nao suporta visualizacao de PDF embutida.
+              Seu navegador não suporta visualização de PDF embutida.
             </p>
           </object>
         )
@@ -298,7 +298,7 @@ export function PdfViewer({
                 Erro ao carregar documento
               </p>
               <p className="mt-1 text-sm text-muted-foreground/70">
-                Nao foi possivel exibir o PDF no navegador.
+                Não foi possível exibir o PDF no navegador.
               </p>
             </div>
             <div className="flex gap-2">

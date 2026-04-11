@@ -11,6 +11,9 @@ import { getSession } from "@/lib/auth"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'purchase' })
 
 // ============================================================================
 // SCHEMAS
@@ -64,7 +67,7 @@ export async function createPurchaseOrder(
         revalidatePath('/compras')
         return { success: true, data: order }
     } catch (error) {
-        console.error("Erro ao criar pedido de compra:", error)
+        log.error({ err: error }, "Erro ao criar pedido de compra")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar pedido de compra"
@@ -104,7 +107,7 @@ export async function updatePurchaseOrder(id: string, data: z.infer<typeof order
         revalidatePath(`/compras/${id}`)
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao atualizar pedido de compra:", error)
+        log.error({ err: error }, "Erro ao atualizar pedido de compra")
         return {
             success: false,
             error: "Erro ao atualizar pedido de compra"
@@ -147,7 +150,7 @@ export async function deletePurchaseOrder(id: string) {
         revalidatePath('/compras')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar pedido de compra:", error)
+        log.error({ err: error }, "Erro ao deletar pedido de compra")
         return {
             success: false,
             error: "Erro ao deletar pedido de compra"
@@ -194,7 +197,7 @@ export async function getPurchaseOrders(params?: {
 
         return { success: true, data: orders, pagination: paginatedResponse(orders, total, page, pageSize).pagination }
     } catch (error) {
-        console.error("Erro ao buscar pedidos de compra:", error)
+        log.error({ err: error }, "Erro ao buscar pedidos de compra")
         return { success: false, error: "Erro ao buscar pedidos de compra", data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
@@ -229,7 +232,7 @@ export async function getPurchaseOrderById(id: string) {
 
         return order
     } catch (error) {
-        console.error("Erro ao buscar pedido de compra:", error)
+        log.error({ err: error }, "Erro ao buscar pedido de compra")
         return null
     }
 }
@@ -288,7 +291,7 @@ export async function addOrderItem(orderId: string, data: z.infer<typeof itemSch
         revalidatePath(`/compras/${orderId}`)
         return { success: true, data: item }
     } catch (error) {
-        console.error("Erro ao adicionar item:", error)
+        log.error({ err: error }, "Erro ao adicionar item")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao adicionar item"
@@ -333,7 +336,7 @@ export async function updateOrderItem(itemId: string, data: z.infer<typeof itemS
         revalidatePath(`/compras/${item.purchaseOrderId}`)
         return { success: true, data: item }
     } catch (error) {
-        console.error("Erro ao atualizar item:", error)
+        log.error({ err: error }, "Erro ao atualizar item")
         return {
             success: false,
             error: "Erro ao atualizar item"
@@ -377,7 +380,7 @@ export async function deleteOrderItem(itemId: string) {
         revalidatePath(`/compras/${orderId}`)
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar item:", error)
+        log.error({ err: error }, "Erro ao deletar item")
         return {
             success: false,
             error: "Erro ao deletar item"
@@ -472,7 +475,7 @@ export async function updateOrderStatus(id: string, status: PurchaseOrderStatus)
 
                 revalidatePath('/estoque')
             } catch (stockError) {
-                console.error("Erro ao atualizar estoque (OC recebida):", stockError)
+                log.error({ err: stockError }, "Erro ao atualizar estoque (OC recebida)")
                 // Stock sync failure does NOT block the status change
             }
         }
@@ -481,7 +484,7 @@ export async function updateOrderStatus(id: string, status: PurchaseOrderStatus)
         revalidatePath(`/compras/${id}`)
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao atualizar status:", error)
+        log.error({ err: error }, "Erro ao atualizar status")
         return {
             success: false,
             error: "Erro ao atualizar status"

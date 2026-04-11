@@ -364,9 +364,9 @@ function EnderecoSection({ company }: CompanyFormProps) {
                                     name="address"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Endereco</FormLabel>
+                                            <FormLabel>Endereço</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Rua, numero, complemento" {...field} />
+                                                <Input placeholder="Rua, número, complemento" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>

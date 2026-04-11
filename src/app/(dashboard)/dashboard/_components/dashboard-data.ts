@@ -482,8 +482,8 @@ export async function getOperationalAlerts(companyId: string): Promise<Operation
   if (overdueMaintenances.length > 0) {
     alerts.push({
       type: 'overdue_maintenance',
-      title: 'Manutencao Atrasada',
-      message: `${overdueMaintenances.length} manutencao${overdueMaintenances.length !== 1 ? 'oes' : ''} em atraso: ${overdueMaintenances
+      title: 'Manutenção Atrasada',
+      message: `${overdueMaintenances.length} manutenção${overdueMaintenances.length !== 1 ? 'ões' : ''} em atraso: ${overdueMaintenances
         .slice(0, 2)
         .map(m => m.equipment.name)
         .join(', ')}`,

@@ -63,6 +63,8 @@ import {
     Search,
     GitBranch,
 } from "lucide-react"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -118,6 +120,27 @@ function isCostCenterType(value: string): value is CostCenterType {
     return value in typeLabels
 }
 
+const exportColumns: ExportColumn[] = [
+    { key: 'code', label: 'Codigo' },
+    { key: 'name', label: 'Nome' },
+    { key: 'typeName', label: 'Tipo' },
+    { key: 'parentName', label: 'Centro Pai' },
+    { key: 'projectName', label: 'Projeto' },
+    { key: 'childrenCount', label: 'Sub-centros' },
+    { key: 'statusLabel', label: 'Status' },
+]
+
+function mapCostCentersForExport(list: CostCenter[]): Record<string, unknown>[] {
+    return list.map(cc => ({
+        ...cc,
+        typeName: typeLabels[isCostCenterType(cc.type) ? cc.type : 'OTHER'],
+        parentName: cc.parent ? `${cc.parent.code} - ${cc.parent.name}` : '',
+        projectName: cc.project?.name || 'Global',
+        childrenCount: cc._count.children,
+        statusLabel: cc.isActive ? 'Ativo' : 'Inativo',
+    }))
+}
+
 // ─── Form Schema ──────────────────────────────────────────────────────────────
 
 const formSchema = z.object({
@@ -148,6 +171,7 @@ export function CostCentersClient({ companyId, costCenters, projects = [] }: Cos
     const [search, setSearch] = useState('')
     const [filterType, setFilterType] = useState<CostCenterType | 'ALL'>('ALL')
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'active' | 'inactive'>('ALL')
+    const [filterProjectId, setFilterProjectId] = useState<string>('ALL')
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
 
@@ -289,7 +313,11 @@ export function CostCentersClient({ companyId, costCenters, projects = [] }: Cos
             filterStatus === 'ALL' ||
             (filterStatus === 'active' && cc.isActive) ||
             (filterStatus === 'inactive' && !cc.isActive)
-        return matchesSearch && matchesType && matchesStatus
+        const matchesProject =
+            filterProjectId === 'ALL' ||
+            (filterProjectId === '__none__' && !cc.projectId) ||
+            (filterProjectId !== '__none__' && cc.projectId === filterProjectId)
+        return matchesSearch && matchesType && matchesStatus && matchesProject
     })
 
     // Available parents (exclude self when editing)
@@ -348,13 +376,42 @@ export function CostCentersClient({ companyId, costCenters, projects = [] }: Cos
                             <SelectItem value="inactive">Inativo</SelectItem>
                         </SelectContent>
                     </Select>
+
+                    {/* Filter by project */}
+                    {projects.length > 0 && (
+                        <Select
+                            value={filterProjectId}
+                            onValueChange={setFilterProjectId}
+                        >
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Projeto" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Todos os projetos</SelectItem>
+                                <SelectItem value="__none__">Global (sem projeto)</SelectItem>
+                                {projects.map((p) => (
+                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                 </div>
 
-                {/* New button */}
-                <Button onClick={openCreate}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Novo Centro
-                </Button>
+                {/* Export + New button */}
+                <div className="flex items-center gap-2">
+                    <ExportButton
+                        data={mapCostCentersForExport(filtered)}
+                        columns={exportColumns}
+                        filename="centros_de_custo"
+                        title="Centros de Custo"
+                        sheetName="Centros de Custo"
+                        size="sm"
+                    />
+                    <Button onClick={openCreate}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Novo Centro
+                    </Button>
+                </div>
             </div>
 
             {/* Dialog */}

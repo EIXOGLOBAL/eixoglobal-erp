@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'timesheet' })
 
 // ============================================================================
 // SCHEMAS
@@ -85,7 +88,7 @@ export async function clockIn(data: z.infer<typeof clockInSchema>) {
     revalidatePath('/timesheet')
     return { success: true, data: timeEntry }
   } catch (error) {
-    console.error("Erro ao fazer clock-in:", error)
+    log.error({ err: error }, "Erro ao fazer clock-in")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao fazer clock-in",
@@ -137,7 +140,7 @@ export async function clockOut(timeEntryId: string) {
     revalidatePath('/timesheet')
     return { success: true, data: updated }
   } catch (error) {
-    console.error("Erro ao fazer clock-out:", error)
+    log.error({ err: error }, "Erro ao fazer clock-out")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao fazer clock-out",
@@ -204,7 +207,7 @@ export async function getTimeEntries(
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar pontos:", error)
+    log.error({ err: error }, "Erro ao buscar pontos")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar pontos",
@@ -267,7 +270,7 @@ export async function getMyTimeEntries(
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar meus pontos:", error)
+    log.error({ err: error }, "Erro ao buscar meus pontos")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar meus pontos",
@@ -316,7 +319,7 @@ export async function approveTimeEntry(
     revalidatePath('/timesheet')
     return { success: true, data: updated }
   } catch (error) {
-    console.error("Erro ao aprovar ponto:", error)
+    log.error({ err: error }, "Erro ao aprovar ponto")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao aprovar ponto",
@@ -362,7 +365,7 @@ export async function rejectTimeEntry(
     revalidatePath('/timesheet')
     return { success: true, data: updated }
   } catch (error) {
-    console.error("Erro ao rejeitar ponto:", error)
+    log.error({ err: error }, "Erro ao rejeitar ponto")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao rejeitar ponto",
@@ -392,7 +395,7 @@ export async function bulkApproveTimeEntries(ids: string[]) {
       data: { count: updated.count },
     }
   } catch (error) {
-    console.error("Erro ao aprovar pontos em lote:", error)
+    log.error({ err: error }, "Erro ao aprovar pontos em lote")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao aprovar pontos em lote",
@@ -466,7 +469,7 @@ export async function getTimesheetSummary(
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar resumo da folha de ponto:", error)
+    log.error({ err: error }, "Erro ao buscar resumo da folha de ponto")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar resumo",
@@ -536,7 +539,7 @@ export async function getDailyPresence(
       },
     }
   } catch (error) {
-    console.error("Erro ao buscar presença diária:", error)
+    log.error({ err: error }, "Erro ao buscar presença diária")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao buscar presença",

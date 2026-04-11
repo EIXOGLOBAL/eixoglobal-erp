@@ -2,8 +2,36 @@ import { prisma } from '@/lib/prisma'
 import { notifyUsers } from '@/lib/sse-notifications'
 import { toNumber } from '@/lib/formatters'
 import { whatsappService } from '@/lib/whatsapp'
+import { sendBulkNotificationEmails } from '@/lib/email-sender'
 
 const ONE_HOUR = 60 * 60 * 1000
+
+/**
+ * Helper: cria notificacoes no DB, notifica via SSE e dispara emails em background.
+ * Centraliza a logica para evitar duplicacao em cada check.
+ */
+async function createAndNotify(
+  userIds: string[],
+  companyId: string,
+  notifData: { type: string; title: string; message: string; link: string }
+) {
+  const records = await prisma.notification.createManyAndReturn({
+    data: userIds.map(userId => ({
+      userId,
+      companyId,
+      ...notifData,
+    })),
+  })
+
+  // SSE: notificacao em tempo real
+  notifyUsers(userIds, notifData)
+
+  // Email: envio em background (nao bloqueia o scheduler)
+  const notificationIds = records.map(r => r.id)
+  sendBulkNotificationEmails(userIds, notifData, notificationIds).catch(err => {
+    console.error('[Scheduler] Erro ao enviar emails em background:', err)
+  })
+}
 
 // Anti-duplicate: check if a notification with same type+link was already sent today
 async function alreadyNotifiedToday(companyId: string, type: string, link: string): Promise<boolean> {
@@ -61,14 +89,7 @@ async function notifyAdminsOnly(companyId: string, type: string, title: string, 
 
   const notifData = { type, title, message, link }
 
-  await prisma.notification.createMany({
-    data: adminIds.map(userId => ({
-      userId,
-      companyId,
-      ...notifData,
-    })),
-  })
-  notifyUsers(adminIds, notifData)
+  await createAndNotify(adminIds, companyId, notifData)
 
   // Send WhatsApp for critical alerts
   if (critical) {
@@ -137,14 +158,7 @@ async function checkExpiringContracts() {
         link,
       }
 
-      await prisma.notification.createMany({
-        data: userIds.map(userId => ({
-          userId,
-          companyId: contract.companyId,
-          ...notifData,
-        })),
-      })
-      notifyUsers(userIds, notifData)
+      await createAndNotify(userIds, contract.companyId, notifData)
     }
   } catch (error) {
     console.error('[Scheduler] Erro ao verificar contratos:', error)
@@ -180,14 +194,7 @@ async function checkLowStockMaterials() {
         link,
       }
 
-      await prisma.notification.createMany({
-        data: userIds.map(userId => ({
-          userId,
-          companyId: mat.companyId,
-          ...notifData,
-        })),
-      })
-      notifyUsers(userIds, notifData)
+      await createAndNotify(userIds, mat.companyId, notifData)
     }
   } catch (error) {
     console.error('[Scheduler] Erro ao verificar estoque:', error)
@@ -258,14 +265,7 @@ async function checkOverdueMaintenances() {
         link,
       }
 
-      await prisma.notification.createMany({
-        data: userIds.map(userId => ({
-          userId,
-          companyId: m.equipment.companyId,
-          ...notifData,
-        })),
-      })
-      notifyUsers(userIds, notifData)
+      await createAndNotify(userIds, m.equipment.companyId, notifData)
     }
   } catch (error) {
     console.error('[Scheduler] Erro ao verificar manutenções:', error)
@@ -337,14 +337,7 @@ async function checkExpiringSupplierDocuments() {
         link: `/fornecedores/${doc.supplier.id}`,
       }
 
-      await prisma.notification.createMany({
-        data: userIds.map(userId => ({
-          userId,
-          companyId: doc.supplier.companyId,
-          ...notifData,
-        })),
-      })
-      notifyUsers(userIds, notifData)
+      await createAndNotify(userIds, doc.supplier.companyId, notifData)
     }
   } catch (error) {
     console.error('[Scheduler] Erro ao verificar documentos de fornecedores:', error)
@@ -399,14 +392,7 @@ async function checkCostCenterBudgetOverruns() {
           link,
         }
 
-        await prisma.notification.createMany({
-          data: userIds.map(userId => ({
-            userId,
-            companyId: budget.costCenter.companyId,
-            ...notifData,
-          })),
-        })
-        notifyUsers(userIds, notifData)
+        await createAndNotify(userIds, budget.costCenter.companyId, notifData)
       }
     }
   } catch (error) {

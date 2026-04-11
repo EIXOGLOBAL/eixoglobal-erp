@@ -187,7 +187,7 @@ export default async function PurchaseOrderDetailPage({ params }: PageProps) {
             <Tabs defaultValue="items">
                 <TabsList>
                     <TabsTrigger value="items">Itens ({order.items.length})</TabsTrigger>
-                    <TabsTrigger value="info">Informacoes</TabsTrigger>
+                    <TabsTrigger value="info">Informações</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="items" className="mt-4">

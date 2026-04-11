@@ -31,7 +31,9 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { useState, useMemo } from "react"
-import { ExportExcelButton } from "@/components/ui/export-excel-button"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
+import { formatCurrency, formatDate } from "@/lib/export-utils"
 
 const STATUS_COLORS: Record<string, string> = {
     ACTIVE: 'bg-green-100 text-green-800',
@@ -49,6 +51,26 @@ const STATUS_LABELS: Record<string, string> = {
 
 interface EmployeesTableProps {
     employees: any[]
+}
+
+const exportColumns: ExportColumn[] = [
+    { key: 'matricula', label: 'Matrícula' },
+    { key: 'name', label: 'Nome' },
+    { key: 'jobTitle', label: 'Cargo' },
+    { key: 'document', label: 'Documento' },
+    { key: 'skills', label: 'Habilidades', format: (v) => {
+        try { return JSON.parse(String(v || '[]')).join(', ') } catch { return '' }
+    }},
+    { key: 'costPerHour', label: 'Custo/Hora', format: (v) => formatCurrency(v as number) },
+    { key: 'status', label: 'Status', format: (v) => STATUS_LABELS[v as string] || String(v) },
+    { key: '_allocations', label: 'Alocações' },
+]
+
+function mapEmployeesForExport(list: any[]): Record<string, unknown>[] {
+    return list.map(e => ({
+        ...e,
+        _allocations: e._count?.allocations || 0,
+    }))
 }
 
 export function EmployeesTable({ employees }: EmployeesTableProps) {
@@ -114,6 +136,14 @@ export function EmployeesTable({ employees }: EmployeesTableProps) {
                 <span className="text-sm text-muted-foreground self-center">
                     {filtered.length} funcionário(s)
                 </span>
+                <ExportButton
+                    data={mapEmployeesForExport(filtered)}
+                    columns={exportColumns}
+                    filename="funcionarios"
+                    title="Lista de Funcionários"
+                    sheetName="Funcionários"
+                    size="sm"
+                />
             </div>
 
         <Table>

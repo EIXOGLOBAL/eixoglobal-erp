@@ -4,6 +4,9 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'schedule' })
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -34,6 +37,11 @@ export async function createTask(data: TaskInput) {
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot create schedule tasks
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para criar tarefa no cronograma" }
+        }
 
         // Verify project belongs to user's company
         const project = await prisma.project.findUnique({
@@ -66,7 +74,7 @@ export async function createTask(data: TaskInput) {
         revalidatePath("/cronograma")
         return { success: true, data: task }
     } catch (error) {
-        console.error("Erro ao criar tarefa:", error)
+        log.error({ err: error }, "Erro ao criar tarefa")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar tarefa",
@@ -124,7 +132,7 @@ export async function updateTask(id: string, data: TaskInput) {
         revalidatePath("/cronograma")
         return { success: true, data: task }
     } catch (error) {
-        console.error("Erro ao atualizar tarefa:", error)
+        log.error({ err: error }, "Erro ao atualizar tarefa")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao atualizar tarefa",
@@ -140,6 +148,11 @@ export async function deleteTask(id: string) {
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check delete permission
+        if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+            return { success: false, error: "Sem permissão para excluir tarefa" }
+        }
 
         // Verify task's project belongs to user's company
         const task = await prisma.projectTask.findUnique({
@@ -166,7 +179,7 @@ export async function deleteTask(id: string) {
         revalidatePath("/cronograma")
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar tarefa:", error)
+        log.error({ err: error }, "Erro ao deletar tarefa")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao deletar tarefa",
@@ -203,7 +216,7 @@ export async function getTasks(projectId: string) {
         })
         return tasks
     } catch (error) {
-        console.error("Erro ao buscar tarefas:", error)
+        log.error({ err: error }, "Erro ao buscar tarefas")
         return []
     }
 }
@@ -238,7 +251,7 @@ export async function getTasksByCompany(companyId: string) {
         })
         return tasks
     } catch (error) {
-        console.error("Erro ao buscar tarefas da empresa:", error)
+        log.error({ err: error }, "Erro ao buscar tarefas da empresa")
         return []
     }
 }
@@ -283,7 +296,7 @@ export async function updateTaskProgress(id: string, percentDone: number) {
         revalidatePath("/cronograma")
         return { success: true, data: task }
     } catch (error) {
-        console.error("Erro ao atualizar progresso:", error)
+        log.error({ err: error }, "Erro ao atualizar progresso")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao atualizar progresso",
@@ -315,7 +328,7 @@ export async function getTaskById(id: string) {
 
         return { success: true, data: task }
     } catch (error) {
-        console.error("Erro ao buscar tarefa:", error)
+        log.error({ err: error }, "Erro ao buscar tarefa")
         return { success: false, error: "Erro ao buscar tarefa" }
     }
 }

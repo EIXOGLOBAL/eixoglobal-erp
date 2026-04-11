@@ -1,11 +1,18 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
 import { CheckCircle2, Loader2 } from "lucide-react"
 import { markAsPaid } from "@/app/actions/financial-actions"
 import { useToast } from "@/hooks/use-toast"
 import { formatDate } from "@/lib/formatters"
+import { DateRangeFilter, type DateRange } from "@/components/ui/date-range-filter"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
+import { formatCurrency as fmtCurrencyExport, formatDate as fmtDateExport } from "@/lib/export-utils"
 
 interface ExpenseRecord {
     id: string
@@ -32,10 +39,60 @@ const statusColor: Record<string, string> = {
 const fmt = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
+const despesasExportColumns: ExportColumn[] = [
+    { key: 'description', label: 'Descricao' },
+    { key: 'category', label: 'Categoria' },
+    { key: 'costCenterName', label: 'Centro de Custo' },
+    { key: 'amount', label: 'Valor (R$)', format: (v) => fmtCurrencyExport(v as number) },
+    { key: 'dueDate', label: 'Vencimento', format: (v) => v ? fmtDateExport(v as string) : '' },
+    { key: 'statusName', label: 'Status' },
+]
+
+function mapDespesasForExport(list: ExpenseRecord[]): Record<string, unknown>[] {
+    return list.map(r => ({
+        ...r,
+        costCenterName: r.costCenter ? `${r.costCenter.code} - ${r.costCenter.name}` : '',
+        statusName: statusLabel[r.status] || r.status,
+    }))
+}
+
 export function DespesasTable({ records }: { records: ExpenseRecord[] }) {
     const { toast } = useToast()
     const [loadingId, setLoadingId] = useState<string | null>(null)
     const now = new Date()
+
+    // Advanced filters
+    const [dateRange, setDateRange] = useState<DateRange>({ from: '', to: '' })
+    const [filterCategory, setFilterCategory] = useState('ALL')
+    const [filterStatus, setFilterStatus] = useState('ALL')
+
+    const uniqueCategories = useMemo(() => {
+        const cats = new Set<string>()
+        records.forEach(r => { if (r.category) cats.add(r.category) })
+        return Array.from(cats).sort()
+    }, [records])
+
+    const filtered = useMemo(() => {
+        return records.filter(r => {
+            // Date range filter
+            if (dateRange.from) {
+                const dueDate = new Date(r.dueDate).toISOString().split('T')[0]
+                if (dueDate < dateRange.from) return false
+            }
+            if (dateRange.to) {
+                const dueDate = new Date(r.dueDate).toISOString().split('T')[0]
+                if (dueDate > dateRange.to) return false
+            }
+            // Category filter
+            if (filterCategory !== 'ALL') {
+                if (filterCategory === '__none__' && r.category !== null) return false
+                if (filterCategory !== '__none__' && r.category !== filterCategory) return false
+            }
+            // Status filter
+            if (filterStatus !== 'ALL' && r.status !== filterStatus) return false
+            return true
+        })
+    }, [records, dateRange, filterCategory, filterStatus])
 
     async function handleMarkAsPaid(id: string, description: string) {
         setLoadingId(id)
@@ -62,7 +119,59 @@ export function DespesasTable({ records }: { records: ExpenseRecord[] }) {
     }
 
     return (
-        <div className="overflow-x-auto">
+        <div className="space-y-3">
+            {/* Advanced Filters */}
+            <div className="flex flex-wrap items-end gap-3 p-3 border rounded-md bg-muted/10">
+                <DateRangeFilter value={dateRange} onChange={setDateRange} />
+
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-muted-foreground">Categoria</label>
+                    <Select value={filterCategory} onValueChange={setFilterCategory}>
+                        <SelectTrigger className="h-9 w-[160px] text-sm">
+                            <SelectValue placeholder="Todas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Todas</SelectItem>
+                            <SelectItem value="__none__">Sem categoria</SelectItem>
+                            {uniqueCategories.map(c => (
+                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-muted-foreground">Status</label>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="h-9 w-[140px] text-sm">
+                            <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Todos</SelectItem>
+                            <SelectItem value="PENDING">Pendente</SelectItem>
+                            <SelectItem value="PAID">Pago</SelectItem>
+                            <SelectItem value="SCHEDULED">Agendado</SelectItem>
+                            <SelectItem value="CANCELLED">Cancelado</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <span className="text-xs text-muted-foreground ml-auto self-end pb-2">
+                    {filtered.length} de {records.length} registro{records.length !== 1 ? 's' : ''}
+                </span>
+            </div>
+
+            <div className="flex justify-end">
+                <ExportButton
+                    data={mapDespesasForExport(filtered)}
+                    columns={despesasExportColumns}
+                    filename="despesas"
+                    title="Despesas"
+                    sheetName="Despesas"
+                    size="sm"
+                />
+            </div>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
                 <thead>
                     <tr className="border-b text-muted-foreground">
@@ -76,7 +185,7 @@ export function DespesasTable({ records }: { records: ExpenseRecord[] }) {
                     </tr>
                 </thead>
                 <tbody>
-                    {records.map(r => {
+                    {filtered.map(r => {
                         const isOverdue = (r.status === 'PENDING' || r.status === 'SCHEDULED') &&
                             new Date(r.dueDate) < now
                         const isPending = r.status === 'PENDING' || r.status === 'SCHEDULED'
@@ -128,6 +237,7 @@ export function DespesasTable({ records }: { records: ExpenseRecord[] }) {
                     })}
                 </tbody>
             </table>
+        </div>
         </div>
     )
 }

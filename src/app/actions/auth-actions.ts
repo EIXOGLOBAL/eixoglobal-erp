@@ -10,6 +10,9 @@ import { loginRateLimiter } from "@/lib/rate-limit"
 import { BCRYPT_ROUNDS, validatePassword } from "@/lib/password-policy"
 import { logAudit } from "@/lib/audit-logger"
 import { getClientIP } from "@/lib/get-client-ip"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'auth' })
 
 const loginSchema = z.object({
     username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres"),
@@ -118,7 +121,7 @@ export async function login(prevState: LoginState, formData: FormData): Promise<
         return { success: true }
     } catch (error) {
         const message = error instanceof Error ? error.message : "Erro desconhecido"
-        console.error("[login] error:", error)
+        log.error({ err: error }, "[login] error")
         return { message: `Erro no login: ${message}` }
     }
 }
@@ -192,7 +195,7 @@ export async function devLogin(): Promise<{ success: boolean; error?: string }> 
 
         return { success: true }
     } catch (error) {
-        console.error("[devLogin]", error)
+        log.error({ err: error }, "[devLogin]")
         return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }
     }
 }

@@ -2,6 +2,9 @@
 
 import { prisma } from '@/lib/prisma'
 import { assertAuthenticated } from '@/lib/auth-helpers'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'evm' })
 
 // ============================================================================
 // Types
@@ -205,7 +208,7 @@ export async function getProjectEVMData(projectId: string): Promise<EVMProjectDa
       ...metrics,
     }
   } catch (error) {
-    console.error('Error getting EVM data for project:', error)
+    log.error({ err: error }, 'Error getting EVM data for project')
     return null
   }
 }
@@ -284,7 +287,7 @@ export async function getAllProjectsEVMData(_companyId?: string): Promise<EVMPro
       }
     })
   } catch (error) {
-    console.error('Error getting EVM data for all projects:', error)
+    log.error({ err: error }, 'Error getting EVM data for all projects')
     return []
   }
 }
@@ -323,7 +326,7 @@ export async function getPortfolioEVMSummary(_companyId?: string): Promise<EVMPo
       healthStatus,
     }
   } catch (error) {
-    console.error('Error getting portfolio EVM summary:', error)
+    log.error({ err: error }, 'Error getting portfolio EVM summary')
     return null
   }
 }
@@ -401,7 +404,7 @@ export async function getProjectSCurveData(projectId: string): Promise<MonthlySC
 
     return months
   } catch (error) {
-    console.error('Error getting S-Curve data:', error)
+    log.error({ err: error }, 'Error getting S-Curve data')
     return []
   }
 }
@@ -452,7 +455,7 @@ export async function getMonthlyComparison(
 
     return data
   } catch (error) {
-    console.error('Error getting monthly comparison:', error)
+    log.error({ err: error }, 'Error getting monthly comparison')
     return []
   }
 }

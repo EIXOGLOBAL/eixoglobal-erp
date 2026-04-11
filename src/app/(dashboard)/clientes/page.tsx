@@ -17,6 +17,9 @@ export default async function ClientesPage() {
   const companyId = session.user?.companyId
   if (!companyId) redirect('/login')
 
+  const userRole = session.user?.role as string
+  const canWrite = userRole !== 'USER'
+
   const clientsResult = await getClients({ companyId })
   const clients = clientsResult.success ? (clientsResult.data ?? []) : []
 
@@ -53,11 +56,13 @@ export default async function ClientesPage() {
             Gerencie os clientes que contratam a Eixo Global
           </p>
         </div>
-        <CreateShortcut label="Novo Cliente">
-          {({ open, onOpenChange }) => (
-            <ClientDialog companyId={companyId} open={open} onOpenChange={onOpenChange} />
-          )}
-        </CreateShortcut>
+        {canWrite && (
+          <CreateShortcut label="Novo Cliente">
+            {({ open, onOpenChange }) => (
+              <ClientDialog companyId={companyId} open={open} onOpenChange={onOpenChange} />
+            )}
+          </CreateShortcut>
+        )}
       </div>
 
       {/* KPI Cards */}

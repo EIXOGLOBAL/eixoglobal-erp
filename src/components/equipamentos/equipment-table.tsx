@@ -35,7 +35,19 @@ import { updateEquipmentStatus } from "@/app/actions/equipment-actions"
 import { useToast } from "@/hooks/use-toast"
 import { EquipmentDialog } from "./equipment-dialog"
 import { EquipmentIcon } from "@/lib/equipment-icons"
-import { ExportExcelButton } from "@/components/ui/export-excel-button"
+import { ExportButton } from "@/components/ui/export-button"
+import type { ExportColumn } from "@/lib/export-utils"
+
+const equipmentExportColumns: ExportColumn[] = [
+    { key: 'code', label: 'Codigo' },
+    { key: 'name', label: 'Nome' },
+    { key: 'typePtBr', label: 'Tipo' },
+    { key: 'brandModel', label: 'Marca / Modelo' },
+    { key: 'statusPtBr', label: 'Status' },
+    { key: 'costPerHourFmt', label: 'Custo/h', format: (v) => String(v ?? '') },
+    { key: 'costPerDayFmt', label: 'Custo/dia', format: (v) => String(v ?? '') },
+    { key: 'possePtBr', label: 'Posse' },
+]
 
 export const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
     VEHICLE: "Veículo",
@@ -148,6 +160,27 @@ export function EquipmentTable({ equipment, companyId }: EquipmentTableProps) {
                         Limpar filtros
                     </Button>
                 )}
+
+                <ExportButton
+                    data={filtered.map(eq => ({
+                        ...eq,
+                        typePtBr: EQUIPMENT_TYPE_LABELS[eq.type] ?? eq.type,
+                        brandModel: [eq.brand, eq.model].filter(Boolean).join(' / ') || '',
+                        statusPtBr: EQUIPMENT_STATUS_LABELS[eq.status] ?? eq.status,
+                        costPerHourFmt: eq.costPerHour != null
+                            ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(eq.costPerHour)
+                            : '',
+                        costPerDayFmt: eq.costPerDay != null
+                            ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(eq.costPerDay)
+                            : '',
+                        possePtBr: eq.isOwned ? 'Proprio' : 'Locado',
+                    }))}
+                    columns={equipmentExportColumns}
+                    filename="equipamentos"
+                    title="Equipamentos"
+                    sheetName="Equipamentos"
+                    size="sm"
+                />
             </div>
 
             {/* Table */}

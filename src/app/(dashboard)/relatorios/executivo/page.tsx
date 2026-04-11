@@ -187,7 +187,7 @@ export default async function RelatorioExecutivoPage() {
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground uppercase">Alocacoes Ativas</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground uppercase">Alocações Ativas</CardTitle></CardHeader>
                         <CardContent><div className="text-3xl font-bold">{activeAllocations}</div></CardContent>
                     </Card>
                     <Card>
@@ -228,7 +228,7 @@ export default async function RelatorioExecutivoPage() {
                         </CardContent>
                     </Card>
                     <Card className={equipmentInMaintenance > 0 ? "border-orange-200 bg-orange-50" : ""}>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Equipamentos em Manutencao</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Equipamentos em Manutenção</CardTitle></CardHeader>
                         <CardContent>
                             <div className={equipmentInMaintenance > 0 ? "text-3xl font-bold text-orange-600" : "text-3xl font-bold text-green-600"}>{equipmentInMaintenance}</div>
                         </CardContent>

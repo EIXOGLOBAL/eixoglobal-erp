@@ -65,6 +65,12 @@ export function assertCanDelete(user: SessionUser) {
   if (!perms.canDelete) throw new Error('Você não tem permissão para excluir registros')
 }
 
+export function assertNotViewer(user: SessionUser) {
+  if (!user.role || user.role === 'VIEWER') {
+    throw new Error('Sem permissão para realizar esta ação')
+  }
+}
+
 // ============================================================================
 // Permissões de IA
 // ============================================================================

@@ -81,7 +81,7 @@ export function Header({ user, modulePermissions = {} }: HeaderProps) {
                             <DropdownMenuItem asChild>
                                 <Link href="/configuracoes" className="cursor-pointer flex items-center">
                                     <Settings className="mr-2 h-4 w-4" />
-                                    Configuracoes
+                                    Configurações
                                 </Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />

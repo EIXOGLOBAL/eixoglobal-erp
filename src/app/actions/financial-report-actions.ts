@@ -14,6 +14,9 @@ import type {
   CostCenterReport,
   FinancialKPIs,
 } from '@/lib/financial-reports'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'financial-report' })
 
 // ============================================================================
 // CONSOLIDATED REPORTS
@@ -293,7 +296,7 @@ export async function getConsolidatedReports(): Promise<{
       },
     }
   } catch (error) {
-    console.error('Erro ao gerar relatorio consolidado:', error)
+    log.error({ err: error }, 'Erro ao gerar relatorio consolidado')
     return {
       success: false,
       error:
@@ -314,7 +317,7 @@ export async function getDREReport(
     const data = await generateDRE(session.user.companyId, year, month)
     return { success: true, data }
   } catch (error) {
-    console.error('Erro ao gerar DRE:', error)
+    log.error({ err: error }, 'Erro ao gerar DRE')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao gerar DRE',
@@ -333,7 +336,7 @@ export async function getCashflowProjectionData(
     const data = await generateCashflowProjection(session.user.companyId, months)
     return { success: true, data }
   } catch (error) {
-    console.error('Erro ao gerar projeção de fluxo de caixa:', error)
+    log.error({ err: error }, 'Erro ao gerar projeção de fluxo de caixa')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao gerar projeção',
@@ -352,7 +355,7 @@ export async function getCostCenterReportData(
     const data = await generateCostCenterReport(session.user.companyId, year)
     return { success: true, data }
   } catch (error) {
-    console.error('Erro ao gerar relatório de centros de custo:', error)
+    log.error({ err: error }, 'Erro ao gerar relatório de centros de custo')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao gerar relatório',
@@ -373,7 +376,7 @@ export async function getFinancialKPIsData(): Promise<{
     const data = await getFinancialKPIs(session.user.companyId)
     return { success: true, data }
   } catch (error) {
-    console.error('Erro ao obter KPIs financeiros:', error)
+    log.error({ err: error }, 'Erro ao obter KPIs financeiros')
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao obter KPIs',

@@ -5,9 +5,13 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { getSession } from "@/lib/auth"
 import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
+import { assertCanDelete } from "@/lib/permissions"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'contract' })
 
 // ========================================
 // SCHEMAS ZOD
@@ -82,6 +86,14 @@ const adjustmentSchema = z.object({
 
 export async function createContract(data: z.infer<typeof contractSchema>, companyId: string) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+    // Check write permission - USER role cannot create contracts
+    if (session.user.role === 'USER') {
+      return { success: false, error: "Sem permissão para criar contrato" }
+    }
+
     const validated = contractSchema.parse(data)
 
     const contract = await prisma.contract.create({
@@ -122,13 +134,21 @@ export async function createContract(data: z.infer<typeof contractSchema>, compa
     revalidatePath('/contratos')
     return { success: true, data: contract }
   } catch (error: any) {
-    console.error("Error creating contract:", error)
+    log.error({ err: error }, "Error creating contract")
     return { success: false, error: error.message || "Erro ao criar contrato" }
   }
 }
 
 export async function updateContract(id: string, data: z.infer<typeof contractSchema>) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+    // Check write permission - USER role cannot update contracts
+    if (session.user.role === 'USER') {
+      return { success: false, error: "Sem permissão para editar contrato" }
+    }
+
     const validated = contractSchema.parse(data)
 
     const oldData = await prisma.contract.findUnique({ where: { id } })
@@ -172,13 +192,21 @@ export async function updateContract(id: string, data: z.infer<typeof contractSc
     revalidatePath(`/contratos/${id}`)
     return { success: true, data: contract }
   } catch (error: any) {
-    console.error("Error updating contract:", error)
+    log.error({ err: error }, "Error updating contract")
     return { success: false, error: error.message || "Erro ao atualizar contrato" }
   }
 }
 
 export async function deleteContract(id: string) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+    // Check delete permission
+    if (session.user.role !== "ADMIN" && !session.user.canDelete) {
+      return { success: false, error: "Sem permissão para excluir contrato" }
+    }
+
     // Verificar se o contrato é DRAFT
     const contract = await prisma.contract.findUnique({
       where: { id },
@@ -213,7 +241,7 @@ export async function deleteContract(id: string) {
     revalidatePath('/contratos')
     return { success: true }
   } catch (error: any) {
-    console.error("Error deleting contract:", error)
+    log.error({ err: error }, "Error deleting contract")
     return { success: false, error: error.message || "Erro ao excluir contrato" }
   }
 }
@@ -270,7 +298,7 @@ export async function getContracts(params?: {
 
     return { success: true, data: serialized, pagination: paginatedResponse(serialized, total, page, pageSize).pagination }
   } catch (error: any) {
-    console.error("Error fetching contracts:", error)
+    log.error({ err: error }, "Error fetching contracts")
     return { success: false, error: error.message || "Erro ao buscar contratos", data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
   }
 }
@@ -365,7 +393,7 @@ export async function getContractById(id: string) {
 
     return { success: true, data: serialized }
   } catch (error: any) {
-    console.error("Error fetching contract:", error)
+    log.error({ err: error }, "Error fetching contract")
     return { success: false, error: error.message || "Erro ao buscar contrato" }
   }
 }
@@ -396,7 +424,7 @@ export async function addContractItem(contractId: string, data: z.infer<typeof c
     revalidatePath(`/contratos/${contractId}`)
     return { success: true, data: item }
   } catch (error: any) {
-    console.error("Error adding contract item:", error)
+    log.error({ err: error }, "Error adding contract item")
     return { success: false, error: error.message || "Erro ao adicionar item" }
   }
 }
@@ -426,7 +454,7 @@ export async function updateContractItem(itemId: string, data: z.infer<typeof co
     revalidatePath(`/contratos/${item.contractId}`)
     return { success: true, data: item }
   } catch (error: any) {
-    console.error("Error updating contract item:", error)
+    log.error({ err: error }, "Error updating contract item")
     return { success: false, error: error.message || "Erro ao atualizar item" }
   }
 }
@@ -465,7 +493,7 @@ export async function deleteContractItem(itemId: string) {
     revalidatePath(`/contratos/${contractId}`)
     return { success: true }
   } catch (error: any) {
-    console.error("Error deleting contract item:", error)
+    log.error({ err: error }, "Error deleting contract item")
     return { success: false, error: error.message || "Erro ao excluir item" }
   }
 }
@@ -550,7 +578,7 @@ export async function createAmendment(contractId: string, data: z.infer<typeof a
           }
         }
       } catch (budgetError) {
-        console.error("Error syncing budget after amendment:", budgetError)
+        log.error({ err: budgetError }, "Error syncing budget after amendment")
         // Falha na sincronização do orçamento não reverte o aditivo
       }
     }
@@ -558,7 +586,7 @@ export async function createAmendment(contractId: string, data: z.infer<typeof a
     revalidatePath(`/contratos/${contractId}`)
     return { success: true, data: amendment }
   } catch (error: any) {
-    console.error("Error creating amendment:", error)
+    log.error({ err: error }, "Error creating amendment")
     return { success: false, error: error.message || "Erro ao criar aditivo" }
   }
 }
@@ -655,7 +683,7 @@ export async function createAdjustment(contractId: string, data: z.infer<typeof 
     revalidatePath(`/contratos/${contractId}`)
     return { success: true, data: adjustment }
   } catch (error: any) {
-    console.error("Error creating adjustment:", error)
+    log.error({ err: error }, "Error creating adjustment")
     return { success: false, error: error.message || "Erro ao criar reajuste" }
   }
 }
@@ -749,7 +777,7 @@ export async function getContractFinancialSummary(
       },
     }
   } catch (error: any) {
-    console.error('Error fetching contract financial summary:', error)
+    log.error({ err: error }, 'Error fetching contract financial summary')
     return { success: false, error: error.message || 'Erro ao buscar resumo financeiro' }
   }
 }
@@ -773,7 +801,7 @@ async function recalculateContractValue(contractId: string) {
       data: { value: totalValue }
     })
   } catch (error) {
-    console.error("Error recalculating contract value:", error)
+    log.error({ err: error }, "Error recalculating contract value")
   }
 }
 
@@ -803,7 +831,7 @@ export async function getContractItems(projectId: string) {
 
     return { success: true, data: items }
   } catch (error) {
-    console.error("Error fetching contract items:", error)
+    log.error({ err: error }, "Error fetching contract items")
     return { success: false, error: "Failed to fetch contract items" }
   }
 }

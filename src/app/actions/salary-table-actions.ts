@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { getSession } from "@/lib/auth"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'salary-table' })
 
 // ============================================================================
 // SCHEMAS
@@ -44,7 +47,7 @@ export async function getSalaryTables(companyId: string) {
     })
     return tables
   } catch (error) {
-    console.error("Erro ao buscar tabelas salariais:", error)
+    log.error({ err: error }, "Erro ao buscar tabelas salariais")
     return []
   }
 }
@@ -74,7 +77,7 @@ export async function createSalaryTable(data: z.infer<typeof salaryTableSchema>)
     revalidatePath('/rh/tabela-salarial')
     return { success: true, data: table }
   } catch (error) {
-    console.error("Erro ao criar tabela salarial:", error)
+    log.error({ err: error }, "Erro ao criar tabela salarial")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao criar tabela salarial",
@@ -111,7 +114,7 @@ export async function updateSalaryTable(id: string, data: z.infer<typeof salaryT
     revalidatePath('/rh/tabela-salarial')
     return { success: true, data: updated }
   } catch (error) {
-    console.error("Erro ao atualizar tabela salarial:", error)
+    log.error({ err: error }, "Erro ao atualizar tabela salarial")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao atualizar tabela salarial",
@@ -142,7 +145,7 @@ export async function deleteSalaryTable(id: string) {
     revalidatePath('/rh/tabela-salarial')
     return { success: true }
   } catch (error) {
-    console.error("Erro ao deletar tabela salarial:", error)
+    log.error({ err: error }, "Erro ao deletar tabela salarial")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao deletar tabela salarial",
@@ -197,7 +200,7 @@ export async function createSalaryGrade(data: z.infer<typeof salaryGradeSchema>)
     revalidatePath('/rh/tabela-salarial')
     return { success: true, data: grade }
   } catch (error) {
-    console.error("Erro ao criar grade salarial:", error)
+    log.error({ err: error }, "Erro ao criar grade salarial")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao criar grade salarial",
@@ -252,7 +255,7 @@ export async function updateSalaryGrade(id: string, data: z.infer<typeof salaryG
     revalidatePath('/rh/tabela-salarial')
     return { success: true, data: grade }
   } catch (error) {
-    console.error("Erro ao atualizar grade salarial:", error)
+    log.error({ err: error }, "Erro ao atualizar grade salarial")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao atualizar grade salarial",
@@ -283,7 +286,7 @@ export async function deleteSalaryGrade(id: string) {
     revalidatePath('/rh/tabela-salarial')
     return { success: true }
   } catch (error) {
-    console.error("Erro ao deletar grade salarial:", error)
+    log.error({ err: error }, "Erro ao deletar grade salarial")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao deletar grade salarial",

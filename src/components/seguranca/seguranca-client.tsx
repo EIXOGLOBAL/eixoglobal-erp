@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,6 +9,13 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatDate } from '@/lib/formatters'
 import {
@@ -86,6 +93,30 @@ export function SegurancaClient({
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false)
   const [selectedInspection, setSelectedInspection] = useState<Inspection | null>(null)
 
+  // Filters
+  const [filterIncType, setFilterIncType] = useState<string>('ALL')
+  const [filterIncSeverity, setFilterIncSeverity] = useState<string>('ALL')
+  const [filterIncProject, setFilterIncProject] = useState<string>('ALL')
+  const [filterIncStatus, setFilterIncStatus] = useState<string>('ALL')
+
+  const filteredIncidents = useMemo(() => {
+    return incidents.filter(inc => {
+      if (filterIncType !== 'ALL' && inc.type !== filterIncType) return false
+      if (filterIncSeverity !== 'ALL' && inc.severity !== filterIncSeverity) return false
+      if (filterIncProject !== 'ALL' && inc.project?.name !== filterIncProject) return false
+      if (filterIncStatus !== 'ALL' && inc.status !== filterIncStatus) return false
+      return true
+    })
+  }, [incidents, filterIncType, filterIncSeverity, filterIncProject, filterIncStatus])
+
+  const incidentProjectNames = useMemo(() => {
+    const names = new Set<string>()
+    incidents.forEach(inc => { if (inc.project?.name) names.add(inc.project.name) })
+    return Array.from(names).sort()
+  }, [incidents])
+
+  const activeIncFilters = [filterIncType !== 'ALL', filterIncSeverity !== 'ALL', filterIncProject !== 'ALL', filterIncStatus !== 'ALL'].filter(Boolean).length
+
   function handleCloseIncident(incident: Incident) {
     setSelectedIncident(incident)
     setCloseDialogOpen(true)
@@ -109,7 +140,7 @@ export function SegurancaClient({
             <EmptyState
               icon={Shield}
               title="Nenhum dado registrado"
-              description="Comece a registrar informacoes de seguranca do trabalho, acidentes e inspecoes."
+              description="Comece a registrar informações de segurança do trabalho, acidentes e inspeções."
             />
           </CardContent>
         </Card>
@@ -124,6 +155,74 @@ export function SegurancaClient({
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {/* Incident Filters */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <Select value={filterIncType} onValueChange={setFilterIncType}>
+                    <SelectTrigger className="w-[170px] h-9">
+                      <SelectValue placeholder="Tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">Todos os tipos</SelectItem>
+                      {Object.entries(INCIDENT_TYPE_MAP).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filterIncSeverity} onValueChange={setFilterIncSeverity}>
+                    <SelectTrigger className="w-[150px] h-9">
+                      <SelectValue placeholder="Severidade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">Todas</SelectItem>
+                      {Object.entries(SEVERITY_MAP).map(([value, info]) => (
+                        <SelectItem key={value} value={value}>{info.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filterIncProject} onValueChange={setFilterIncProject}>
+                    <SelectTrigger className="w-[170px] h-9">
+                      <SelectValue placeholder="Projeto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">Todos os projetos</SelectItem>
+                      {incidentProjectNames.map(name => (
+                        <SelectItem key={name} value={name}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filterIncStatus} onValueChange={setFilterIncStatus}>
+                    <SelectTrigger className="w-[150px] h-9">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">Todos os status</SelectItem>
+                      {Object.entries(INCIDENT_STATUS_MAP).map(([value, info]) => (
+                        <SelectItem key={value} value={value}>{info.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {activeIncFilters > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-9"
+                      onClick={() => { setFilterIncType('ALL'); setFilterIncSeverity('ALL'); setFilterIncProject('ALL'); setFilterIncStatus('ALL') }}
+                    >
+                      Limpar filtros
+                      <Badge variant="secondary" className="ml-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center">{activeIncFilters}</Badge>
+                    </Button>
+                  )}
+                </div>
+
+                {filteredIncidents.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhum incidente encontrado com os filtros aplicados.
+                  </div>
+                ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -140,7 +239,7 @@ export function SegurancaClient({
                       </tr>
                     </thead>
                     <tbody>
-                      {incidents.map((inc) => {
+                      {filteredIncidents.map((inc) => {
                         const sevInfo = SEVERITY_MAP[inc.severity] || {
                           label: inc.severity,
                           className: 'bg-gray-100 text-gray-800',
@@ -201,6 +300,7 @@ export function SegurancaClient({
                     </tbody>
                   </table>
                 </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -210,7 +310,7 @@ export function SegurancaClient({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <ClipboardCheck className="h-5 w-5" />
-                  Inspecoes de Seguranca
+                  Inspeções de Segurança
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -225,7 +325,7 @@ export function SegurancaClient({
                         <th className="text-center py-2 pr-4">Status</th>
                         <th className="text-left py-2 pr-4">Achados</th>
                         <th className="text-right py-2 pr-4">Data</th>
-                        <th className="text-center py-2">Acoes</th>
+                        <th className="text-center py-2">Ações</th>
                       </tr>
                     </thead>
                     <tbody>

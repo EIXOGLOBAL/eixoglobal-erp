@@ -201,7 +201,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
     DRAFT: "Rascunho",
     PENDING: "Pendente",
-    PENDING_APPROVAL: "Aguardando Aprovacao",
+    PENDING_APPROVAL: "Aguardando Aprovação",
     APPROVED: "Aprovado",
     ORDERED: "Pedido Enviado",
     PARTIALLY_RECEIVED: "Parcialmente Recebido",
@@ -299,7 +299,7 @@ export function SupplierDetailClient({ supplier, financialData, companyId }: Pro
                 <TabsList>
                     <TabsTrigger value="info">
                         <Building2 className="h-4 w-4 mr-2" />
-                        Informacoes
+                        Informações
                     </TabsTrigger>
                     <TabsTrigger value="docs">
                         <FileText className="h-4 w-4 mr-2" />
@@ -307,11 +307,11 @@ export function SupplierDetailClient({ supplier, financialData, companyId }: Pro
                     </TabsTrigger>
                     <TabsTrigger value="financeiro">
                         <DollarSign className="h-4 w-4 mr-2" />
-                        Historico Financeiro
+                        Histórico Financeiro
                     </TabsTrigger>
                     <TabsTrigger value="avaliacoes">
                         <ClipboardCheck className="h-4 w-4 mr-2" />
-                        Avaliacoes
+                        Avaliações
                     </TabsTrigger>
                 </TabsList>
 
@@ -479,7 +479,7 @@ function TabInfo({ supplier }: { supplier: SupplierData }) {
                             )}
                         </div>
                     ) : (
-                        <p className="text-muted-foreground">Endereco nao informado</p>
+                        <p className="text-muted-foreground">Endereço não informado</p>
                     )}
 
                     {/* Summary cards */}

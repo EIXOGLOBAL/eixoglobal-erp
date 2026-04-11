@@ -8,6 +8,11 @@ import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+import { whatsappService } from '@/lib/whatsapp'
+import { collectionNotice } from '@/lib/whatsapp-templates'
+
+const log = logger.child({ module: 'financial' })
 
 // ============================================================================
 // AUDIT LOGGING HELPER
@@ -33,7 +38,7 @@ async function logAuditAction(
             }
         })
     } catch (error) {
-        console.error("Failed to log audit:", error)
+        log.error({ err: error }, "Failed to log audit")
         // Don't throw - audit logging failure shouldn't break the operation
     }
 }
@@ -77,6 +82,11 @@ export async function createFinancialRecord(data: z.infer<typeof financialRecord
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
         if (!session.user.companyId) return { success: false, error: "Sem empresa vinculada" }
 
+        // Check financial permission
+        if (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !session.user.canManageFinancial) {
+            return { success: false, error: "Sem permissão para criar registro financeiro" }
+        }
+
         const _parsed = financialRecordSchema.safeParse(data)
         if (!_parsed.success) return { success: false, error: _parsed.error.issues[0]?.message ?? 'Dados inválidos' }
         const validated = _parsed.data
@@ -106,7 +116,7 @@ export async function createFinancialRecord(data: z.infer<typeof financialRecord
         revalidatePath('/financeiro/despesas')
         return { success: true, data: record }
     } catch (error) {
-        console.error("Erro ao criar lançamento:", error)
+        log.error({ err: error }, "Erro ao criar lançamento")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar lançamento"
@@ -118,6 +128,11 @@ export async function updateFinancialRecord(id: string, data: z.infer<typeof fin
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check financial permission
+        if (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !session.user.canManageFinancial) {
+            return { success: false, error: "Sem permissão para editar registro financeiro" }
+        }
 
         // Verify company access
         const oldRecord = await prisma.financialRecord.findUnique({
@@ -158,7 +173,7 @@ export async function updateFinancialRecord(id: string, data: z.infer<typeof fin
         revalidatePath('/financeiro/despesas')
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao atualizar lançamento:", error)
+        log.error({ err: error }, "Erro ao atualizar lançamento")
         return { success: false, error: "Erro ao atualizar lançamento" }
     }
 }
@@ -213,7 +228,7 @@ export async function markAsPaid(id: string, paidAmount?: number) {
         revalidatePath('/financeiro/inadimplencia')
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao marcar como pago:", error)
+        log.error({ err: error }, "Erro ao marcar como pago")
         return { success: false, error: "Erro ao marcar como pago" }
     }
 }
@@ -245,7 +260,7 @@ export async function deleteFinancialRecord(id: string) {
         revalidatePath('/financeiro/despesas')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar lançamento:", error)
+        log.error({ err: error }, "Erro ao deletar lançamento")
         return { success: false, error: "Erro ao deletar lançamento" }
     }
 }
@@ -299,7 +314,7 @@ export async function getFinancialRecords(params?: {
 
         return { success: true, data: mapped, pagination: paginatedResponse(mapped, total, page, pageSize).pagination }
     } catch (error) {
-        console.error("Erro ao buscar lançamentos:", error)
+        log.error({ err: error }, "Erro ao buscar lançamentos")
         return { success: false, error: "Erro ao buscar lançamentos", data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
@@ -353,7 +368,7 @@ export async function getFinancialSummary(_companyId?: string) {
             }
         }
     } catch (error) {
-        console.error("Erro ao calcular resumo:", error)
+        log.error({ err: error }, "Erro ao calcular resumo")
         return { success: false, error: "Erro ao calcular resumo financeiro" }
     }
 }
@@ -367,6 +382,11 @@ export async function createBankAccount(data: z.infer<typeof bankAccountSchema>)
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
         if (!session.user.companyId) return { success: false, error: "Sem empresa vinculada" }
+
+        // Check financial permission
+        if (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !session.user.canManageFinancial) {
+            return { success: false, error: "Sem permissão para criar conta bancária" }
+        }
 
         const _parsed = bankAccountSchema.safeParse(data)
         if (!_parsed.success) return { success: false, error: _parsed.error.issues[0]?.message ?? 'Dados inválidos' }
@@ -389,7 +409,7 @@ export async function createBankAccount(data: z.infer<typeof bankAccountSchema>)
         revalidatePath('/financeiro')
         return { success: true, data: account }
     } catch (error) {
-        console.error("Erro ao criar conta bancária:", error)
+        log.error({ err: error }, "Erro ao criar conta bancária")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar conta bancária"
@@ -401,6 +421,11 @@ export async function updateBankAccount(id: string, data: z.infer<typeof bankAcc
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check financial permission
+        if (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER' && !session.user.canManageFinancial) {
+            return { success: false, error: "Sem permissão para editar conta bancária" }
+        }
 
         // Verify company access
         const oldAccount = await prisma.bankAccount.findUnique({
@@ -433,7 +458,7 @@ export async function updateBankAccount(id: string, data: z.infer<typeof bankAcc
         revalidatePath('/financeiro')
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao atualizar conta bancária:", error)
+        log.error({ err: error }, "Erro ao atualizar conta bancária")
         return { success: false, error: "Erro ao atualizar conta bancária" }
     }
 }
@@ -462,7 +487,7 @@ export async function deleteBankAccount(id: string) {
         revalidatePath('/financeiro')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar conta bancária:", error)
+        log.error({ err: error }, "Erro ao deletar conta bancária")
         return { success: false, error: "Erro ao deletar conta bancária" }
     }
 }
@@ -486,7 +511,7 @@ export async function getBankAccounts(_companyId?: string) {
             balance: Number(a.balance),
         }))
     } catch (error) {
-        console.error("Erro ao buscar contas bancárias:", error)
+        log.error({ err: error }, "Erro ao buscar contas bancárias")
         return []
     }
 }
@@ -515,7 +540,7 @@ export async function getFinancialRecordById(id: string) {
             data: { ...record, amount: Number(record.amount), paidAmount: Number(record.paidAmount) },
         }
     } catch (error) {
-        console.error("Erro ao buscar lançamento:", error)
+        log.error({ err: error }, "Erro ao buscar lançamento")
         return { success: false, error: "Erro ao buscar lançamento" }
     }
 }
@@ -538,7 +563,7 @@ export async function getBankAccountById(id: string) {
 
         return { success: true, data: { ...account, balance: Number(account.balance) } }
     } catch (error) {
-        console.error("Erro ao buscar conta bancária:", error)
+        log.error({ err: error }, "Erro ao buscar conta bancária")
         return { success: false, error: "Erro ao buscar conta bancária" }
     }
 }
@@ -600,7 +625,7 @@ export async function registerPayment(recordId: string, amount: number, date: Da
         revalidatePath("/dashboard/financeiro/recebiveis")
         return { success: true, data: updatedRecord }
     } catch (error: any) {
-        console.error("Erro ao registrar pagamento:", error)
+        log.error({ err: error }, "Erro ao registrar pagamento")
         return { success: false, error: "Falha ao registrar pagamento." }
     }
 }
@@ -723,7 +748,7 @@ export async function getOverdueRecords() {
 
         return { success: true, data: mapped }
     } catch (error) {
-        console.error("Erro ao buscar inadimplencia:", error)
+        log.error({ err: error }, "Erro ao buscar inadimplencia")
         return { success: false, error: "Erro ao buscar registros vencidos", data: [] }
     }
 }
@@ -731,6 +756,10 @@ export async function getOverdueRecords() {
 export async function registerCollection(
     recordId: string,
     notes: string,
+    options?: {
+        sendWhatsApp?: boolean
+        whatsAppPhone?: string
+    },
 ) {
     try {
         const session = await getSession()
@@ -753,10 +782,39 @@ export async function registerCollection(
             ? `${existingNotes}\n[${timestamp}] ${notes}`
             : `[${timestamp}] ${notes}`
 
+        // Envio de cobranca por WhatsApp (opcional)
+        let whatsAppResult: { success: boolean; error?: string } | null = null
+        if (options?.sendWhatsApp && options?.whatsAppPhone) {
+            const now = new Date()
+            const daysOverdue = Math.floor(
+                (now.getTime() - new Date(record.dueDate).getTime()) / 86400000
+            )
+            const message = collectionNotice({
+                description: record.description || 'Titulo pendente',
+                amount: Number(record.amount).toFixed(2),
+                dueDate: new Date(record.dueDate).toLocaleDateString('pt-BR'),
+                daysOverdue: String(daysOverdue),
+            })
+
+            whatsAppResult = await whatsappService.sendWhatsAppMessage(
+                options.whatsAppPhone,
+                message,
+            )
+        }
+
+        // Adiciona info do WhatsApp nas notas se enviado
+        let finalNotes = newNotes
+        if (options?.sendWhatsApp) {
+            const whatsAppStatus = whatsAppResult?.success
+                ? `WhatsApp enviado para ${options.whatsAppPhone}`
+                : `WhatsApp falhou: ${whatsAppResult?.error || 'nao configurado'}`
+            finalNotes += `\n[${timestamp}] [AUTO] ${whatsAppStatus}`
+        }
+
         await prisma.financialRecord.update({
             where: { id: recordId },
             data: {
-                collectionNotes: newNotes,
+                collectionNotes: finalNotes,
                 collectionDate: new Date(),
             },
         })
@@ -764,9 +822,14 @@ export async function registerCollection(
         await logAction('REGISTER_COLLECTION', 'FinancialRecord', recordId, record.description || 'N/A', `Collection note: ${notes}`)
 
         revalidatePath('/financeiro/inadimplencia')
-        return { success: true }
+        return {
+            success: true,
+            whatsApp: whatsAppResult
+                ? { sent: whatsAppResult.success, error: whatsAppResult.error }
+                : undefined,
+        }
     } catch (error) {
-        console.error("Erro ao registrar cobranca:", error)
+        log.error({ err: error }, "Erro ao registrar cobranca")
         return { success: false, error: "Erro ao registrar cobranca" }
     }
 }
@@ -821,7 +884,7 @@ export async function markAsNegotiated(
         revalidatePath('/financeiro')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao marcar como negociado:", error)
+        log.error({ err: error }, "Erro ao marcar como negociado")
         return { success: false, error: "Erro ao marcar como negociado" }
     }
 }
@@ -869,7 +932,7 @@ export async function markAsLoss(
         revalidatePath('/financeiro')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao marcar como perda:", error)
+        log.error({ err: error }, "Erro ao marcar como perda")
         return { success: false, error: "Erro ao marcar como perda" }
     }
 }

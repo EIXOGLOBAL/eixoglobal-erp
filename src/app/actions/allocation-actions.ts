@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/auth"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'allocation' })
 
 const allocationSchema = z.object({
     employeeId: z.string().uuid("ID de funcionário inválido"),
@@ -17,6 +20,11 @@ export async function createAllocation(data: z.infer<typeof allocationSchema>) {
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot create allocations
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para criar alocação" }
+        }
 
         // Verify both employee and project belong to user's company
         const [employee, project] = await Promise.all([
@@ -55,7 +63,7 @@ export async function createAllocation(data: z.infer<typeof allocationSchema>) {
         revalidatePath('/rh/alocacoes')
         return { success: true, data: allocation }
     } catch (error) {
-        console.error("Erro ao criar alocação:", error)
+        log.error({ err: error }, "Erro ao criar alocação")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar alocação"
@@ -67,6 +75,11 @@ export async function updateAllocation(id: string, data: z.infer<typeof allocati
     try {
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot update allocations
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para editar alocação" }
+        }
 
         // Verify allocation belongs to user's company
         const existing = await prisma.allocation.findUnique({
@@ -120,7 +133,7 @@ export async function updateAllocation(id: string, data: z.infer<typeof allocati
         revalidatePath('/rh/alocacoes')
         return { success: true, data: allocation }
     } catch (error) {
-        console.error("Erro ao atualizar alocação:", error)
+        log.error({ err: error }, "Erro ao atualizar alocação")
         return { success: false, error: "Erro ao atualizar alocação" }
     }
 }
@@ -156,7 +169,7 @@ export async function deleteAllocation(id: string) {
         revalidatePath('/rh/alocacoes')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar alocação:", error)
+        log.error({ err: error }, "Erro ao deletar alocação")
         return { success: false, error: "Erro ao deletar alocação" }
     }
 }
@@ -173,7 +186,7 @@ export async function getAllocations(companyId: string) {
         })
         return allocations
     } catch (error) {
-        console.error("Erro ao buscar alocações:", error)
+        log.error({ err: error }, "Erro ao buscar alocações")
         return []
     }
 }
@@ -217,7 +230,7 @@ export async function getEmployeesAllocatedToProject(projectId: string) {
 
         return employees
     } catch (error) {
-        console.error("Erro ao buscar funcionários alocados ao projeto:", error)
+        log.error({ err: error }, "Erro ao buscar funcionários alocados ao projeto")
         return []
     }
 }

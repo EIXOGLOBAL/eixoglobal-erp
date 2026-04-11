@@ -4,6 +4,9 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { assertAuthenticated } from "@/lib/auth-helpers"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'daily-report-photo' })
 
 // ============================================================================
 // SCHEMAS
@@ -40,7 +43,7 @@ export async function createDailyReportPhoto(
         revalidatePath(`/rdo/${reportId}`)
         return { success: true, data: photo }
     } catch (error) {
-        console.error("Erro ao criar foto do RDO:", error)
+        log.error({ err: error }, "Erro ao criar foto do RDO")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar foto do RDO"
@@ -75,7 +78,7 @@ export async function updateDailyReportPhoto(
         revalidatePath(`/rdo/${photo.reportId}`)
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao atualizar foto do RDO:", error)
+        log.error({ err: error }, "Erro ao atualizar foto do RDO")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao atualizar foto do RDO"
@@ -100,7 +103,7 @@ export async function deleteDailyReportPhoto(photoId: string) {
         revalidatePath(`/rdo/${photo.reportId}`)
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar foto do RDO:", error)
+        log.error({ err: error }, "Erro ao deletar foto do RDO")
         return {
             success: false,
             error: "Erro ao deletar foto do RDO"
@@ -118,7 +121,7 @@ export async function getDailyReportPhotos(reportId: string) {
 
         return photos
     } catch (error) {
-        console.error("Erro ao buscar fotos do RDO:", error)
+        log.error({ err: error }, "Erro ao buscar fotos do RDO")
         return []
     }
 }
@@ -132,7 +135,7 @@ export async function getDailyReportPhotoById(photoId: string) {
 
         return photo
     } catch (error) {
-        console.error("Erro ao buscar foto do RDO:", error)
+        log.error({ err: error }, "Erro ao buscar foto do RDO")
         return null
     }
 }

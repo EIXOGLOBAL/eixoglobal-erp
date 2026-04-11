@@ -4,6 +4,9 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { assertAuthenticated } from "@/lib/auth-helpers"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'daily-report-equipment' })
 
 // ============================================================================
 // SCHEMAS
@@ -42,7 +45,7 @@ export async function createDailyReportEquipment(
         revalidatePath(`/rdo/${reportId}`)
         return { success: true, data: equipment }
     } catch (error) {
-        console.error("Erro ao criar equipamento do RDO:", error)
+        log.error({ err: error }, "Erro ao criar equipamento do RDO")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar equipamento do RDO"
@@ -80,7 +83,7 @@ export async function updateDailyReportEquipment(
         revalidatePath(`/rdo/${equipment.reportId}`)
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao atualizar equipamento do RDO:", error)
+        log.error({ err: error }, "Erro ao atualizar equipamento do RDO")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao atualizar equipamento do RDO"
@@ -105,7 +108,7 @@ export async function deleteDailyReportEquipment(equipmentId: string) {
         revalidatePath(`/rdo/${equipment.reportId}`)
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar equipamento do RDO:", error)
+        log.error({ err: error }, "Erro ao deletar equipamento do RDO")
         return {
             success: false,
             error: "Erro ao deletar equipamento do RDO"
@@ -128,7 +131,7 @@ export async function getDailyReportEquipments(reportId: string) {
 
         return equipments
     } catch (error) {
-        console.error("Erro ao buscar equipamentos do RDO:", error)
+        log.error({ err: error }, "Erro ao buscar equipamentos do RDO")
         return []
     }
 }
@@ -147,7 +150,7 @@ export async function getDailyReportEquipmentById(equipmentId: string) {
 
         return equipment
     } catch (error) {
-        console.error("Erro ao buscar equipamento do RDO:", error)
+        log.error({ err: error }, "Erro ao buscar equipamento do RDO")
         return null
     }
 }

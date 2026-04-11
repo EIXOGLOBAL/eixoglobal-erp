@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     // Verificar se IA esta configurada
     const active = await getActiveApiKey()
     if (!active) {
-      return NextResponse.json({ error: 'Provedor de IA nao configurado. Acesse Configuracoes > IA.' }, { status: 500 })
+      return NextResponse.json({ error: 'Provedor de IA não configurado. Acesse Configurações > IA.' }, { status: 500 })
     }
 
     const response = await aiCompleteFast({

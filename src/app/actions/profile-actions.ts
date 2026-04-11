@@ -6,6 +6,9 @@ import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
 import { assertAuthenticated } from "@/lib/auth-helpers"
 import { BCRYPT_ROUNDS, validatePassword } from "@/lib/password-policy"
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'profile' })
 
 const updateProfileSchema = z.object({
     name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
@@ -47,7 +50,7 @@ export async function getProfileData() {
 
         return { success: true as const, data: user }
     } catch (error: any) {
-        console.error("[getProfileData] error:", error)
+        log.error({ err: error }, "[getProfileData] error")
         return { success: false as const, error: `Erro ao carregar perfil: ${error?.message ?? "desconhecido"}` }
     }
 }
@@ -66,7 +69,7 @@ export async function updateProfile(data: { name: string; email?: string }) {
         revalidatePath('/perfil')
         return { success: true }
     } catch (error: any) {
-        console.error("[updateProfile] error:", error)
+        log.error({ err: error }, "[updateProfile] error")
         if (error instanceof z.ZodError) {
             return { success: false, error: error.issues[0]?.message }
         }
@@ -111,7 +114,7 @@ export async function changePassword(data: {
 
         return { success: true }
     } catch (error: any) {
-        console.error("[changePassword] error:", error)
+        log.error({ err: error }, "[changePassword] error")
         if (error instanceof z.ZodError) {
             return { success: false, error: error.issues[0]?.message }
         }

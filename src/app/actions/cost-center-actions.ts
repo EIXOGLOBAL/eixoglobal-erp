@@ -5,7 +5,11 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { toNumber } from "@/lib/formatters"
 import { assertAuthenticated, assertCompanyAccess } from "@/lib/auth-helpers"
+import { assertCanDelete } from "@/lib/permissions"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'cost-center' })
 
 const costCenterSchema = z.object({
     code: z.string().min(1, "Código é obrigatório"),
@@ -20,7 +24,11 @@ const costCenterSchema = z.object({
 
 export async function createCostCenter(data: z.infer<typeof costCenterSchema>) {
     try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check write permission - USER role cannot create cost centers
+        if (session.user.role === 'USER') {
+            return { success: false, error: 'Sem permissão para criar centro de custo' }
+        }
         const validated = costCenterSchema.parse(data)
 
         const costCenter = await prisma.costCenter.create({
@@ -41,7 +49,7 @@ export async function createCostCenter(data: z.infer<typeof costCenterSchema>) {
         revalidatePath('/financeiro/centros-de-custo')
         return { success: true, data: costCenter }
     } catch (error) {
-        console.error("Erro ao criar centro de custo:", error)
+        log.error({ err: error }, "Erro ao criar centro de custo")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar centro de custo",
@@ -51,7 +59,11 @@ export async function createCostCenter(data: z.infer<typeof costCenterSchema>) {
 
 export async function updateCostCenter(id: string, data: z.infer<typeof costCenterSchema>) {
     try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check write permission - USER role cannot update cost centers
+        if (session.user.role === 'USER') {
+            return { success: false, error: 'Sem permissão para editar centro de custo' }
+        }
         const validated = costCenterSchema.parse(data)
 
         // Prevent setting itself as its own parent
@@ -79,14 +91,16 @@ export async function updateCostCenter(id: string, data: z.infer<typeof costCent
         revalidatePath('/financeiro/centros-de-custo')
         return { success: true, data: costCenter }
     } catch (error) {
-        console.error("Erro ao atualizar centro de custo:", error)
+        log.error({ err: error }, "Erro ao atualizar centro de custo")
         return { success: false, error: "Erro ao atualizar centro de custo" }
     }
 }
 
 export async function deleteCostCenter(id: string) {
     try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check delete permission
+        assertCanDelete(session.user)
         // Check if the cost center has children
         const childrenCount = await prisma.costCenter.count({
             where: { parentId: id },
@@ -108,7 +122,7 @@ export async function deleteCostCenter(id: string) {
         revalidatePath('/financeiro/centros-de-custo')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar centro de custo:", error)
+        log.error({ err: error }, "Erro ao deletar centro de custo")
         return { success: false, error: "Erro ao deletar centro de custo" }
     }
 }
@@ -127,7 +141,7 @@ export async function getCostCenters(companyId: string) {
         })
         return costCenters
     } catch (error) {
-        console.error("Erro ao buscar centros de custo:", error)
+        log.error({ err: error }, "Erro ao buscar centros de custo")
         return []
     }
 }
@@ -148,7 +162,7 @@ export async function getCostCentersByProject(projectId: string, companyId: stri
         })
         return { success: true, data: costCenters }
     } catch (error) {
-        console.error("Erro ao buscar centros de custo por projeto:", error)
+        log.error({ err: error }, "Erro ao buscar centros de custo por projeto")
         return { success: false, data: [], error: "Erro ao buscar centros de custo" }
     }
 }
@@ -200,7 +214,7 @@ export async function getCostCenterReport(companyId: string, projectId?: string)
             }),
         }
     } catch (error) {
-        console.error("Erro ao gerar relatório de centro de custo:", error)
+        log.error({ err: error }, "Erro ao gerar relatório de centro de custo")
         return { success: false, data: [], error: "Erro ao gerar relatório" }
     }
 }
@@ -218,7 +232,7 @@ export async function toggleCostCenterStatus(id: string, isActive: boolean) {
         revalidatePath('/financeiro/centros-de-custo')
         return { success: true, data: costCenter }
     } catch (error) {
-        console.error("Erro ao alterar status do centro de custo:", error)
+        log.error({ err: error }, "Erro ao alterar status do centro de custo")
         return { success: false, error: "Erro ao alterar status do centro de custo" }
     }
 }
@@ -244,7 +258,7 @@ export async function getCostCenterById(id: string) {
 
         return { success: true, data: costCenter }
     } catch (error) {
-        console.error("Erro ao buscar centro de custo:", error)
+        log.error({ err: error }, "Erro ao buscar centro de custo")
         return { success: false, error: "Erro ao buscar centro de custo" }
     }
 }

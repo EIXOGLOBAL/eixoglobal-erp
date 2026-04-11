@@ -10,6 +10,9 @@ import { toNumber } from "@/lib/formatters"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'equipment' })
 
 // ============================================================================
 // SCHEMAS
@@ -61,6 +64,14 @@ export async function createEquipment(
     companyId: string
 ) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot create equipment
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para criar equipamento" }
+        }
+
         const validated = equipmentSchema.parse(data)
 
         const existing = await prisma.equipment.findFirst({
@@ -93,7 +104,7 @@ export async function createEquipment(
         revalidatePath('/equipamentos')
         return { success: true, data: equipment }
     } catch (error) {
-        console.error("Erro ao criar equipamento:", error)
+        log.error({ err: error }, "Erro ao criar equipamento")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar equipamento",
@@ -106,6 +117,14 @@ export async function updateEquipment(
     data: z.infer<typeof equipmentSchema>
 ) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot update equipment
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para editar equipamento" }
+        }
+
         const validated = equipmentSchema.parse(data)
 
         const oldData = await prisma.equipment.findUnique({ where: { id } })
@@ -133,7 +152,7 @@ export async function updateEquipment(
         revalidatePath(`/equipamentos/${id}`)
         return { success: true, data: equipment }
     } catch (error) {
-        console.error("Erro ao atualizar equipamento:", error)
+        log.error({ err: error }, "Erro ao atualizar equipamento")
         return { success: false, error: "Erro ao atualizar equipamento" }
     }
 }
@@ -180,7 +199,7 @@ export async function deleteEquipment(id: string) {
         revalidatePath('/equipamentos')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar equipamento:", error)
+        log.error({ err: error }, "Erro ao deletar equipamento")
         return { success: false, error: "Erro ao deletar equipamento" }
     }
 }
@@ -221,7 +240,7 @@ export async function getEquipment(params?: {
 
         return { success: true, data: equipment, pagination: paginatedResponse(equipment, total, page, pageSize).pagination }
     } catch (error) {
-        console.error("Erro ao buscar equipamentos:", error)
+        log.error({ err: error }, "Erro ao buscar equipamentos")
         return { success: false, error: "Erro ao buscar equipamentos", data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
@@ -256,7 +275,7 @@ export async function getEquipmentById(id: string) {
 
         return { success: true, data: equipment }
     } catch (error) {
-        console.error("Erro ao buscar equipamento:", error)
+        log.error({ err: error }, "Erro ao buscar equipamento")
         return { success: false, error: "Erro ao buscar equipamento" }
     }
 }
@@ -279,7 +298,7 @@ export async function updateEquipmentStatus(
         revalidatePath(`/equipamentos/${id}`)
         return { success: true, data: equipment }
     } catch (error) {
-        console.error("Erro ao atualizar status:", error)
+        log.error({ err: error }, "Erro ao atualizar status")
         return { success: false, error: "Erro ao atualizar status do equipamento" }
     }
 }
@@ -352,7 +371,7 @@ export async function addUsage(
         revalidatePath(`/equipamentos/${equipmentId}`)
         return { success: true, data: usage }
     } catch (error) {
-        console.error("Erro ao registrar uso:", error)
+        log.error({ err: error }, "Erro ao registrar uso")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao registrar uso",
@@ -400,7 +419,7 @@ export async function endUsage(
         revalidatePath(`/equipamentos/${usage.equipmentId}`)
         return { success: true, data: updatedUsage }
     } catch (error) {
-        console.error("Erro ao encerrar uso:", error)
+        log.error({ err: error }, "Erro ao encerrar uso")
         return { success: false, error: "Erro ao encerrar uso" }
     }
 }
@@ -462,7 +481,7 @@ export async function addMaintenance(
                 revalidatePath('/financeiro')
             } catch (finError) {
                 // Log but do not fail – the maintenance itself was already saved.
-                console.error('[addMaintenance] Failed to create FinancialRecord for maintenance', maintenance.id, finError)
+                log.error({ err: finError, context: maintenance.id }, '[addMaintenance] Failed to create FinancialRecord for maintenance')
             }
         }
 
@@ -470,7 +489,7 @@ export async function addMaintenance(
         revalidatePath(`/equipamentos/${equipmentId}`)
         return { success: true, data: maintenance }
     } catch (error) {
-        console.error("Erro ao agendar manutenção:", error)
+        log.error({ err: error }, "Erro ao agendar manutenção")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao agendar manutenção",
@@ -509,7 +528,7 @@ export async function completeMaintenance(
         revalidatePath(`/equipamentos/${maintenance.equipmentId}`)
         return { success: true, data: updated }
     } catch (error) {
-        console.error("Erro ao concluir manutenção:", error)
+        log.error({ err: error }, "Erro ao concluir manutenção")
         return { success: false, error: "Erro ao concluir manutenção" }
     }
 }

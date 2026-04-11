@@ -1,6 +1,9 @@
 'use server'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'map' })
 
 export async function getProjectsForMap() {
   try {
@@ -35,7 +38,7 @@ export async function getProjectsForMap() {
         budget: p.budget ? Number(p.budget) : null,
       }))
   } catch (error) {
-    console.error('[getProjectsForMap]', error)
+    log.error({ err: error }, '[getProjectsForMap]')
     return []
   }
 }

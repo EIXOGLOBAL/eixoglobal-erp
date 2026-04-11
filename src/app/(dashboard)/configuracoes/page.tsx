@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/route-guard"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Settings, Building2, Users, Lock, UserCircle, BarChart3, Shield, FileText, Brain, Activity } from "lucide-react"
+import { Settings, Building2, Users, Lock, UserCircle, BarChart3, Shield, FileText, Brain, Activity, Calculator, CalendarDays } from "lucide-react"
 import Link from "next/link"
 
 export const dynamic = 'force-dynamic'
@@ -41,7 +41,7 @@ export default async function ConfiguracoesPage() {
             icon: Building2,
             href: "/companies",
             color: "text-green-600",
-            adminOnly: false,
+            adminOnly: true,
         },
         {
             title: "Usuários e Permissões",
@@ -49,7 +49,7 @@ export default async function ConfiguracoesPage() {
             icon: Users,
             href: "/users",
             color: "text-purple-600",
-            adminOnly: false,
+            adminOnly: true,
         },
         {
             title: "Relatórios",
@@ -81,6 +81,22 @@ export default async function ConfiguracoesPage() {
             icon: Activity,
             href: "/configuracoes/monitoramento",
             color: "text-emerald-600",
+            adminOnly: true,
+        },
+        {
+            title: "BDI",
+            description: "Configurar taxas de Bonificações e Despesas Indiretas para orçamentos",
+            icon: Calculator,
+            href: "/configuracoes/bdi",
+            color: "text-teal-600",
+            adminOnly: true,
+        },
+        {
+            title: "Calendario de Trabalho",
+            description: "Gerenciar jornadas de trabalho, dias uteis e feriados",
+            icon: CalendarDays,
+            href: "/configuracoes/calendario",
+            color: "text-amber-600",
             adminOnly: true,
         },
     ]

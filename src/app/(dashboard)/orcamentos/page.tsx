@@ -1,13 +1,14 @@
 import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { getBudgets } from "@/app/actions/budget-actions"
+import { getDefaultBDIConfig } from "@/app/actions/bdi-config-actions"
 import { prisma } from "@/lib/prisma"
 import { OrcamentosClient } from "@/components/orcamentos/orcamentos-client"
 import { BudgetDialog } from "@/components/orcamentos/budget-dialog"
 import { CreateShortcut } from "@/components/ui/page-keyboard-shortcuts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileSpreadsheet, Clock, CheckCircle, TrendingUp } from "lucide-react"
-import { toNumber, formatCurrency } from "@/lib/formatters"
+import { FileSpreadsheet, Clock, CheckCircle, TrendingUp, Calculator } from "lucide-react"
+import { toNumber, formatCurrency, formatPercent } from "@/lib/formatters"
 
 export const dynamic = 'force-dynamic'
 
@@ -18,8 +19,16 @@ export default async function OrcamentosPage() {
     const companyId = session.user?.companyId
     if (!companyId) redirect("/login")
 
-    const result = await getBudgets()
+    const userRole = session.user?.role as string
+    const canWrite = userRole !== 'USER'
+
+    const [result, bdiResult] = await Promise.all([
+        getBudgets(),
+        getDefaultBDIConfig(companyId),
+    ])
     const budgets = result.success ? (result.data ?? []) : []
+    const bdiConfig = bdiResult.success ? bdiResult.data : null
+    const bdiPercentage = bdiConfig ? toNumber(bdiConfig.percentage) : 0
 
     const projects = await prisma.project.findMany({
         where: { companyId },
@@ -31,6 +40,7 @@ export default async function OrcamentosPage() {
     const draftBudgets = budgets.filter(b => b.status === 'DRAFT').length
     const approvedBudgets = budgets.filter(b => b.status === 'APPROVED').length
     const totalValue = budgets.reduce((sum, b) => sum + toNumber(b.totalValue), 0)
+    const totalWithBDI = totalValue * (1 + bdiPercentage / 100)
 
     // Converter Decimal para number para Client Component
     const serializedBudgets = budgets.map(b => ({
@@ -47,15 +57,17 @@ export default async function OrcamentosPage() {
                         Gerencie orçamentos de obras e projetos
                     </p>
                 </div>
-                <CreateShortcut label="Novo Orçamento">
-                    {({ open, onOpenChange }) => (
-                        <BudgetDialog companyId={companyId} projects={projects} open={open} onOpenChange={onOpenChange} />
-                    )}
-                </CreateShortcut>
+                {canWrite && (
+                    <CreateShortcut label="Novo Orçamento">
+                        {({ open, onOpenChange }) => (
+                            <BudgetDialog companyId={companyId} projects={projects} open={open} onOpenChange={onOpenChange} />
+                        )}
+                    </CreateShortcut>
+                )}
             </div>
 
             {/* KPIs */}
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-5">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total de Orçamentos</CardTitle>
@@ -88,12 +100,24 @@ export default async function OrcamentosPage() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
+                        <CardTitle className="text-sm font-medium">Valor Total (Custo)</CardTitle>
                         <TrendingUp className="h-4 w-4 text-purple-600" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{formatCurrency(totalValue)}</div>
-                        <p className="text-xs text-muted-foreground">Soma de todos os orçamentos</p>
+                        <p className="text-xs text-muted-foreground">Soma dos custos diretos</p>
+                    </CardContent>
+                </Card>
+                <Card className={bdiPercentage > 0 ? "border-teal-200 dark:border-teal-900" : ""}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Com BDI ({formatPercent(bdiPercentage)})</CardTitle>
+                        <Calculator className="h-4 w-4 text-teal-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{formatCurrency(totalWithBDI)}</div>
+                        <p className="text-xs text-muted-foreground">
+                            {bdiConfig ? `BDI: ${bdiConfig.name}` : "Nenhum BDI configurado"}
+                        </p>
                     </CardContent>
                 </Card>
             </div>

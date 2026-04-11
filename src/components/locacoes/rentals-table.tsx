@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,6 +39,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { MoreHorizontal, Eye, DollarSign, RotateCcw, XCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { returnRental, cancelRental, addRentalPayment } from '@/app/actions/rental-actions'
@@ -48,6 +55,19 @@ import {
   BILLING_CYCLE_LABELS,
   RENTAL_STATUS_LABELS,
 } from '@/lib/rental-icons'
+import { ExportButton } from '@/components/ui/export-button'
+import type { ExportColumn } from '@/lib/export-utils'
+
+const rentalExportColumns: ExportColumn[] = [
+  { key: 'itemName', label: 'Item' },
+  { key: 'itemTypePtBr', label: 'Tipo' },
+  { key: 'projectName', label: 'Projeto' },
+  { key: 'cyclePtBr', label: 'Ciclo' },
+  { key: 'unitRateFmt', label: 'Valor/Periodo' },
+  { key: 'startDate', label: 'Inicio' },
+  { key: 'expectedEndDate', label: 'Prev. Devolucao' },
+  { key: 'statusPtBr', label: 'Status' },
+]
 
 import { formatDate } from "@/lib/formatters"
 interface RentalProject {
@@ -97,6 +117,38 @@ function formatCurrency(value: number | { toString(): string }) {
 
 export function RentalsTable({ rentals }: RentalsTableProps) {
   const { toast } = useToast()
+
+  // Filter state
+  const [filterStatus, setFilterStatus] = useState<string>('ALL')
+  const [filterType, setFilterType] = useState<string>('ALL')
+  const [filterProject, setFilterProject] = useState<string>('ALL')
+
+  const typeOptions = useMemo(() => {
+    const types = new Map<string, string>()
+    rentals.forEach(r => {
+      types.set(r.item.type, RENTAL_TYPE_LABELS[r.item.type] ?? r.item.type)
+    })
+    return Array.from(types.entries())
+  }, [rentals])
+
+  const projectOptions = useMemo(() => {
+    const projs = new Map<string, string>()
+    rentals.forEach(r => {
+      if (r.project) projs.set(r.project.id, r.project.name)
+    })
+    return Array.from(projs.entries())
+  }, [rentals])
+
+  const filtered = useMemo(() => {
+    return rentals.filter(r => {
+      if (filterStatus !== 'ALL' && r.status !== filterStatus) return false
+      if (filterType !== 'ALL' && r.item.type !== filterType) return false
+      if (filterProject !== 'ALL' && r.project?.id !== filterProject) return false
+      return true
+    })
+  }, [rentals, filterStatus, filterType, filterProject])
+
+  const activeRentalFilters = [filterStatus !== 'ALL', filterType !== 'ALL', filterProject !== 'ALL'].filter(Boolean).length
 
   // Return dialog state
   const [returnDialogOpen, setReturnDialogOpen] = useState(false)
@@ -180,13 +232,88 @@ export function RentalsTable({ rentals }: RentalsTableProps) {
   if (rentals.length === 0) {
     return (
       <div className="text-center py-10 text-muted-foreground">
-        Nenhuma locação encontrada.
+        Nenhuma locacao encontrada.
       </div>
     )
   }
 
   return (
     <>
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[160px] h-9">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos os status</SelectItem>
+            {Object.entries(RENTAL_STATUS_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {typeOptions.length > 1 && (
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-[160px] h-9">
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos os tipos</SelectItem>
+              {typeOptions.map(([value, label]) => (
+                <SelectItem key={value} value={value}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {projectOptions.length > 0 && (
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger className="w-[180px] h-9">
+              <SelectValue placeholder="Projeto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos os projetos</SelectItem>
+              {projectOptions.map(([id, name]) => (
+                <SelectItem key={id} value={id}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {activeRentalFilters > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9"
+            onClick={() => { setFilterStatus('ALL'); setFilterType('ALL'); setFilterProject('ALL') }}
+          >
+            Limpar filtros
+            <Badge variant="secondary" className="ml-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center">{activeRentalFilters}</Badge>
+          </Button>
+        )}
+
+        <span className="ml-auto text-sm text-muted-foreground self-center">{filtered.length} locacao(oes)</span>
+      </div>
+
+      <div className="flex justify-end mb-4">
+        <ExportButton
+          data={filtered.map(r => ({
+            ...r,
+            itemName: r.item.name,
+            itemTypePtBr: RENTAL_TYPE_LABELS[r.item.type] ?? r.item.type,
+            projectName: r.project?.name ?? '',
+            cyclePtBr: BILLING_CYCLE_LABELS[r.billingCycle] ?? r.billingCycle,
+            unitRateFmt: formatCurrency(r.unitRate),
+            statusPtBr: RENTAL_STATUS_LABELS[r.status] ?? r.status,
+          }))}
+          columns={rentalExportColumns}
+          filename="locacoes"
+          title="Locacoes"
+          sheetName="Locacoes"
+          size="sm"
+        />
+      </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -203,7 +330,7 @@ export function RentalsTable({ rentals }: RentalsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rentals.map((rental) => (
+            {filtered.map((rental) => (
               <TableRow key={rental.id}>
                 <TableCell className="font-medium">{rental.item.name}</TableCell>
                 <TableCell>

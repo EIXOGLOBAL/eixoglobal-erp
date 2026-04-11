@@ -21,6 +21,9 @@ export default async function FuncionariosPage() {
         redirect("/login")
     }
 
+    const userRole = session.user?.role as string
+    const canManageHR = userRole === 'ADMIN' || userRole === 'MANAGER' || !!(session.user as any)?.canManageHR
+
     const [employeesResult, salaryTables] = await Promise.all([
         getEmployees({ companyId }),
         getSalaryTables(companyId),
@@ -53,11 +56,13 @@ export default async function FuncionariosPage() {
                         Gerencie sua equipe e recursos humanos
                     </p>
                 </div>
-                <CreateShortcut label="Novo Funcionário">
-                    {({ open, onOpenChange }) => (
-                        <EmployeeDialog companyId={companyId} salaryGrades={allGrades} open={open} onOpenChange={onOpenChange} />
-                    )}
-                </CreateShortcut>
+                {canManageHR && (
+                    <CreateShortcut label="Novo Funcionário">
+                        {({ open, onOpenChange }) => (
+                            <EmployeeDialog companyId={companyId} salaryGrades={allGrades} open={open} onOpenChange={onOpenChange} />
+                        )}
+                    </CreateShortcut>
+                )}
             </div>
 
             {/* KPIs */}

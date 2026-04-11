@@ -22,6 +22,8 @@ export default async function ProjectsPage() {
     if (!session) redirect("/login")
 
     const companyId = session.user?.companyId
+    const userRole = session.user?.role as string
+    const canWrite = userRole !== 'USER'
 
     const projectsRes = await getProjects({ companyId })
     const projects = projectsRes.success ? projectsRes.data : []
@@ -56,11 +58,13 @@ export default async function ProjectsPage() {
                         Gerencie todos os projetos e acompanhe seu progresso.
                     </p>
                 </div>
-                <CreateShortcut label="Novo Projeto">
-                    {({ open, onOpenChange }) => (
-                        <ProjectDialog companies={companies} clients={clients} open={open} onOpenChange={onOpenChange} />
-                    )}
-                </CreateShortcut>
+                {canWrite && (
+                    <CreateShortcut label="Novo Projeto">
+                        {({ open, onOpenChange }) => (
+                            <ProjectDialog companies={companies} clients={clients} open={open} onOpenChange={onOpenChange} />
+                        )}
+                    </CreateShortcut>
+                )}
             </div>
 
             {/* KPI Cards */}

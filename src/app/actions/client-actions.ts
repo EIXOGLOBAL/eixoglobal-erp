@@ -122,6 +122,14 @@ export async function getClientById(id: string) {
 
 export async function createClient(data: unknown) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+    // Check write permission - USER role cannot create
+    if (session.user.role === 'USER') {
+      return { success: false, error: 'Sem permissão para criar cliente' }
+    }
+
     const validated = clientSchema.parse(data)
 
     const code = await getNextCode('client', validated.companyId)
@@ -168,6 +176,14 @@ export async function createClient(data: unknown) {
 
 export async function updateClient(id: string, data: unknown) {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+    // Check write permission - USER role cannot update
+    if (session.user.role === 'USER') {
+      return { success: false, error: 'Sem permissão para editar cliente' }
+    }
+
     const validated = clientSchema.partial().parse(data)
 
     // Only include fields that were actually provided (not undefined)
@@ -217,6 +233,14 @@ export async function updateClient(id: string, data: unknown) {
 
 export async function changeClientStatus(id: string, status: 'ACTIVE' | 'INACTIVE' | 'BLOCKED') {
   try {
+    const session = await getSession()
+    if (!session?.user?.id) return { success: false, error: 'Não autenticado' }
+
+    // Check write permission - USER role cannot change status
+    if (session.user.role === 'USER') {
+      return { success: false, error: 'Sem permissão para alterar status do cliente' }
+    }
+
     const client = await prisma.client.update({
       where: { id },
       data: { status },

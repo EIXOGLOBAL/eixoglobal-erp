@@ -73,10 +73,12 @@ interface DailyReportsTableProps {
 export function DailyReportsTable({ reports, projects, companyId }: DailyReportsTableProps) {
     const { toast } = useToast()
     const [filterProject, setFilterProject] = useState<string>("all")
+    const [filterStatus, setFilterStatus] = useState<string>("all")
     const [filterMonth, setFilterMonth] = useState<string>("")
 
     const filtered = reports.filter(r => {
         if (filterProject !== "all" && r.projectId !== filterProject) return false
+        if (filterStatus !== "all" && r.status !== filterStatus) return false
         if (filterMonth) {
             const d = new Date(r.date)
             const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -133,6 +135,17 @@ export function DailyReportsTable({ reports, projects, companyId }: DailyReports
                         ))}
                     </SelectContent>
                 </Select>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Filtrar por status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todos os status</SelectItem>
+                        {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
                 <Input
                     type="month"
                     className="w-44"
@@ -140,11 +153,11 @@ export function DailyReportsTable({ reports, projects, companyId }: DailyReports
                     onChange={e => setFilterMonth(e.target.value)}
                     placeholder="Filtrar por mês"
                 />
-                {(filterProject !== "all" || filterMonth) && (
+                {(filterProject !== "all" || filterStatus !== "all" || filterMonth) && (
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => { setFilterProject("all"); setFilterMonth("") }}
+                        onClick={() => { setFilterProject("all"); setFilterStatus("all"); setFilterMonth("") }}
                     >
                         Limpar filtros
                     </Button>

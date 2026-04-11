@@ -84,7 +84,7 @@ export default async function RelatorioCapacidadePage() {
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground uppercase">Disponiveis</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground uppercase">Disponíveis</CardTitle></CardHeader>
                         <CardContent>
                             <div className={availClass}>{availableEmployees}</div>
                         </CardContent>
@@ -93,7 +93,7 @@ export default async function RelatorioCapacidadePage() {
             </section>
             <section>
                 <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-green-600" />Capacidade Disponivel
+                    <TrendingUp className="h-5 w-5 text-green-600" />Capacidade Disponível
                 </h2>
                 <Card className={isFullyOccupied ? "border-red-200 bg-red-50" : "border-green-200 bg-green-50"}>
                     <CardContent className="pt-6">
@@ -103,7 +103,7 @@ export default async function RelatorioCapacidadePage() {
                                 <div>
                                     <p className="font-semibold text-red-700 text-lg">Equipe 100% ocupada</p>
                                     <p className="text-red-600 text-sm mt-1">
-                                        Todos os funcionarios estao alocados. Para absorver novos projetos, sera necessario contratar ou encerrar alocacoes existentes.
+                                        Todos os funcionários estão alocados. Para absorver novos projetos, será necessário contratar ou encerrar alocações existentes.
                                     </p>
                                 </div>
                             </div>
@@ -118,9 +118,9 @@ export default async function RelatorioCapacidadePage() {
                                         }
                                     </p>
                                     <p className="text-green-600 text-sm mt-1">
-                                        {availableEmployees} funcionario(s) disponivel(is).
+                                        {availableEmployees} funcionário(s) disponível(is).
                                         {avgTeamPerProject > 0
-                                            ? " Media de " + avgTeamPerProject.toFixed(1) + " pessoas por projeto ativo."
+                                            ? " Média de " + avgTeamPerProject.toFixed(1) + " pessoas por projeto ativo."
                                             : " Nenhum projeto ativo ainda."
                                         }
                                     </p>
@@ -130,15 +130,15 @@ export default async function RelatorioCapacidadePage() {
                         <div className="mt-6 grid grid-cols-3 gap-4 pt-4 border-t border-current/10">
                             <div className="text-center">
                                 <div className="text-2xl font-bold">{avgTeamPerProject.toFixed(1)}</div>
-                                <p className="text-xs text-muted-foreground">Media equipe / projeto</p>
+                                <p className="text-xs text-muted-foreground">Média equipe / projeto</p>
                             </div>
                             <div className="text-center">
                                 <div className="text-2xl font-bold">{availableEmployees}</div>
-                                <p className="text-xs text-muted-foreground">Disponiveis</p>
+                                <p className="text-xs text-muted-foreground">Disponíveis</p>
                             </div>
                             <div className="text-center">
                                 <div className={capClass}>+{capacityForMoreProjects}</div>
-                                <p className="text-xs text-muted-foreground">Projetos absorviveis</p>
+                                <p className="text-xs text-muted-foreground">Projetos absorvíveis</p>
                             </div>
                         </div>
                     </CardContent>
@@ -150,7 +150,7 @@ export default async function RelatorioCapacidadePage() {
                 </h2>
                 <div className="grid gap-4 md:grid-cols-3">
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground uppercase">Disponiveis</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground uppercase">Disponíveis</CardTitle></CardHeader>
                         <CardContent><div className="text-3xl font-bold text-green-600">{equipmentAvailable}</div></CardContent>
                     </Card>
                     <Card>
@@ -158,7 +158,7 @@ export default async function RelatorioCapacidadePage() {
                         <CardContent><div className="text-3xl font-bold text-blue-600">{equipmentInUse}</div></CardContent>
                     </Card>
                     <Card className={equipmentInMaintenance > 0 ? "border-orange-200 bg-orange-50" : ""}>
-                        <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground uppercase">Em Manutencao</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground uppercase">Em Manutenção</CardTitle></CardHeader>
                         <CardContent><div className={eqMaintClass}>{equipmentInMaintenance}</div></CardContent>
                     </Card>
                 </div>
@@ -168,7 +168,7 @@ export default async function RelatorioCapacidadePage() {
                             <div className="flex flex-wrap gap-4 text-sm">
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded-full bg-green-500" />
-                                    <span>Disponivel: {equipmentAvailable} ({equipment.length > 0 ? ((equipmentAvailable / equipment.length) * 100).toFixed(0) : 0}%)</span>
+                                    <span>Disponível: {equipmentAvailable} ({equipment.length > 0 ? ((equipmentAvailable / equipment.length) * 100).toFixed(0) : 0}%)</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded-full bg-blue-500" />
@@ -176,7 +176,7 @@ export default async function RelatorioCapacidadePage() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded-full bg-orange-500" />
-                                    <span>Manutencao: {equipmentInMaintenance} ({equipment.length > 0 ? ((equipmentInMaintenance / equipment.length) * 100).toFixed(0) : 0}%)</span>
+                                    <span>Manutenção: {equipmentInMaintenance} ({equipment.length > 0 ? ((equipmentInMaintenance / equipment.length) * 100).toFixed(0) : 0}%)</span>
                                 </div>
                             </div>
                         </CardContent>
@@ -188,17 +188,17 @@ export default async function RelatorioCapacidadePage() {
                     <Card className="border-red-200 bg-red-50">
                         <CardHeader>
                             <CardTitle className="text-red-700 flex items-center gap-2">
-                                <AlertTriangle className="h-5 w-5" />Atencao: Capacidade Maxima
+                                <AlertTriangle className="h-5 w-5" />Atenção: Capacidade Máxima
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-red-600 text-sm">
-                                Sua equipe esta operando na capacidade maxima. Para garantir a qualidade das entregas e evitar sobrecarga, considere:
+                                Sua equipe está operando na capacidade máxima. Para garantir a qualidade das entregas e evitar sobrecarga, considere:
                             </p>
                             <ul className="mt-3 space-y-1 text-sm text-red-600 list-disc list-inside">
-                                <li>Revisar as alocacoes e redistribuir tarefas</li>
-                                <li>Contratar novos funcionarios antes de assumir novos projetos</li>
-                                <li>Avaliar terceirizacao de parte das atividades</li>
+                                <li>Revisar as alocações e redistribuir tarefas</li>
+                                <li>Contratar novos funcionários antes de assumir novos projetos</li>
+                                <li>Avaliar terceirização de parte das atividades</li>
                                 <li>Adiar projetos de menor prioridade</li>
                             </ul>
                         </CardContent>

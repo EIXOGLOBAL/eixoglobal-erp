@@ -11,6 +11,9 @@ import { notifyUsers } from "@/lib/sse-notifications"
 import { getPaginationArgs, paginatedResponse, type PaginationParams } from "@/lib/pagination"
 import { buildWhereClause, type FilterParams } from "@/lib/filters"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'inventory' })
 
 // ============================================================================
 // SCHEMAS
@@ -45,6 +48,14 @@ const movementSchema = z.object({
 
 export async function createMaterial(data: z.infer<typeof materialSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot create materials
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para criar material" }
+        }
+
         const validated = materialSchema.parse(data)
 
         const existing = await prisma.material.findFirst({
@@ -81,7 +92,7 @@ export async function createMaterial(data: z.infer<typeof materialSchema>) {
         revalidatePath('/estoque')
         return { success: true, data: material }
     } catch (error) {
-        console.error("Erro ao criar material:", error)
+        log.error({ err: error }, "Erro ao criar material")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar material"
@@ -91,6 +102,14 @@ export async function createMaterial(data: z.infer<typeof materialSchema>) {
 
 export async function updateMaterial(id: string, data: z.infer<typeof materialSchema>) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Check write permission - USER role cannot update materials
+        if (session.user.role === 'USER') {
+            return { success: false, error: "Sem permissão para editar material" }
+        }
+
         const validated = materialSchema.parse(data)
 
         const oldMaterial = await prisma.material.findUnique({ where: { id } })
@@ -115,7 +134,7 @@ export async function updateMaterial(id: string, data: z.infer<typeof materialSc
         revalidatePath('/estoque')
         return { success: true, data: material }
     } catch (error) {
-        console.error("Erro ao atualizar material:", error)
+        log.error({ err: error }, "Erro ao atualizar material")
         return {
             success: false,
             error: "Erro ao atualizar material"
@@ -165,7 +184,7 @@ export async function deleteMaterial(id: string) {
         revalidatePath('/estoque')
         return { success: true }
     } catch (error) {
-        console.error("Erro ao deletar material:", error)
+        log.error({ err: error }, "Erro ao deletar material")
         return {
             success: false,
             error: "Erro ao deletar material"
@@ -216,7 +235,7 @@ export async function getMaterials(params?: {
 
         return { success: true, data: mapped, pagination: paginatedResponse(mapped, total, page, pageSize).pagination }
     } catch (error) {
-        console.error("Erro ao buscar materiais:", error)
+        log.error({ err: error }, "Erro ao buscar materiais")
         return { success: false, error: "Erro ao buscar materiais", data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }
     }
 }
@@ -266,7 +285,7 @@ export async function getMaterialById(id: string) {
             }))
         }
     } catch (error) {
-        console.error("Erro ao buscar material:", error)
+        log.error({ err: error }, "Erro ao buscar material")
         return null
     }
 }
@@ -281,7 +300,7 @@ export async function changeMaterialStatus(id: string, isActive: boolean) {
         revalidatePath('/estoque')
         return { success: true, data: material }
     } catch (error) {
-        console.error("Erro ao alterar status do material:", error)
+        log.error({ err: error }, "Erro ao alterar status do material")
         return { success: false, error: "Erro ao alterar status do material" }
     }
 }
@@ -380,7 +399,7 @@ export async function createMovement(data: z.infer<typeof movementSchema>) {
 
         return { success: true, data: movement }
     } catch (error) {
-        console.error("Erro ao criar movimentação:", error)
+        log.error({ err: error }, "Erro ao criar movimentação")
         return {
             success: false,
             error: error instanceof Error ? error.message : "Erro ao criar movimentação"
@@ -428,7 +447,7 @@ export async function getMovements(companyId: string, materialId?: string, proje
             unitCost: m.unitCost ? Number(m.unitCost) : null,
         }))
     } catch (error) {
-        console.error("Erro ao buscar movimentações:", error)
+        log.error({ err: error }, "Erro ao buscar movimentações")
         return []
     }
 }
@@ -454,7 +473,7 @@ export async function getLowStockMaterials(companyId: string) {
             }))
             .filter(m => m.currentStock <= m.minStock && m.minStock > 0)
     } catch (error) {
-        console.error("Erro ao buscar materiais com estoque baixo:", error)
+        log.error({ err: error }, "Erro ao buscar materiais com estoque baixo")
         return []
     }
 }
@@ -481,7 +500,7 @@ export async function getInventoryValue(companyId: string) {
             }
         }
     } catch (error) {
-        console.error("Erro ao calcular valor do estoque:", error)
+        log.error({ err: error }, "Erro ao calcular valor do estoque")
         return {
             success: false,
             error: "Erro ao calcular valor do estoque"

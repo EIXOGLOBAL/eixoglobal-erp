@@ -123,10 +123,10 @@ export default async function QualidadePage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
-          Gestao de Qualidade
+          Gestão de Qualidade
         </h1>
         <p className="text-muted-foreground">
-          Controle de qualidade, inspecoes e conformidades
+          Controle de qualidade, inspeções e conformidades
         </p>
       </div>
 
@@ -139,7 +139,7 @@ export default async function QualidadePage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase">
-                Inspecoes Pendentes
+                Inspeções Pendentes
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -160,7 +160,7 @@ export default async function QualidadePage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase">
-                Nao-Conformidades Abertas
+                Não-Conformidades Abertas
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -181,7 +181,7 @@ export default async function QualidadePage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase">
-                Taxa de Aprovacao
+                Taxa de Aprovação
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -202,7 +202,7 @@ export default async function QualidadePage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase">
-                Inspecoes no Mes
+                Inspeções no Mês
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -225,7 +225,7 @@ export default async function QualidadePage() {
       {statusCounts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Distribuicao por Status</CardTitle>
+            <CardTitle className="text-sm font-medium">Distribuição por Status</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">

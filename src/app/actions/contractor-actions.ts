@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { getNextCode } from "@/lib/sequence"
 import { assertAuthenticated } from "@/lib/auth-helpers"
+import { assertCanDelete } from "@/lib/permissions"
+import { getSession } from "@/lib/auth"
 import { logCreate, logUpdate, logDelete, logAction } from '@/lib/audit-logger'
 
 const contractorSchema = z.object({
@@ -15,7 +17,11 @@ const contractorSchema = z.object({
 
 export async function createContractor(data: z.infer<typeof contractorSchema>, companyId: string) {
   try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check write permission - USER role cannot create
+        if (session.user.role === 'USER') {
+            return { success: false, error: 'Sem permissão para criar empreiteira' }
+        }
     const validated = contractorSchema.parse(data)
     const code = await getNextCode('contractor', companyId)
     const contractor = await prisma.contractor.create({
@@ -38,7 +44,11 @@ export async function createContractor(data: z.infer<typeof contractorSchema>, c
 
 export async function updateContractor(id: string, data: z.infer<typeof contractorSchema>) {
   try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check write permission - USER role cannot update
+        if (session.user.role === 'USER') {
+            return { success: false, error: 'Sem permissão para editar empreiteira' }
+        }
     const validated = contractorSchema.parse(data)
     const oldContractor = await prisma.contractor.findUnique({ where: { id } })
     const contractor = await prisma.contractor.update({
@@ -60,7 +70,9 @@ export async function updateContractor(id: string, data: z.infer<typeof contract
 
 export async function deleteContractor(id: string) {
   try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check delete permission
+        assertCanDelete(session.user)
     const contractor = await prisma.contractor.findUnique({
       where: { id },
       include: { _count: { select: { contracts: true } } }
@@ -96,7 +108,11 @@ export async function getContractors(companyId: string) {
 
 export async function changeContractorStatus(id: string, status: 'ACTIVE' | 'INACTIVE' | 'BLOCKED') {
   try {
-        await assertAuthenticated()
+        const session = await assertAuthenticated()
+        // Check write permission - USER role cannot change status
+        if (session.user.role === 'USER') {
+            return { success: false, error: 'Sem permissão para alterar status da empreiteira' }
+        }
     const oldContractor = await prisma.contractor.findUnique({ where: { id } })
     const contractor = await prisma.contractor.update({
       where: { id },
