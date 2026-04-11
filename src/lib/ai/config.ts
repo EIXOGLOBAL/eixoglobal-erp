@@ -85,11 +85,19 @@ const providers: AIProviderConfig[] = [
   {
     name: 'openrouter',
     label: 'OpenRouter',
-    model: 'meta-llama/llama-3.3-70b-instruct:free',
+    model: 'nvidia/nemotron-3-super-120b-a12b:free',
     fallbackModels: [
+      // NVIDIA — providers mais estaveis, raramente rate-limited
+      'nvidia/nemotron-nano-9b-v2:free',
+      'nvidia/nemotron-3-nano-30b-a3b:free',
+      // Meta Llama — bom mas frequentemente rate-limited
+      'meta-llama/llama-3.3-70b-instruct:free',
+      // Google Gemma — bom mas pode estar rate-limited
       'google/gemma-3-27b-it:free',
-      'google/gemma-4-31b-it:free',
-      'qwen/qwen3-coder:free',
+      'google/gemma-3n-e4b-it:free',
+      // Outros providers diversificados
+      'minimax/minimax-m2.5:free',
+      'openai/gpt-oss-20b:free',
     ],
     getKey: getOpenRouterKey,
     createModel: (key, model) => {
@@ -126,23 +134,44 @@ export function invalidateModelCache() {
 }
 
 /**
+ * Modelos que sabemos que foram removidos do OpenRouter.
+ * Pulados automaticamente para evitar chamadas desnecessarias.
+ */
+const DEAD_MODELS = new Set([
+  'google/gemini-2.0-flash-exp:free',
+  'google/gemini-1.5-flash-exp:free',
+  'google/gemini-2.0-flash:free',
+])
+
+/**
  * Verifica se um modelo funciona fazendo uma chamada minima.
- * Retorna true se o modelo respondeu, false se falhou.
+ * Retorna { ok, error } com info detalhada.
  */
 async function verifyModel(
   model: Parameters<typeof import('ai').streamText>[0]['model']
-): Promise<boolean> {
+): Promise<{ ok: boolean; error?: string }> {
   try {
     await generateText({
       model,
-      prompt: 'ok',
+      prompt: 'hi',
       maxOutputTokens: 1,
       maxRetries: 0,
       abortSignal: AbortSignal.timeout(15_000),
     })
-    return true
-  } catch {
-    return false
+    return { ok: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    // Extrair info util do erro
+    const is429 = msg.includes('429') || msg.includes('rate') || msg.includes('Rate')
+    const is404 = msg.includes('404') || msg.includes('not found') || msg.includes('Not Found')
+    const isAuth = msg.includes('401') || msg.includes('403') || msg.includes('auth')
+
+    let reason = msg
+    if (is429) reason = 'rate-limited (429)'
+    else if (is404) reason = 'modelo nao encontrado (404)'
+    else if (isAuth) reason = 'erro de autenticacao'
+
+    return { ok: false, error: reason }
   }
 }
 
@@ -205,17 +234,24 @@ export async function getAIModel(): Promise<{
       cfg.model,
       ...cfg.fallbackModels,
     ]
-    // Remover duplicatas mantendo ordem
-    const uniqueModels = [...new Set(modelsToTry)]
+    // Remover duplicatas mantendo ordem, e pular modelos sabidamente mortos
+    const uniqueModels = [...new Set(modelsToTry)].filter((m) => {
+      if (DEAD_MODELS.has(m)) {
+        console.warn(`[AI] Pulando modelo morto: ${m}`)
+        errors.push(`${cfg.name}/${m}: modelo descontinuado`)
+        return false
+      }
+      return true
+    })
 
     for (const modelId of uniqueModels) {
       try {
         const model = cfg.createModel(key, modelId)
 
         // Verificar se o modelo responde
-        const ok = await verifyModel(model)
-        if (!ok) {
-          const msg = `${cfg.name}/${modelId}: modelo nao respondeu`
+        const result = await verifyModel(model)
+        if (!result.ok) {
+          const msg = `${cfg.name}/${modelId}: ${result.error}`
           errors.push(msg)
           console.warn(`[AI] ${msg}`)
           continue
