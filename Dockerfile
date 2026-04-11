@@ -23,7 +23,7 @@ RUN npm run build
 
 # --- Runner ---
 FROM node:alpine AS runner
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat postgresql-client
 WORKDIR /app
 
 ENV NODE_ENV=production
