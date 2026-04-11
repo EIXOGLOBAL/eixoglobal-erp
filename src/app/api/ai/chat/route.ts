@@ -57,7 +57,11 @@ export async function POST(request: NextRequest) {
       module,
       context,
     } = body as {
-      messages: Array<{ role: 'user' | 'assistant'; content: string }>
+      messages: Array<{
+        role: 'user' | 'assistant'
+        content?: string
+        parts?: Array<{ type: string; text?: string }>
+      }>
       module?: string
       context?: Record<string, unknown>
     }
@@ -72,11 +76,33 @@ export async function POST(request: NextRequest) {
     // Adicionar info do usuario ao system prompt
     const enhancedPrompt = `${systemPrompt}\n\nUsuario: ${user.name || 'Usuario'}\nCargo: ${user.role}${context ? `\n\nContexto adicional:\n${JSON.stringify(context)}` : ''}`
 
-    // Preparar mensagens
-    const messages = rawMessages.slice(-30).map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    }))
+    // Converter UIMessage (v6 parts) para formato ModelMessage (role + content)
+    // O AI SDK v6 useChat/TextStreamChatTransport envia mensagens com "parts" em vez de "content"
+    const messages = rawMessages.slice(-30).map((m) => {
+      let content: string
+
+      if (typeof m.content === 'string' && m.content.length > 0) {
+        // Formato legado ou direto: { role, content }
+        content = m.content
+      } else if (Array.isArray(m.parts)) {
+        // Formato AI SDK v6 UIMessage: { role, parts: [{ type: 'text', text: '...' }] }
+        content = m.parts
+          .filter((p) => p.type === 'text' && typeof p.text === 'string')
+          .map((p) => p.text!)
+          .join('')
+      } else {
+        content = ''
+      }
+
+      return {
+        role: m.role as 'user' | 'assistant',
+        content,
+      }
+    }).filter((m) => m.content.length > 0)
+
+    if (messages.length === 0) {
+      return Response.json({ error: 'Nenhuma mensagem com conteudo valido' }, { status: 400 })
+    }
 
     // Stream
     const { stream, provider, model } = await aiChat(messages, {
