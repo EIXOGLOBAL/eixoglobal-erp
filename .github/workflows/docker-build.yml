@@ -42,15 +42,25 @@ jobs:
           IMAGE_TAG=${{ github.sha }}"
           jq -n --arg id "${{ secrets.DOKPLOY_COMPOSE_ID }}" --arg env "$ENV_BLOCK" \
             '{composeId:$id, env:$env}' > payload.json
-          curl -sX POST "${{ secrets.DOKPLOY_URL }}/api/compose.update" \
-            -H "Content-Type: application/json" \
-            -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
-            --data @payload.json
+          for i in 1 2 3; do
+            curl -sX POST "${{ secrets.DOKPLOY_URL }}/api/compose.update" \
+              -H "Content-Type: application/json" \
+              -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
+              --connect-timeout 15 --max-time 60 \
+              --data @payload.json && break
+            echo "Attempt $i failed, retrying..."
+            sleep 5
+          done
 
       - name: Deploy no Dokploy
         run: |
-          curl -X POST "${{ secrets.DOKPLOY_URL }}/api/compose.deploy" \
-            -H "accept: application/json" \
-            -H "Content-Type: application/json" \
-            -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
-            -d '{"composeId": "${{ secrets.DOKPLOY_COMPOSE_ID }}"}'
+          for i in 1 2 3; do
+            curl -sX POST "${{ secrets.DOKPLOY_URL }}/api/compose.deploy" \
+              -H "accept: application/json" \
+              -H "Content-Type: application/json" \
+              -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
+              --connect-timeout 15 --max-time 60 \
+              -d '{"composeId": "${{ secrets.DOKPLOY_COMPOSE_ID }}"}' && break
+            echo "Attempt $i failed, retrying..."
+            sleep 5
+          done
