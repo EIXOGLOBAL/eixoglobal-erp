@@ -5,47 +5,32 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    // 1. Verificar colunas da tabela users via raw query
-    const columns: any[] = await prisma.$queryRaw`
-      SELECT column_name, data_type
-      FROM information_schema.columns
-      WHERE table_name = 'users'
-      ORDER BY ordinal_position
-    `
-
-    // 2. Contar usuarios via raw SQL
-    const countResult: any[] = await prisma.$queryRaw`SELECT COUNT(*) as total FROM users`
-
-    // 3. Buscar admin via raw SQL
-    const adminResult: any[] = await prisma.$queryRaw`
-      SELECT id, username, role, "companyId", "isActive"
-      FROM users
-      WHERE username = 'admin'
-      LIMIT 1
-    `
-
-    // 4. Listar todas as tabelas
+    // 1. Listar TODAS as tabelas
     const tables: any[] = await prisma.$queryRaw`
       SELECT table_name FROM information_schema.tables
-      WHERE table_schema = 'public'
-      ORDER BY table_name
+      WHERE table_schema = 'public' ORDER BY table_name
     `
 
-    // 5. Contar empresas
-    const companyResult: any[] = await prisma.$queryRaw`SELECT COUNT(*) as total FROM companies`
+    // 2. Colunas da tabela users (se existir)
+    const userCols: any[] = await prisma.$queryRaw`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'users' ORDER BY ordinal_position
+    `
+
+    // 3. Dados dos users via SELECT *
+    let users: any[] = []
+    try {
+      users = await prisma.$queryRaw`SELECT * FROM users LIMIT 5`
+    } catch (e: any) {
+      users = [{ error: e.message }]
+    }
 
     return NextResponse.json({
-      userCount: countResult[0]?.total,
-      admin: adminResult[0] || null,
-      columnNames: columns.map((c: any) => c.column_name),
-      columnCount: columns.length,
-      tableCount: tables.length,
-      companyCount: companyResult[0]?.total,
+      tables: tables.map((t: any) => t.table_name),
+      userColumns: userCols.map((c: any) => c.column_name),
+      users,
     })
   } catch (error: any) {
-    return NextResponse.json({
-      error: error.message,
-      stack: error.stack?.split('\n').slice(0, 5),
-    }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
