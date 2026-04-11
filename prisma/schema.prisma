@@ -40,6 +40,7 @@ model User {
   canManageHR        Boolean @default(false) // Acesso a folha, salários
   canManageSystem    Boolean @default(false) // Acesso a Sistema (empresas, usuários)
   canViewReports     Boolean @default(true) // Pode ver relatórios
+  aiAccessLevel      AiAccessLevel? // Nível de acesso à IA (null = inferir do role)
 
   projects               Project[]
   registeredMeasurements Measurement[]       @relation("MeasurementRegistrar")
@@ -1103,6 +1104,13 @@ enum Role {
   SAFETY_OFFICER
   ACCOUNTANT
   HR_ANALYST
+}
+
+enum AiAccessLevel {
+  FULL     // Acesso ilimitado (padrão ADMIN)
+  STANDARD // Chat + análises da empresa + relatórios (padrão MANAGER)
+  BASIC    // Chat limitado ao contexto próprio (padrão demais roles)
+  NONE     // Sem acesso à IA
 }
 
 enum ProjectStatus {

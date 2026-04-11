@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/route-guard"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Settings, Building2, Users, Lock, UserCircle, BarChart3, Shield, FileText } from "lucide-react"
+import { Settings, Building2, Users, Lock, UserCircle, BarChart3, Shield, FileText, Brain } from "lucide-react"
 import Link from "next/link"
 
 export const dynamic = 'force-dynamic'
@@ -50,6 +50,14 @@ export default async function ConfiguracoesPage() {
             href: "/relatorios",
             color: "text-cyan-600",
             adminOnly: false,
+        },
+        {
+            title: "Inteligência Artificial",
+            description: "Gerenciar permissões e níveis de acesso à IA dos usuários",
+            icon: Brain,
+            href: "/configuracoes/ia",
+            color: "text-violet-600",
+            adminOnly: true,
         },
         {
             title: "Log de Auditoria",

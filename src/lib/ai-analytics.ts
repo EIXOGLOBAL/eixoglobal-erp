@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
+import { resolveAIPermissions, type AiAccessLevel } from '@/lib/permissions'
 
 // --------------------------------------------------------
 // Helper
@@ -123,18 +125,31 @@ export async function analyzeProjectPortfolio(companyId: string): Promise<Portfo
   try {
     if (!process.env.ANTHROPIC_API_KEY) return fallback
 
+    // Verificar permissões: filtrar por companyId do usuário (exceto ADMIN)
+    const session = await getSession()
+    const role = session?.user?.role ?? ''
+    const aiLevel = (session?.user as Record<string, unknown> | undefined)?.aiAccessLevel as AiAccessLevel | null | undefined
+    const permissions = resolveAIPermissions(role, aiLevel)
+
+    if (!permissions.canRunAnalysis) {
+      return { ...fallback, headline: 'Acesso restrito', insights: ['Você não tem permissão para análises de portfólio.'] }
+    }
+
+    // ADMIN pode ver qualquer empresa; outros veem apenas a própria
+    const effectiveCompanyId = permissions.canAccessAllData ? companyId : (session?.user?.companyId ?? companyId)
+
     const projects = await prisma.project.findMany({
-      where: { companyId },
+      where: { companyId: effectiveCompanyId },
       select: { id: true, name: true, status: true, startDate: true, endDate: true, budget: true },
     })
 
     const contracts = await prisma.contract.findMany({
-      where: { companyId },
+      where: { companyId: effectiveCompanyId },
       select: { id: true, identifier: true, value: true, status: true, startDate: true, endDate: true },
     })
 
     const recentBulletins = await prisma.measurementBulletin.findMany({
-      where: { project: { companyId } },
+      where: { project: { companyId: effectiveCompanyId } },
       orderBy: { createdAt: 'desc' },
       take: 20,
       select: { id: true, number: true, totalValue: true, status: true, referenceMonth: true },
@@ -205,21 +220,34 @@ export async function analyzeFinancialHealth(companyId: string): Promise<Financi
   try {
     if (!process.env.ANTHROPIC_API_KEY) return fallback
 
+    // Verificar permissões: filtrar por companyId do usuário
+    const session = await getSession()
+    const role = session?.user?.role ?? ''
+    const aiLevel = (session?.user as Record<string, unknown> | undefined)?.aiAccessLevel as AiAccessLevel | null | undefined
+    const permissions = resolveAIPermissions(role, aiLevel)
+
+    if (!permissions.canRunAnalysis) {
+      return { ...fallback, alerts: ['Acesso restrito: você não tem permissão para análises financeiras.'] }
+    }
+
+    // ADMIN pode ver qualquer empresa; outros veem apenas a própria
+    const effectiveCompanyId = permissions.canAccessAllData ? companyId : (session?.user?.companyId ?? companyId)
+
     const twelveMonthsAgo = new Date()
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
 
     const financialRecords = await prisma.financialRecord.findMany({
-      where: { companyId, createdAt: { gte: twelveMonthsAgo } },
+      where: { companyId: effectiveCompanyId, createdAt: { gte: twelveMonthsAgo } },
       select: { id: true, description: true, amount: true, type: true, status: true, dueDate: true, paidDate: true, paidAmount: true, category: true },
     })
 
     const bankAccounts = await prisma.bankAccount.findMany({
-      where: { companyId },
+      where: { companyId: effectiveCompanyId },
       select: { id: true, name: true, balance: true },
     })
 
     const fiscalNotes = await prisma.fiscalNote.findMany({
-      where: { companyId, createdAt: { gte: twelveMonthsAgo } },
+      where: { companyId: effectiveCompanyId, createdAt: { gte: twelveMonthsAgo } },
       select: { id: true, type: true, value: true, status: true, issuedDate: true, dueDate: true },
     })
 
@@ -286,6 +314,16 @@ export async function analyzeHRMetrics(companyId: string): Promise<HRAnalysis> {
 
   try {
     if (!process.env.ANTHROPIC_API_KEY) return fallback
+
+    // Análise de RH contém dados sensíveis de salário: apenas ADMIN
+    const session = await getSession()
+    const role = session?.user?.role ?? ''
+    const aiLevel = (session?.user as Record<string, unknown> | undefined)?.aiAccessLevel as AiAccessLevel | null | undefined
+    const permissions = resolveAIPermissions(role, aiLevel)
+
+    if (!permissions.canAccessHRData) {
+      return { ...fallback, alerts: ['Acesso restrito: análise de RH disponível apenas para administradores (dados sensíveis de salário).'] }
+    }
 
     const employees = await prisma.employee.findMany({
       where: { companyId, status: 'ACTIVE' },
@@ -374,10 +412,23 @@ export async function generateExecutiveSummary(companyId: string): Promise<Execu
   try {
     if (!process.env.ANTHROPIC_API_KEY) return fallback
 
+    // Resumo executivo: apenas ADMIN e MANAGER
+    const session = await getSession()
+    const role = session?.user?.role ?? ''
+    const aiLevel = (session?.user as Record<string, unknown> | undefined)?.aiAccessLevel as AiAccessLevel | null | undefined
+    const permissions = resolveAIPermissions(role, aiLevel)
+
+    if (!permissions.canGenerateReports) {
+      return { ...fallback, highlights: ['Acesso restrito: resumo executivo disponível apenas para ADMIN e MANAGER.'] }
+    }
+
+    // ADMIN pode ver qualquer empresa; MANAGER vê apenas a própria
+    const effectiveCompanyId = permissions.canAccessAllData ? companyId : (session?.user?.companyId ?? companyId)
+
     const [portfolio, financial, hr] = await Promise.all([
-      analyzeProjectPortfolio(companyId),
-      analyzeFinancialHealth(companyId),
-      analyzeHRMetrics(companyId),
+      analyzeProjectPortfolio(effectiveCompanyId),
+      analyzeFinancialHealth(effectiveCompanyId),
+      analyzeHRMetrics(effectiveCompanyId),
     ])
 
     const context = {
@@ -434,22 +485,35 @@ export async function detectAnomalies(companyId: string): Promise<AnomalyReport>
   try {
     if (!process.env.ANTHROPIC_API_KEY) return fallback
 
+    // Detecção de anomalias: apenas ADMIN e MANAGER
+    const session = await getSession()
+    const role = session?.user?.role ?? ''
+    const aiLevel = (session?.user as Record<string, unknown> | undefined)?.aiAccessLevel as AiAccessLevel | null | undefined
+    const permissions = resolveAIPermissions(role, aiLevel)
+
+    if (!permissions.canDetectAnomalies) {
+      return fallback
+    }
+
+    // ADMIN pode ver qualquer empresa; MANAGER vê apenas a própria
+    const effectiveCompanyId = permissions.canAccessAllData ? companyId : (session?.user?.companyId ?? companyId)
+
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
     const recentFinancial = await prisma.financialRecord.findMany({
-      where: { companyId, createdAt: { gte: sevenDaysAgo } },
+      where: { companyId: effectiveCompanyId, createdAt: { gte: sevenDaysAgo } },
       select: { id: true, description: true, amount: true, type: true, status: true, dueDate: true, category: true },
     })
 
     const recentInventory = await prisma.inventoryMovement.findMany({
-      where: { material: { companyId }, createdAt: { gte: sevenDaysAgo } },
+      where: { material: { companyId: effectiveCompanyId }, createdAt: { gte: sevenDaysAgo } },
       select: { id: true, type: true, quantity: true, notes: true, materialId: true },
       take: 100,
     })
 
     const recentAudit = await prisma.auditLog.findMany({
-      where: { companyId, createdAt: { gte: sevenDaysAgo } },
+      where: { companyId: effectiveCompanyId, createdAt: { gte: sevenDaysAgo } },
       orderBy: { createdAt: 'desc' },
       take: 100,
       select: { id: true, action: true, entity: true, entityName: true, createdAt: true },

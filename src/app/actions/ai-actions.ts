@@ -2,16 +2,17 @@
 
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
+import { resolveAIPermissions, type AIPermissions, type AiAccessLevel } from '@/lib/permissions'
+import { logAction } from '@/lib/audit-logger'
 import Anthropic from '@anthropic-ai/sdk'
 
 // ============================================================================
-// Rate Limiting
+// Rate Limiting (diferenciado por permissão)
 // ============================================================================
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-const MAX_CALLS_PER_HOUR = 20
 
-function checkRateLimit(userId: string): boolean {
+function checkRateLimit(userId: string, maxCallsPerHour: number): boolean {
   const now = Date.now()
   const entry = rateLimitMap.get(userId)
 
@@ -20,12 +21,31 @@ function checkRateLimit(userId: string): boolean {
     return true
   }
 
-  if (entry.count >= MAX_CALLS_PER_HOUR) {
+  if (entry.count >= maxCallsPerHour) {
     return false
   }
 
   entry.count += 1
   return true
+}
+
+// ============================================================================
+// Helper: obter permissões de IA da sessão
+// ============================================================================
+
+async function getAIContext() {
+  const session = await getSession()
+  if (!session?.user?.id) {
+    return { error: 'Não autenticado' as const }
+  }
+
+  const role = session.user.role ?? ''
+  const aiAccessLevel = (session.user as Record<string, unknown>).aiAccessLevel as AiAccessLevel | null | undefined
+  const permissions = resolveAIPermissions(role, aiAccessLevel)
+  const companyId = session.user.companyId ?? null
+  const userId = session.user.id
+
+  return { session, role, permissions, companyId, userId }
 }
 
 // ============================================================================
@@ -123,18 +143,30 @@ export async function analyzeSystemHealth(
   companyId: string
 ): Promise<SystemHealthAnalysis | { error: string }> {
   try {
-    const session = await getSession()
-    if (!session?.user?.id) {
-      return { error: 'Não autenticado' }
+    const ctx = await getAIContext()
+    if ('error' in ctx) return { error: ctx.error }
+
+    const { permissions, role, userId } = ctx
+
+    if (!permissions.canRunAnalysis) {
+      return { error: 'Acesso restrito: você não tem permissão para análises de saúde do sistema.' }
     }
 
-    if (!checkRateLimit(session.user.id)) {
+    if (!checkRateLimit(userId, permissions.maxCallsPerHour)) {
       return { error: 'Limite de requisições atingido. Tente novamente em 1 hora.' }
     }
 
+    // ADMIN vê qualquer empresa; MANAGER/STANDARD vê apenas a própria
+    const targetCompanyId = permissions.canAccessAllData ? companyId : (ctx.companyId ?? companyId)
+    if (!permissions.canAccessAllData && ctx.companyId && companyId !== ctx.companyId) {
+      return { error: 'Acesso restrito: você só pode analisar dados da sua empresa.' }
+    }
+
+    await logAction('AI_ANALYZE_SYSTEM', 'Company', targetCompanyId, 'Análise de saúde do sistema')
+
     // Fetch company data
     const company = await prisma.company.findUnique({
-      where: { id: companyId },
+      where: { id: targetCompanyId },
       include: {
         projects: { select: { id: true, name: true, status: true } },
         employees: { select: { id: true, status: true } },
@@ -289,14 +321,50 @@ export async function analyzeProjectHealth(
   projectId: string
 ): Promise<ProjectHealthAnalysis | { error: string }> {
   try {
-    const session = await getSession()
-    if (!session?.user?.id) {
-      return { error: 'Não autenticado' }
+    const ctx = await getAIContext()
+    if ('error' in ctx) return { error: ctx.error }
+
+    const { permissions, role, userId, companyId: userCompanyId } = ctx
+
+    // ADMIN e MANAGER/STANDARD podem analisar projetos; BASIC não pode
+    if (!permissions.canRunAnalysis && !permissions.canUseChat) {
+      return { error: 'Acesso restrito: você não tem permissão para análises de projetos.' }
     }
 
-    if (!checkRateLimit(session.user.id)) {
+    if (!checkRateLimit(userId, permissions.maxCallsPerHour)) {
       return { error: 'Limite de requisições atingido' }
     }
+
+    // Verificar se o usuário tem acesso ao projeto
+    if (!permissions.canAccessAllData) {
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { companyId: true, allocations: { select: { employeeId: true } } },
+      })
+      if (!project) return { error: 'Projeto não encontrado' }
+
+      // MANAGER vê projetos da empresa; USER vê projetos onde está alocado
+      if (permissions.canRunAnalysis) {
+        // STANDARD: verificar empresa
+        if (userCompanyId && project.companyId !== userCompanyId) {
+          return { error: 'Acesso restrito: projeto pertence a outra empresa.' }
+        }
+      } else {
+        // BASIC: verificar se está alocado (via Employee vinculado ao userId)
+        const employee = await prisma.employee.findFirst({
+          where: { companyId: userCompanyId ?? undefined },
+          select: { id: true },
+        })
+        const isAllocated = employee && project.allocations.some(
+          (a: { employeeId: string }) => a.employeeId === employee.id
+        )
+        if (!isAllocated) {
+          return { error: 'Acesso restrito: você só pode ver projetos nos quais está alocado.' }
+        }
+      }
+    }
+
+    await logAction('AI_ANALYZE_PROJECT', 'Project', projectId, 'Análise de saúde do projeto')
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -409,14 +477,25 @@ export async function detectAnomalies(
   companyId: string
 ): Promise<AnomalyDetectionResult | { error: string }> {
   try {
-    const session = await getSession()
-    if (!session?.user?.id) {
-      return { error: 'Não autenticado' }
+    const ctx = await getAIContext()
+    if ('error' in ctx) return { error: ctx.error }
+
+    const { permissions, userId } = ctx
+
+    if (!permissions.canDetectAnomalies) {
+      return { error: 'Acesso restrito: apenas ADMIN e MANAGER podem detectar anomalias.' }
     }
 
-    if (!checkRateLimit(session.user.id)) {
+    if (!checkRateLimit(userId, permissions.maxCallsPerHour)) {
       return { error: 'Limite de requisições atingido' }
     }
+
+    // ADMIN vê qualquer empresa; MANAGER apenas a própria
+    if (!permissions.canAccessAllData && ctx.companyId && companyId !== ctx.companyId) {
+      return { error: 'Acesso restrito: você só pode analisar dados da sua empresa.' }
+    }
+
+    await logAction('AI_DETECT_ANOMALIES', 'Company', companyId, 'Detecção de anomalias')
 
     // Fetch anomaly data
     const [measurements, employees, financialRecords, allocations] = await Promise.all([
@@ -595,14 +674,31 @@ export async function generateReport(
   reportType: 'executive' | 'technical' | 'financial'
 ): Promise<AIReport | { error: string }> {
   try {
-    const session = await getSession()
-    if (!session?.user?.id) {
-      return { error: 'Não autenticado' }
+    const ctx = await getAIContext()
+    if ('error' in ctx) return { error: ctx.error }
+
+    const { permissions, userId } = ctx
+
+    if (!permissions.canGenerateReports) {
+      return { error: 'Acesso restrito: apenas ADMIN e MANAGER podem gerar relatórios.' }
     }
 
-    if (!checkRateLimit(session.user.id)) {
+    if (!checkRateLimit(userId, permissions.maxCallsPerHour)) {
       return { error: 'Limite de requisições atingido' }
     }
+
+    // Verificar acesso ao projeto (MANAGER vê apenas projetos da empresa)
+    if (!permissions.canAccessAllData) {
+      const proj = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { companyId: true },
+      })
+      if (proj && ctx.companyId && proj.companyId !== ctx.companyId) {
+        return { error: 'Acesso restrito: projeto pertence a outra empresa.' }
+      }
+    }
+
+    await logAction('AI_GENERATE_REPORT', 'Project', projectId, `Relatório ${reportType}`)
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -672,22 +768,38 @@ export async function chatAssistant(
   context?: string
 ): Promise<ChatResponse | { error: string }> {
   try {
-    const session = await getSession()
-    if (!session?.user?.id) {
-      return { error: 'Não autenticado' }
+    const ctx = await getAIContext()
+    if ('error' in ctx) return { error: ctx.error }
+
+    const { permissions, role, userId } = ctx
+
+    if (!permissions.canUseChat) {
+      return { error: 'Acesso restrito: o chat de IA não está disponível para o seu perfil.' }
     }
 
-    if (!checkRateLimit(session.user.id)) {
-      return { error: 'Limite de requisições atingido' }
+    if (!checkRateLimit(userId, permissions.maxCallsPerHour)) {
+      return { error: 'Limite de requisições atingido. Tente novamente em 1 hora.' }
     }
 
     if (!message || message.trim().length === 0) {
       return { error: 'Mensagem vazia' }
     }
 
+    // Montar contexto diferenciado por nível de acesso
+    let roleContext = ''
+    if (permissions.canAccessAllData) {
+      roleContext = 'O usuário é ADMINISTRADOR com acesso total a todos os dados do sistema.'
+    } else if (permissions.canRunAnalysis) {
+      roleContext = `O usuário é GERENTE com acesso aos dados da empresa dele. Não revele dados de outras empresas.`
+    } else {
+      roleContext = `O usuário tem acesso BÁSICO. Responda apenas sobre conceitos gerais, navegação do sistema e dúvidas operacionais. Não revele dados financeiros detalhados, salários ou informações de outros usuários.`
+    }
+
     const userPrompt = context ? `[Contexto: ${context}]\n\n${message}` : message
 
     const systemPrompt = `Você é o assistente de IA do ERP Eixo Global, especializado em gestão de projetos, obras de engenharia, contratos e finanças no Brasil.
+
+${roleContext}
 
 Ajude o usuário a:
 - Entender dados do ERP
