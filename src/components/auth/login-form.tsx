@@ -1,148 +1,204 @@
-'use client'
+"use client";
 
-import { useState, useTransition } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useRouter } from "next/navigation"
-import * as z from "zod"
-import { login, devLogin } from "@/app/actions/auth-actions"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Loader2, Zap } from "lucide-react"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, Eye, EyeOff, Fingerprint } from "lucide-react";
 
-const loginSchema = z.object({
-    username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres"),
-    password: z.string().min(1, "Senha obrigatória"),
-})
+interface LoginFormProps {
+  redirectTo?: string;
+  showPasskey?: boolean;
+}
 
-export function LoginForm() {
-    const [isPending, startTransition] = useTransition()
-    const { register, handleSubmit, formState: { errors } } = useForm<z.infer<typeof loginSchema>>({
-        resolver: zodResolver(loginSchema),
-    })
+export function LoginForm({ redirectTo = "/dashboard", showPasskey = true }: LoginFormProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    rememberMe: false,
+  });
 
-    const router = useRouter()
-    const [error, setError] = useState<string | null>(null)
-    const [isDevLoginPending, setIsDevLoginPending] = useState(false)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
 
-    async function onSubmit(data: z.infer<typeof loginSchema>) {
-        setError(null)
-        startTransition(async () => {
-            const formData = new FormData()
-            formData.append("username", data.username)
-            formData.append("password", data.password)
+    try {
+      const result = await authClient.signIn.email({
+        email: formData.email,
+        password: formData.password,
+        rememberMe: formData.rememberMe,
+      });
 
-            try {
-                const result = await login({}, formData)
-                if (result?.success) {
-                    router.push('/dashboard')
-                    router.refresh()
-                } else if (result?.message) {
-                    setError(result.message)
-                }
-            } catch (e: any) {
-                if (!e?.digest?.startsWith('NEXT_REDIRECT')) {
-                    setError('Erro ao tentar realizar login.')
-                }
-            }
-        })
+      if (result.error) {
+        toast({
+          title: "Erro ao fazer login",
+          description: result.error.message || "Credenciais inválidas",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if 2FA is required
+      if (result.data?.twoFactorRequired) {
+        router.push(`/auth/verify-2fa?redirect=${encodeURIComponent(redirectTo)}`);
+        return;
+      }
+
+      toast({
+        title: "Login realizado com sucesso",
+        description: "Bem-vindo de volta!",
+      });
+
+      router.push(redirectTo);
+      router.refresh();
+    } catch (error) {
+      toast({
+        title: "Erro ao fazer login",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    async function handleDevLogin() {
-        setError(null)
-        setIsDevLoginPending(true)
-        try {
-            const result = await devLogin()
-            if (result.success) {
-                router.push('/dashboard')
-                router.refresh()
-            } else {
-                setError(result.error || 'Erro ao fazer login de desenvolvimento')
-                setIsDevLoginPending(false)
-            }
-        } catch (e: any) {
-            setError('Erro ao fazer login de desenvolvimento')
-            setIsDevLoginPending(false)
-        }
+  const handlePasskeyLogin = async () => {
+    setIsLoading(true);
+
+    try {
+      const result = await authClient.passkey.signIn();
+
+      if (result.error) {
+        toast({
+          title: "Erro ao fazer login com passkey",
+          description: result.error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Login realizado com sucesso",
+        description: "Autenticado com passkey!",
+      });
+
+      router.push(redirectTo);
+      router.refresh();
+    } catch (error) {
+      toast({
+        title: "Erro ao fazer login com passkey",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    return (
-        <div className="grid gap-6">
-            <form onSubmit={handleSubmit(onSubmit)}>
-                {error && (
-                    <div className="bg-destructive/15 p-3 rounded-md flex items-center gap-x-2 text-sm text-destructive mb-4">
-                        <p>{error}</p>
-                    </div>
-                )}
-                <div className="grid gap-4">
-                    <div className="grid gap-2">
-                        <label htmlFor="username">Usuário</label>
-                        <Input
-                            id="username"
-                            placeholder="seu.usuario"
-                            type="text"
-                            autoCapitalize="none"
-                            autoComplete="username"
-                            autoCorrect="off"
-                            disabled={isPending}
-                            {...register("username")}
-                        />
-                        {errors.username && (
-                            <p className="text-sm text-red-500">{errors.username.message}</p>
-                        )}
-                    </div>
-                    <div className="grid gap-2">
-                        <label htmlFor="password">Senha</label>
-                        <Input
-                            id="password"
-                            placeholder="******"
-                            type="password"
-                            autoComplete="current-password"
-                            disabled={isPending}
-                            {...register("password")}
-                        />
-                        {errors.password && (
-                            <p className="text-sm text-red-500">{errors.password.message}</p>
-                        )}
-                    </div>
-                    <Button disabled={isPending}>
-                        {isPending && (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        Entrar
-                    </Button>
-                </div>
-            </form>
-
-            {process.env.NODE_ENV === 'development' && (
-            <>
-            <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                        Acesso Rápido
-                    </span>
-                </div>
-            </div>
-            <Button
-                type="button"
-                variant="outline"
-                onClick={handleDevLogin}
-                disabled={isDevLoginPending || isPending}
-                className="border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
-            >
-                {isDevLoginPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {!isDevLoginPending && (
-                    <Zap className="mr-2 h-4 w-4" />
-                )}
-                Entrar como Admin (DEV)
-            </Button>
-            </>
-            )}
+  return (
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email ou Usuário</Label>
+          <Input
+            id="email"
+            type="text"
+            placeholder="seu@email.com"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            disabled={isLoading}
+            required
+          />
         </div>
-    )
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Senha</Label>
+            <a
+              href="/auth/forgot-password"
+              className="text-sm text-primary hover:underline"
+            >
+              Esqueceu a senha?
+            </a>
+          </div>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              disabled={isLoading}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <input
+            id="remember"
+            type="checkbox"
+            checked={formData.rememberMe}
+            onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
+            className="h-4 w-4 rounded border-gray-300"
+          />
+          <Label htmlFor="remember" className="text-sm font-normal">
+            Lembrar-me
+          </Label>
+        </div>
+
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Entrar
+        </Button>
+      </form>
+
+      {showPasskey && (
+        <>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Ou continue com
+              </span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handlePasskeyLogin}
+            disabled={isLoading}
+          >
+            <Fingerprint className="mr-2 h-4 w-4" />
+            Login com Passkey
+          </Button>
+        </>
+      )}
+
+      <div className="text-center text-sm">
+        Não tem uma conta?{" "}
+        <a href="/auth/register" className="text-primary hover:underline">
+          Cadastre-se
+        </a>
+      </div>
+    </div>
+  );
 }
