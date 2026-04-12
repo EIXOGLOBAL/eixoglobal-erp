@@ -271,6 +271,20 @@ export const maintenanceTypeEnum = pgEnum('maintenance_type', [
   'INSPECTION'
 ]);
 
+export const maintenanceStatusEnum = pgEnum('maintenance_status', [
+  'SCHEDULED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED'
+]);
+
+export const frequencyUnitEnum = pgEnum('frequency_unit', [
+  'DAYS',
+  'WEEKS',
+  'MONTHS',
+  'YEARS'
+]);
+
 export const workTaskStatusEnum = pgEnum('work_task_status', [
   'BACKLOG',
   'TODO',
@@ -314,6 +328,145 @@ export const amendmentTypeEnum = pgEnum('amendment_type', [
   'DEADLINE_CHANGE',
   'SCOPE_CHANGE',
   'MIXED'
+]);
+
+export const anomalyStatusEnum = pgEnum('anomaly_status', [
+  'OPEN',
+  'IN_PROGRESS',
+  'RESOLVED',
+  'CLOSED'
+]);
+
+export const anomalyTypeEnum = pgEnum('anomaly_type', [
+  'QUALITY',
+  'SAFETY',
+  'ENVIRONMENTAL',
+  'OTHER'
+]);
+
+export const approvalActionEnum = pgEnum('approval_action', [
+  'APPROVE',
+  'REJECT',
+  'REQUEST_CHANGES'
+]);
+
+export const approvalStatusEnum = pgEnum('approval_status', [
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'CANCELLED'
+]);
+
+export const checkpointStatusEnum = pgEnum('checkpoint_status', [
+  'PENDING',
+  'COMPLETED',
+  'SKIPPED'
+]);
+
+export const dependencyTypeEnum = pgEnum('dependency_type', [
+  'FINISH_TO_START',
+  'START_TO_START',
+  'FINISH_TO_FINISH',
+  'START_TO_FINISH'
+]);
+
+export const healthStatusEnum = pgEnum('health_status', [
+  'HEALTHY',
+  'AT_RISK',
+  'CRITICAL'
+]);
+
+export const incidentStatusEnum = pgEnum('incident_status', [
+  'REPORTED',
+  'INVESTIGATING',
+  'RESOLVED',
+  'CLOSED'
+]);
+
+export const incidentTypeEnum = pgEnum('incident_type', [
+  'SAFETY',
+  'SECURITY',
+  'QUALITY',
+  'ENVIRONMENTAL',
+  'OTHER'
+]);
+
+export const inspectionStatusEnum = pgEnum('inspection_status', [
+  'SCHEDULED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED'
+]);
+
+export const nonConformityStatusEnum = pgEnum('non_conformity_status', [
+  'OPEN',
+  'IN_ANALYSIS',
+  'CORRECTIVE_ACTION',
+  'CLOSED'
+]);
+
+export const notificationTypeEnum = pgEnum('notification_type', [
+  'INFO',
+  'WARNING',
+  'ERROR',
+  'SUCCESS'
+]);
+
+export const paymentStatusEnum = pgEnum('payment_status', [
+  'PENDING',
+  'PROCESSING',
+  'PAID',
+  'FAILED',
+  'CANCELLED'
+]);
+
+export const rentalItemStatusEnum = pgEnum('rental_item_status', [
+  'AVAILABLE',
+  'RENTED',
+  'MAINTENANCE',
+  'RETIRED'
+]);
+
+export const reportFrequencyEnum = pgEnum('report_frequency', [
+  'DAILY',
+  'WEEKLY',
+  'MONTHLY',
+  'QUARTERLY',
+  'YEARLY'
+]);
+
+export const salaryChangeTypeEnum = pgEnum('salary_change_type', [
+  'PROMOTION',
+  'ADJUSTMENT',
+  'MERIT',
+  'MARKET_CORRECTION'
+]);
+
+export const scanStatusEnum = pgEnum('scan_status', [
+  'PENDING',
+  'SCANNING',
+  'COMPLETED',
+  'FAILED'
+]);
+
+export const scanTypeEnum = pgEnum('scan_type', [
+  'VULNERABILITY',
+  'COMPLIANCE',
+  'FULL'
+]);
+
+export const severityEnum = pgEnum('severity', [
+  'LOW',
+  'MEDIUM',
+  'HIGH',
+  'CRITICAL'
+]);
+
+export const workflowTypeEnum = pgEnum('workflow_type', [
+  'APPROVAL',
+  'REVIEW',
+  'NOTIFICATION',
+  'AUTOMATION'
 ]);
 
 export const compositionStatusEnum = pgEnum('composition_status', [
