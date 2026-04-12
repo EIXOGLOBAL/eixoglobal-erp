@@ -46,7 +46,7 @@ export function LoginForm({ redirectTo = "/dashboard", showPasskey = true }: Log
       }
 
       // Check if 2FA is required
-      if (result.data?.twoFactorRequired) {
+      if ((result.data as any)?.twoFactorRequired) {
         router.push(`/auth/verify-2fa?redirect=${encodeURIComponent(redirectTo)}`);
         return;
       }
@@ -73,7 +73,7 @@ export function LoginForm({ redirectTo = "/dashboard", showPasskey = true }: Log
     setIsLoading(true);
 
     try {
-      const result = await authClient.passkey.signIn();
+      const result = await (authClient as any).passkey.signIn();
 
       if (result.error) {
         toast({

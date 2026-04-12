@@ -3,7 +3,6 @@
 import { createAuthClient } from "better-auth/react";
 import { 
   twoFactorClient, 
-  passkeyClient, 
   organizationClient,
   adminClient,
   multiSessionClient,
@@ -17,7 +16,6 @@ export const authClient = createAuthClient({
   
   plugins: [
     twoFactorClient(),
-    passkeyClient(),
     organizationClient(),
     adminClient(),
     multiSessionClient(),
@@ -37,8 +35,6 @@ export const {
   signIn,
   signUp,
   signOut,
-  usePasskeySignIn,
-  usePasskeySignUp,
 } = authClient;
 
 // Helper function to check if user has specific role

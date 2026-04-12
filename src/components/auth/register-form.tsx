@@ -63,11 +63,10 @@ export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
     try {
       const result = await authClient.signUp.email({
         name: formData.name,
-        username: formData.username,
         email: formData.email,
         password: formData.password,
         role: formData.role,
-      });
+      } as any);
 
       if (result.error) {
         toast({

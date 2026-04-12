@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
     // Rate limiting
-    const ip = request.ip ?? "127.0.0.1";
+    const ip = (request as any).ip ?? request.headers.get('x-forwarded-for') ?? "127.0.0.1";
     const { success, limit, reset, remaining } = await ratelimit.limit(ip);
 
     if (!success) {

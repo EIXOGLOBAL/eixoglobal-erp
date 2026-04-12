@@ -23,7 +23,7 @@ export default function Verify2FAPage() {
     setIsLoading(true);
 
     try {
-      const result = await authClient.twoFactor.verify({
+      const result = await (authClient.twoFactor as any).verify({
         code,
       });
 

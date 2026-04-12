@@ -40,7 +40,7 @@ export function MFASetup({ onComplete }: MFASetupProps) {
     setIsLoading(true);
 
     try {
-      const result = await authClient.twoFactor.enable();
+      const result = await (authClient.twoFactor as any).enable({});
 
       if (result.error) {
         toast({
@@ -75,7 +75,7 @@ export function MFASetup({ onComplete }: MFASetupProps) {
     setIsLoading(true);
 
     try {
-      const result = await authClient.twoFactor.verify({
+      const result = await (authClient.twoFactor as any).verify({
         code: verificationCode,
       });
 

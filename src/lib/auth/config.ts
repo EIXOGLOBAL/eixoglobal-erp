@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { 
   twoFactor, 
-  passkey, 
   organization,
   admin,
   multiSession,
@@ -52,7 +51,6 @@ export const auth = betterAuth({
       account: schema.accounts,
       verification: schema.verifications,
       twoFactor: schema.twoFactors,
-      passkey: schema.passkeys,
       organization: schema.organizations,
       member: schema.members,
       invitation: schema.invitations,
@@ -117,13 +115,6 @@ export const auth = betterAuth({
         period: 30,
         digits: 6,
       },
-    }),
-
-    // Passkeys/WebAuthn
-    passkey({
-      rpName: "EixoGlobal ERP",
-      rpID: process.env.NEXT_PUBLIC_APP_URL?.replace(/^https?:\/\//, "") || "localhost",
-      origin: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
     }),
 
     // Organizations (Multi-tenant)

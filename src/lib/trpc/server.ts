@@ -9,11 +9,20 @@
  */
 
 import { initTRPC, TRPCError } from '@trpc/server';
-import { type FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch';
+import { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
 import { db } from '@/lib/db';
-import { getSession, type SessionPayload } from '@/lib/session';
+import { auth } from '@/lib/auth/server';
+
+type User = {
+  id: string;
+  email: string;
+  name?: string | null;
+  role?: string | null;
+  companyId?: string | null;
+  [key: string]: unknown;
+};
 
 /**
  * Context type for tRPC procedures
@@ -21,8 +30,8 @@ import { getSession, type SessionPayload } from '@/lib/session';
  */
 export type Context = {
   db: typeof db;
-  session: SessionPayload | null;
-  user: SessionPayload['user'];
+  session: { user: User } | null;
+  user: User | null;
 };
 
 /**
@@ -32,12 +41,14 @@ export type Context = {
  * - User session (if authenticated)
  */
 export async function createContext(opts?: FetchCreateContextFnOptions): Promise<Context> {
-  const session = await getSession();
+  const session = await auth.api.getSession({
+    headers: opts?.req.headers || new Headers(),
+  });
   
   return {
     db,
-    session,
-    user: session?.user ?? null,
+    session: session ? { user: session.user as User } : null,
+    user: session?.user as User | null,
   };
 }
 
@@ -159,7 +170,7 @@ export const managerProcedure = t.procedure.use(isManager);
 /**
  * Middleware to check specific permissions
  */
-export const hasPermission = (permission: keyof NonNullable<SessionPayload['user']>) => {
+export const hasPermission = (permission: string) => {
   return t.middleware(async ({ ctx, next }) => {
     if (!ctx.session || !ctx.user) {
       throw new TRPCError({
@@ -168,7 +179,8 @@ export const hasPermission = (permission: keyof NonNullable<SessionPayload['user
       });
     }
 
-    if (!ctx.user[permission]) {
+    const userPermissions = (ctx.user as any)[permission];
+    if (!userPermissions) {
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: 'Você não tem permissão para realizar esta ação',

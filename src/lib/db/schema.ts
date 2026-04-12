@@ -2322,7 +2322,7 @@ export const invitations = pgTable('invitations', {
   orgEmailIdx: index('invitations_org_email_idx').on(table.organizationId, table.email),
 }));
 
-export const auditLogs = pgTable('audit_logs', {
+export const betterAuthAuditLogs = pgTable('better_auth_audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id),
   action: text('action').notNull(),
@@ -2333,8 +2333,8 @@ export const auditLogs = pgTable('audit_logs', {
   metadata: json('metadata'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
-  userIdIdx: index('audit_logs_user_id_idx').on(table.userId),
-  actionIdx: index('audit_logs_action_idx').on(table.action),
-  createdAtIdx: index('audit_logs_created_at_idx').on(table.createdAt),
+  userIdIdx: index('better_auth_audit_logs_user_id_idx').on(table.userId),
+  actionIdx: index('better_auth_audit_logs_action_idx').on(table.action),
+  createdAtIdx: index('better_auth_audit_logs_created_at_idx').on(table.createdAt),
 }));
 

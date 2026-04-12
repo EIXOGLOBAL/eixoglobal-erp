@@ -58,19 +58,19 @@ export async function middleware(request: NextRequest) {
     }
 
     // Verificar se usuário está ativo
-    if (!session.user.isActive) {
+    if ((session.user as any).isActive === false) {
       const response = NextResponse.redirect(new URL('/auth/account-inactive', request.url));
       return response;
     }
 
     // Verificar se usuário está bloqueado
-    if (session.user.isBlocked) {
+    if ((session.user as any).isBlocked) {
       const response = NextResponse.redirect(new URL('/auth/account-blocked', request.url));
       return response;
     }
 
     // Verificar se usuário tem companyId (exceto para rotas de admin)
-    if (!pathname.startsWith('/admin') && !session.user.companyId) {
+    if (!pathname.startsWith('/admin') && !(session.user as any).companyId) {
       // Usuário sem empresa - redirecionar para setup
       if (pathname !== '/register-setup') {
         return NextResponse.redirect(new URL('/register-setup', request.url));
@@ -92,7 +92,7 @@ export async function middleware(request: NextRequest) {
     // Verificar se a rota requer role específica
     for (const [route, allowedRoles] of Object.entries(roleProtectedRoutes)) {
       if (pathname.startsWith(route)) {
-        if (!allowedRoles.includes(session.user.role)) {
+        if (!allowedRoles.includes((session.user as any).role)) {
           return NextResponse.redirect(new URL('/unauthorized', request.url));
         }
       }
@@ -123,8 +123,8 @@ export async function middleware(request: NextRequest) {
     
     // Adicionar informações do usuário aos headers (para uso em Server Components)
     response.headers.set('x-user-id', session.user.id);
-    response.headers.set('x-user-role', session.user.role);
-    response.headers.set('x-user-company-id', session.user.companyId || '');
+    response.headers.set('x-user-role', (session.user as any).role || 'USER');
+    response.headers.set('x-user-company-id', (session.user as any).companyId || '');
 
     return response;
   } catch (error) {
