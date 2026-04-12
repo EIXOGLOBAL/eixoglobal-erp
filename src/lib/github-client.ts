@@ -1,3 +1,7 @@
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'github-client' })
+
 interface GitHubConfig {
   token: string
   owner: string
@@ -59,7 +63,7 @@ export async function createIssue(params: {
 
     return { success: true, url: data.html_url }
   } catch (error) {
-    console.error('Erro ao criar issue no GitHub:', error)
+    log.error({ error }, 'Erro ao criar issue no GitHub')
     return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }
   }
 }
@@ -85,7 +89,7 @@ export async function createPullRequest(params: {
 
     return { success: true, url: data.html_url }
   } catch (error) {
-    console.error('Erro ao criar PR no GitHub:', error)
+    log.error({ error }, 'Erro ao criar PR no GitHub')
     return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }
   }
 }

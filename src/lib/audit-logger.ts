@@ -1,4 +1,7 @@
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'audit-logger' })
 import { getSession } from '@/lib/auth'
 
 export type AuditLogParams = {

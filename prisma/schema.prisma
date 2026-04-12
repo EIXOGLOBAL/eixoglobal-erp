@@ -275,6 +275,7 @@ model Employee {
   updatedAt DateTime @updatedAt
 
   @@index([companyId, status])
+  @@index([companyId, isDeleted, status])
   @@map("employees")
 }
 
@@ -530,6 +531,8 @@ model Measurement {
   @@index([companyId, status])
   @@index([projectId, status])
   @@index([contractItemId])
+  @@index([companyId, date])
+  @@index([projectId, date])
   @@map("measurements")
 }
 
@@ -607,6 +610,8 @@ model FinancialRecord {
   @@index([companyId, dueDate])
   @@index([costCenterId])
   @@index([projectId])
+  @@index([companyId, isDeleted, status])
+  @@index([companyId, type, dueDate])
   @@map("financial_records")
 }
 
@@ -1864,6 +1869,7 @@ model WorkTask {
   @@index([companyId, status])
   @@index([projectId])
   @@index([createdById])
+  @@index([companyId, status, dueDate])
   @@map("work_tasks")
 }
 
@@ -2063,6 +2069,7 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([userId])
   @@index([action, createdAt])
+  @@index([companyId, action, createdAt])
   @@map("audit_logs")
 }
 
@@ -2606,6 +2613,8 @@ model TimeEntry {
   @@index([employeeId, date])
   @@index([companyId, date])
   @@index([status])
+  @@index([companyId, status, date])
+  @@index([projectId, date])
   @@map("time_entries")
 }
 

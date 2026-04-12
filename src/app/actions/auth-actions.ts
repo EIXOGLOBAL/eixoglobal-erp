@@ -6,7 +6,7 @@ import { encrypt } from "@/lib/session"
 import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
-import { loginRateLimiter } from "@/lib/rate-limit"
+import { loginRateLimit } from "@/lib/rate-limit"
 import { BCRYPT_ROUNDS, validatePassword } from "@/lib/password-policy"
 import { logAudit } from "@/lib/audit-logger"
 import { getClientIP } from "@/lib/get-client-ip"
@@ -38,12 +38,14 @@ export async function login(prevState: LoginState, formData: FormData): Promise<
         const ipKey = `login:${ip}`
 
         // Rate limit
-        const rateLimit = loginRateLimiter.check(ipKey)
-        if (!rateLimit.success) {
-            const resetAtMs = rateLimit.resetAt.getTime()
-            const minutesRemaining = Math.ceil((resetAtMs - Date.now()) / 60000)
-            return {
-                message: `Muitas tentativas de login. Tente novamente em ${minutesRemaining} minuto(s).`,
+        if (loginRateLimit) {
+            const rateLimit = await loginRateLimit.limit(ipKey)
+            if (!rateLimit.success) {
+                const resetAtMs = rateLimit.reset
+                const minutesRemaining = Math.ceil((resetAtMs - Date.now()) / 60000)
+                return {
+                    message: `Muitas tentativas de login. Tente novamente em ${minutesRemaining} minuto(s).`,
+                }
             }
         }
 

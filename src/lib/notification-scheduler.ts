@@ -3,7 +3,9 @@ import { notifyUsers } from '@/lib/sse-notifications'
 import { toNumber } from '@/lib/formatters'
 import { whatsappService } from '@/lib/whatsapp'
 import { sendBulkNotificationEmails } from '@/lib/email-sender'
+import { logger } from '@/lib/logger'
 
+const log = logger.child({ module: 'notification-scheduler' })
 const ONE_HOUR = 60 * 60 * 1000
 
 /**
@@ -29,7 +31,7 @@ async function createAndNotify(
   // Email: envio em background (nao bloqueia o scheduler)
   const notificationIds = records.map(r => r.id)
   sendBulkNotificationEmails(userIds, notifData, notificationIds).catch(err => {
-    console.error('[Scheduler] Erro ao enviar emails em background:', err)
+    log.error({ err }, 'Erro ao enviar emails em background')
   })
 }
 
@@ -607,7 +609,7 @@ async function checkAnomalousActivity() {
 // ============================================================================
 
 async function runChecks() {
-  console.log('[Scheduler] Executando verificações de notificações...')
+  log.info('Executando verificações de notificações...')
 
   // Standard checks (notify managers)
   await checkExpiringContracts()
@@ -621,7 +623,7 @@ async function runChecks() {
   await checkDataIntegrity()
   await checkAnomalousActivity()
 
-  console.log('[Scheduler] Verificações concluídas.')
+  log.info('Verificações concluídas.')
 }
 
 let schedulerStarted = false
@@ -630,7 +632,7 @@ export function startScheduler() {
   if (schedulerStarted) return
   schedulerStarted = true
 
-  console.log('[Scheduler] Iniciando scheduler de notificações (intervalo: 1h)')
+  log.info('Iniciando scheduler de notificações (intervalo: 1h)')
 
   // Run first check after 10 seconds (give server time to fully start)
   setTimeout(() => {
