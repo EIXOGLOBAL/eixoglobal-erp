@@ -4,7 +4,7 @@ echo "=== ERP Startup ==="
 
 # Iniciar servidor em background
 echo "[1/2] Starting Next.js server..."
-node server.js &
+node_modules/.bin/next start -p ${PORT:-3001} &
 SERVER_PID=$!
 
 # Aguardar servidor estar pronto
