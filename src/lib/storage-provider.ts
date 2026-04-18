@@ -1,24 +1,28 @@
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import { join, extname } from 'path'
 import { randomUUID } from 'crypto'
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 
 // ---------------------------------------------------------------------------
-// Tipos e constantes
+// Constantes
 // ---------------------------------------------------------------------------
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2 MB
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024   // 5 MB
+const MAX_DOC_SIZE   = 50 * 1024 * 1024  // 50 MB
 
 const ALLOWED_IMAGE_TYPES: Record<string, string> = {
-  'image/png': '.png',
+  'image/png':  '.png',
   'image/jpeg': '.jpg',
-  'image/jpg': '.jpg',
+  'image/jpg':  '.jpg',
   'image/svg+xml': '.svg',
   'image/webp': '.webp',
 }
 
 export interface UploadResult {
-  url: string       // caminho relativo servido pelo Next.js (ex: /uploads/logos/uuid.png)
-  fileName: string  // nome gerado no disco
+  /** URL pública ou relativa do arquivo */
+  url: string
+  /** Nome gerado do arquivo */
+  fileName: string
 }
 
 export class FileValidationError extends Error {
@@ -29,59 +33,56 @@ export class FileValidationError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// Interface StorageProvider
-// ---------------------------------------------------------------------------
-
-export interface StorageProvider {
-  /** Faz upload de um arquivo e retorna a URL relativa */
-  upload(file: File, subDir: string): Promise<UploadResult>
-  /** Remove um arquivo pelo caminho relativo retornado por upload() */
-  delete(relativePath: string): Promise<void>
-  /** Retorna a URL pública a partir do caminho relativo */
-  getUrl(relativePath: string): string
-}
-
-// ---------------------------------------------------------------------------
-// Validadores reutilizáveis
+// Validadores
 // ---------------------------------------------------------------------------
 
 export function validateImageFile(file: File): void {
-  if (!file || file.size === 0) {
-    throw new FileValidationError('Nenhum arquivo enviado')
-  }
-
-  if (file.size > MAX_FILE_SIZE) {
-    throw new FileValidationError('Arquivo muito grande. Tamanho máximo: 2 MB')
-  }
-
-  if (!ALLOWED_IMAGE_TYPES[file.type]) {
-    throw new FileValidationError(
-      'Tipo de arquivo não permitido. Formatos aceitos: PNG, JPG, JPEG, SVG, WebP'
-    )
-  }
+  if (!file || file.size === 0) throw new FileValidationError('Nenhum arquivo enviado')
+  if (file.size > MAX_IMAGE_SIZE) throw new FileValidationError('Arquivo muito grande. Máximo: 5 MB')
+  if (!ALLOWED_IMAGE_TYPES[file.type])
+    throw new FileValidationError('Tipo não permitido. Formatos aceitos: PNG, JPG, JPEG, SVG, WebP')
 }
 
-/** Sanitiza o nome do arquivo removendo caracteres especiais */
+export function validateDocumentFile(file: File, allowedTypes?: Record<string, string>): void {
+  if (!file || file.size === 0) throw new FileValidationError('Nenhum arquivo enviado')
+  if (file.size > MAX_DOC_SIZE) throw new FileValidationError('Arquivo muito grande. Máximo: 50 MB')
+  if (allowedTypes && Object.keys(allowedTypes).length > 0 && !allowedTypes[file.type])
+    throw new FileValidationError(`Tipo de arquivo não permitido: ${file.type}`)
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function sanitizeFileName(name: string): string {
-  const base = name
-    .replace(/[^a-zA-Z0-9._-]/g, '_')  // remove caracteres especiais
-    .replace(/_{2,}/g, '_')              // remove underscores duplicados
-    .replace(/^[_.-]+/, '')              // remove prefixos perigosos
-    .toLowerCase()
-
-  return base || 'file'
+  return name
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_{2,}/g, '_')
+    .replace(/^[_.-]+/, '')
+    .toLowerCase() || 'file'
 }
 
-/** Gera um nome único com UUID preservando a extensão do tipo MIME */
-function generateUniqueFileName(file: File): string {
-  const ext = ALLOWED_IMAGE_TYPES[file.type] || extname(file.name) || '.bin'
+function generateUniqueFileName(file: File, allowedTypes?: Record<string, string>): string {
+  const ext = (allowedTypes && allowedTypes[file.type])
+    || extname(file.name).toLowerCase()
+    || '.bin'
   const sanitized = sanitizeFileName(file.name.replace(/\.[^.]+$/, ''))
-  const uuid = randomUUID().split('-')[0] // 8 caracteres é suficiente
+  const uuid = randomUUID().split('-')[0]
   return `${uuid}_${sanitized}${ext}`
 }
 
 // ---------------------------------------------------------------------------
-// LocalStorageProvider — salva em public/uploads/
+// Interface StorageProvider
+// ---------------------------------------------------------------------------
+
+export interface StorageProvider {
+  upload(file: File, subDir: string, allowedTypes?: Record<string, string>): Promise<UploadResult>
+  delete(path: string): Promise<void>
+  getUrl(path: string): string
+}
+
+// ---------------------------------------------------------------------------
+// LocalStorageProvider
 // ---------------------------------------------------------------------------
 
 export class LocalStorageProvider implements StorageProvider {
@@ -91,31 +92,20 @@ export class LocalStorageProvider implements StorageProvider {
     this.basePath = basePath ?? join(process.cwd(), 'public', 'uploads')
   }
 
-  async upload(file: File, subDir: string): Promise<UploadResult> {
-    validateImageFile(file)
-
-    const fileName = generateUniqueFileName(file)
+  async upload(file: File, subDir: string, allowedTypes?: Record<string, string>): Promise<UploadResult> {
+    const fileName = generateUniqueFileName(file, allowedTypes)
     const dirPath = join(this.basePath, subDir)
-
     await mkdir(dirPath, { recursive: true })
-
     const buffer = Buffer.from(await file.arrayBuffer())
     await writeFile(join(dirPath, fileName), buffer)
-
-    const url = `/uploads/${subDir}/${fileName}`
-
-    return { url, fileName }
+    return { url: `/uploads/${subDir}/${fileName}`, fileName }
   }
 
   async delete(relativePath: string): Promise<void> {
-    // relativePath é algo como /uploads/logos/uuid_name.png
     const cleanPath = relativePath.replace(/^\/uploads\//, '')
-    const fullPath = join(this.basePath, cleanPath)
-
     try {
-      await unlink(fullPath)
+      await unlink(join(this.basePath, cleanPath))
     } catch (err: any) {
-      // Arquivo já não existe — não é um erro crítico
       if (err?.code !== 'ENOENT') throw err
     }
   }
@@ -126,43 +116,87 @@ export class LocalStorageProvider implements StorageProvider {
 }
 
 // ---------------------------------------------------------------------------
-// S3StorageProvider — placeholder para implementação futura
+// R2StorageProvider
 // ---------------------------------------------------------------------------
-//
-// export class S3StorageProvider implements StorageProvider {
-//   private bucket: string
-//   private region: string
-//   private client: S3Client
-//
-//   constructor(config: { bucket: string; region: string }) {
-//     this.bucket = config.bucket
-//     this.region = config.region
-//     // this.client = new S3Client({ region: this.region })
-//   }
-//
-//   async upload(file: File, subDir: string): Promise<UploadResult> {
-//     validateImageFile(file)
-//     const fileName = generateUniqueFileName(file)
-//     const key = `${subDir}/${fileName}`
-//     // await this.client.send(new PutObjectCommand({ ... }))
-//     const url = `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`
-//     return { url, fileName }
-//   }
-//
-//   async delete(relativePath: string): Promise<void> {
-//     // await this.client.send(new DeleteObjectCommand({ ... }))
-//   }
-//
-//   getUrl(relativePath: string): string {
-//     return `https://${this.bucket}.s3.${this.region}.amazonaws.com${relativePath}`
-//   }
-// }
+
+export class R2StorageProvider implements StorageProvider {
+  private client: S3Client
+  private bucket: string
+  private publicUrl: string
+
+  constructor() {
+    const accountId       = process.env.R2_ACCOUNT_ID!
+    const accessKeyId     = process.env.R2_ACCESS_KEY_ID!
+    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY!
+    this.bucket           = process.env.R2_BUCKET_NAME!
+    this.publicUrl        = process.env.R2_PUBLIC_URL || ''
+
+    this.client = new S3Client({
+      region: 'auto',
+      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      credentials: { accessKeyId, secretAccessKey },
+    })
+  }
+
+  async upload(file: File, subDir: string, allowedTypes?: Record<string, string>): Promise<UploadResult> {
+    const fileName = generateUniqueFileName(file, allowedTypes)
+    const key = `${subDir}/${fileName}`
+    const buffer = Buffer.from(await file.arrayBuffer())
+
+    await this.client.send(new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: file.type || 'application/octet-stream',
+      Metadata: { uploadedAt: new Date().toISOString() },
+    }))
+
+    const url = this.publicUrl
+      ? `${this.publicUrl}/${key}`
+      : `/api/files/${key}`
+
+    return { url, fileName }
+  }
+
+  async delete(path: string): Promise<void> {
+    // path pode ser URL pública ou chave direta
+    const key = path
+      .replace(this.publicUrl ? `${this.publicUrl}/` : '/api/files/', '')
+      .replace(/^\//, '')
+
+    try {
+      await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }))
+    } catch {
+      // ignora se o arquivo não existir
+    }
+  }
+
+  getUrl(path: string): string {
+    return this.publicUrl ? `${this.publicUrl}/${path}` : `/api/files/${path}`
+  }
+}
 
 // ---------------------------------------------------------------------------
-// Instância padrão — troque por S3StorageProvider quando necessário
+// Factory — auto-detecta R2 quando as variáveis de ambiente estão presentes
 // ---------------------------------------------------------------------------
+
+let _provider: StorageProvider | null = null
 
 export function getStorageProvider(): StorageProvider {
-  // Futuramente: if (process.env.STORAGE_PROVIDER === 's3') return new S3StorageProvider(...)
-  return new LocalStorageProvider()
+  if (_provider) return _provider
+
+  const hasR2 = !!(
+    process.env.R2_ACCOUNT_ID &&
+    process.env.R2_ACCESS_KEY_ID &&
+    process.env.R2_SECRET_ACCESS_KEY &&
+    process.env.R2_BUCKET_NAME
+  )
+
+  _provider = hasR2 ? new R2StorageProvider() : new LocalStorageProvider()
+  return _provider
+}
+
+/** Reseta o singleton (útil em testes ou quando env vars mudam) */
+export function resetStorageProvider(): void {
+  _provider = null
 }
