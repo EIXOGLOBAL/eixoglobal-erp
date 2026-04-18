@@ -17,6 +17,9 @@ ARG GIT_COMMIT_SHA=unknown
 ARG APP_VERSION=unknown
 ENV GIT_COMMIT_SHA=$GIT_COMMIT_SHA
 ENV APP_VERSION=$APP_VERSION
+# NEXT_PUBLIC_* precisam ser definidos em build time para serem embutidos no bundle
+ENV NEXT_PUBLIC_BUILD_COMMIT=$GIT_COMMIT_SHA
+ENV NEXT_PUBLIC_BUILD_TIME=""
 ENV DATABASE_URL="postgresql://fake:fake@localhost:5432/fake"
 ENV NEXT_TELEMETRY_DISABLED=1
 

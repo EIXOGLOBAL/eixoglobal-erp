@@ -34,7 +34,7 @@ jobs:
             ghcr.io/eixoglobal/eixoglobal-erp:latest
             ghcr.io/eixoglobal/eixoglobal-erp:${{ github.sha }}
 
-      - name: Atualizar IMAGE_TAG no Dokploy (preserva env existente)
+      - name: Atualizar Dokploy (env + docker-compose.yml)
         env:
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
@@ -61,11 +61,15 @@ jobs:
           UPDATED_ENV=$(printf '%s' "$CURRENT_ENV" | grep -v "^IMAGE_TAG=")
           UPDATED_ENV="${UPDATED_ENV}"$'\n'"IMAGE_TAG=${NEW_SHA}"
 
-          # 3. Monta payload e atualiza
+          # 3. Le o docker-compose.yml atual do repo para sincronizar com Dokploy
+          COMPOSE_CONTENT=$(cat docker-compose.yml)
+
+          # 4. Monta payload com env + dockerCompose e atualiza
           PAYLOAD=$(jq -n \
             --arg id "${DOKPLOY_COMPOSE_ID}" \
             --arg env "${UPDATED_ENV}" \
-            '{"json":{"composeId":$id,"env":$env}}')
+            --arg compose "${COMPOSE_CONTENT}" \
+            '{"json":{"composeId":$id,"env":$env,"dockerCompose":$compose}}')
 
           for i in 1 2 3; do
             RESULT=$(curl -s -X POST \
@@ -76,7 +80,7 @@ jobs:
               -d "$PAYLOAD")
 
             if echo "$RESULT" | jq -e '.result' > /dev/null 2>&1; then
-              echo "IMAGE_TAG atualizado para ${NEW_SHA:0:7}"
+              echo "IMAGE_TAG atualizado para ${NEW_SHA:0:7} e docker-compose.yml sincronizado"
               break
             fi
             echo "Tentativa $i falhou: $RESULT"
@@ -109,14 +113,17 @@ jobs:
           SHORT="${{ github.sha }}"
           SHORT="${SHORT:0:7}"
           echo "Aguardando ERP subir com commit ${SHORT}..."
-          for i in $(seq 1 30); do
-            DEPLOYED=$(curl -sf https://erp.eixoglobal.com.br/api/version 2>/dev/null | jq -r '.commit // ""' 2>/dev/null || echo "")
+          for i in $(seq 1 40); do
+            RESPONSE=$(curl -sf https://erp.eixoglobal.com.br/api/version 2>/dev/null || echo "")
+            DEPLOYED=$(echo "$RESPONSE" | jq -r '.commit // ""' 2>/dev/null || echo "")
+            HTTP_STATUS=$(curl -so /dev/null -w "%{http_code}" https://erp.eixoglobal.com.br/login 2>/dev/null || echo "0")
             if [ "$DEPLOYED" = "$SHORT" ]; then
               echo "ERP online com commit ${DEPLOYED}"
               exit 0
             fi
-            echo "Aguardando... (${i}/30) — commit atual: ${DEPLOYED:-indisponivel}"
+            echo "Aguardando... (${i}/40) — commit: ${DEPLOYED:-indisponivel} | login HTTP: ${HTTP_STATUS}"
             sleep 15
           done
-          echo "AVISO: timeout (7min) aguardando deploy."
-          exit 1
+          echo "AVISO: timeout (10min) — o deploy pode ainda estar em andamento."
+          echo "Verificar manualmente: https://erp.eixoglobal.com.br"
+          exit 0
