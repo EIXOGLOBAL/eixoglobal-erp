@@ -17,15 +17,25 @@ for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
   sleep 2
 done
 
-# Executar fix-schema via API (usa PrismaClient que funciona)
-echo "[2/2] Running schema fix..."
-wget -q -O - --post-data='' http://localhost:${PORT:-3001}/api/admin/fix-schema 2>/dev/null | head -c 200
-echo ""
+# Executar fix-schema via API (requer CRON_SECRET se configurado)
+if [ -n "$CRON_SECRET" ]; then
+  echo "[2/2] Running schema fix..."
+  wget -q -O - \
+    --header="Authorization: Bearer $CRON_SECRET" \
+    --post-data='' \
+    http://localhost:${PORT:-3001}/api/admin/fix-schema 2>/dev/null | head -c 200
+  echo ""
+else
+  echo "[2/2] CRON_SECRET nao configurado — fix-schema ignorado (schema ja aplicado)"
+fi
 
 # Reset users se configurado
 if [ "$RESET_USERS" = "true" ]; then
   echo "[2/2] Resetting users..."
-  wget -q -O - --post-data='' http://localhost:${PORT:-3001}/api/admin/reset-users 2>/dev/null | head -c 200
+  wget -q -O - \
+    --header="Authorization: Bearer ${CRON_SECRET:-}" \
+    --post-data='' \
+    http://localhost:${PORT:-3001}/api/admin/reset-users 2>/dev/null | head -c 200
   echo ""
 fi
 

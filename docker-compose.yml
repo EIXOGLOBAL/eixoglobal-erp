@@ -43,7 +43,7 @@ services:
       ADMIN_RESET_TOKEN: ${ADMIN_RESET_TOKEN:-}
       RESET_ADMIN_PASSWORD: ${RESET_ADMIN_PASSWORD:-}
       RESET_USERS: ${RESET_USERS:-}
-      DEV_LOGIN_ENABLED: "true"
+      CRON_SECRET: ${CRON_SECRET:-}
     ports:
       - "3001:3001"
     volumes:
@@ -51,9 +51,44 @@ services:
     networks:
       - eixo_network
 
+  backup:
+    image: postgres:17-alpine
+    container_name: eixo_erp_backup
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - backups:/backups
+    networks:
+      - eixo_network
+    command: >-
+      sh -c "
+        echo '[backup] Servico iniciado';
+        while true; do
+          TS=$$(date +%Y%m%d_%H%M%S);
+          FILE=/backups/backup_$$TS.dump;
+          echo \"[backup] $$(date '+%Y-%m-%d %H:%M:%S') — iniciando pg_dump\";
+          if pg_dump -h db -U eixo -d eixo_erp -Fc -f $$FILE; then
+            SIZE=$$(du -sh $$FILE | cut -f1);
+            echo \"[backup] OK: $$FILE ($$SIZE)\";
+          else
+            echo \"[backup] ERRO em $$(date)\";
+            rm -f $$FILE;
+          fi;
+          ls -t /backups/backup_*.dump 2>/dev/null | tail -n +8 | xargs rm -f;
+          COUNT=$$(ls /backups/backup_*.dump 2>/dev/null | wc -l);
+          echo \"[backup] $$COUNT backup(s) mantidos. Proxima execucao em 24h.\";
+          sleep 86400;
+        done
+      "
+
 volumes:
   pgdata:
   uploads:
+  backups:
 
 networks:
   eixo_network:
