@@ -35,81 +35,88 @@ jobs:
             ghcr.io/eixoglobal/eixoglobal-erp:${{ github.sha }}
 
       - name: Atualizar IMAGE_TAG no Dokploy (preserva env existente)
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
         run: |
-          DOKPLOY_URL="${{ secrets.DOKPLOY_URL }}"
-          COMPOSE_ID="${{ secrets.DOKPLOY_COMPOSE_ID }}"
-          API_KEY="${{ secrets.DOKPLOY_API_KEY }}"
           NEW_SHA="${{ github.sha }}"
 
-          # 1. Busca o env atual do Dokploy
-          CURRENT_ENV=$(curl -sf \
-            "${DOKPLOY_URL}/api/trpc/compose.one?input=%7B%22json%22%3A%7B%22composeId%22%3A%22${COMPOSE_ID}%22%7D%7D" \
-            -H "x-api-key: ${API_KEY}" | \
-            python3 -c "import sys,json; d=json.load(sys.stdin); print(d['result']['data']['json']['env'])")
+          # 1. Busca o env atual via tRPC
+          ENCODED_INPUT=$(python3 -c "import urllib.parse,json; print(urllib.parse.quote(json.dumps({'json':{'composeId':'${DOKPLOY_COMPOSE_ID}'}})))")
+          CURRENT_ENV=$(curl -s \
+            "${DOKPLOY_URL}/api/trpc/compose.one?input=${ENCODED_INPUT}" \
+            -H "x-api-key: ${DOKPLOY_API_KEY}" \
+            --connect-timeout 15 --max-time 30 | \
+            jq -r '.result.data.json.env // ""')
 
           if [ -z "$CURRENT_ENV" ]; then
-            echo "ERRO: nao foi possivel buscar o env atual do Dokploy"
+            echo "Nao foi possivel buscar env atual. Abortando para nao sobrescrever variaveis."
             exit 1
           fi
 
-          # 2. Substitui ou adiciona IMAGE_TAG sem tocar nas outras vars
-          UPDATED_ENV=$(echo "$CURRENT_ENV" | grep -v "^IMAGE_TAG=")
-          UPDATED_ENV="${UPDATED_ENV}
-          IMAGE_TAG=${NEW_SHA}"
+          echo "Env atual recuperado ($(echo "$CURRENT_ENV" | wc -l) linhas)"
 
-          # 3. Atualiza no Dokploy preservando todo o resto
+          # 2. Substitui IMAGE_TAG preservando todas as outras variaveis
+          UPDATED_ENV=$(printf '%s' "$CURRENT_ENV" | grep -v "^IMAGE_TAG=")
+          UPDATED_ENV="${UPDATED_ENV}"$'\n'"IMAGE_TAG=${NEW_SHA}"
+
+          # 3. Monta payload e atualiza
+          PAYLOAD=$(jq -n \
+            --arg id "${DOKPLOY_COMPOSE_ID}" \
+            --arg env "${UPDATED_ENV}" \
+            '{"json":{"composeId":$id,"env":$env}}')
+
           for i in 1 2 3; do
-            RESULT=$(python3 -c "
-          import json, sys
-          env = sys.stdin.read()
-          payload = json.dumps({'json': {'composeId': '$COMPOSE_ID', 'env': env}})
-          print(payload)
-          " <<< "$UPDATED_ENV" | curl -sf -X POST \
+            RESULT=$(curl -s -X POST \
               "${DOKPLOY_URL}/api/trpc/compose.update" \
               -H "Content-Type: application/json" \
-              -H "x-api-key: ${API_KEY}" \
+              -H "x-api-key: ${DOKPLOY_API_KEY}" \
               --connect-timeout 15 --max-time 60 \
-              --data @-)
+              -d "$PAYLOAD")
 
-            if echo "$RESULT" | grep -q '"result"'; then
-              echo "IMAGE_TAG atualizado para ${NEW_SHA}"
+            if echo "$RESULT" | jq -e '.result' > /dev/null 2>&1; then
+              echo "IMAGE_TAG atualizado para ${NEW_SHA:0:7}"
               break
             fi
-            echo "Tentativa $i falhou, aguardando..."
+            echo "Tentativa $i falhou: $RESULT"
             sleep 5
           done
 
       - name: Deploy no Dokploy
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
         run: |
-          DOKPLOY_URL="${{ secrets.DOKPLOY_URL }}"
-          COMPOSE_ID="${{ secrets.DOKPLOY_COMPOSE_ID }}"
-          API_KEY="${{ secrets.DOKPLOY_API_KEY }}"
           for i in 1 2 3; do
-            RESULT=$(curl -sf -X POST "${DOKPLOY_URL}/api/trpc/compose.deploy" \
+            RESULT=$(curl -s -X POST "${DOKPLOY_URL}/api/trpc/compose.deploy" \
               -H "Content-Type: application/json" \
-              -H "x-api-key: ${API_KEY}" \
+              -H "x-api-key: ${DOKPLOY_API_KEY}" \
               --connect-timeout 15 --max-time 60 \
-              -d "{\"json\":{\"composeId\":\"${COMPOSE_ID}\"}}") && \
-            echo "Deploy disparado: $RESULT" && break
-            echo "Tentativa $i falhou, aguardando..."
+              -d "{\"json\":{\"composeId\":\"${DOKPLOY_COMPOSE_ID}\"}}")
+
+            if echo "$RESULT" | jq -e '.result' > /dev/null 2>&1; then
+              echo "Deploy disparado com sucesso"
+              break
+            fi
+            echo "Tentativa $i falhou: $RESULT"
             sleep 5
           done
 
       - name: Aguardar ERP responder com novo commit
         run: |
-          NEW_SHA_SHORT="${{ github.sha }}"
-          NEW_SHA_SHORT="${NEW_SHA_SHORT:0:7}"
-          APP_URL="${{ secrets.DOKPLOY_URL == '' && 'https://erp.eixoglobal.com.br' || 'https://erp.eixoglobal.com.br' }}"
-          echo "Aguardando ERP subir com commit ${NEW_SHA_SHORT}..."
-          for i in $(seq 1 24); do
-            DEPLOYED=$(curl -sf https://erp.eixoglobal.com.br/api/version 2>/dev/null | \
-              python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('commit',''))" 2>/dev/null || echo "")
-            if [ "${DEPLOYED}" = "${NEW_SHA_SHORT}" ]; then
-              echo "✓ ERP online com commit ${DEPLOYED}"
+          SHORT="${{ github.sha }}"
+          SHORT="${SHORT:0:7}"
+          echo "Aguardando ERP subir com commit ${SHORT}..."
+          for i in $(seq 1 30); do
+            DEPLOYED=$(curl -sf https://erp.eixoglobal.com.br/api/version 2>/dev/null | jq -r '.commit // ""' 2>/dev/null || echo "")
+            if [ "$DEPLOYED" = "$SHORT" ]; then
+              echo "ERP online com commit ${DEPLOYED}"
               exit 0
             fi
-            echo "Aguardando... (${i}/24) — atual: ${DEPLOYED}"
+            echo "Aguardando... (${i}/30) — commit atual: ${DEPLOYED:-indisponivel}"
             sleep 15
           done
-          echo "AVISO: timeout aguardando deploy. Verifique manualmente."
+          echo "AVISO: timeout (7min) aguardando deploy."
           exit 1
