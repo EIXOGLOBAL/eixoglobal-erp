@@ -465,11 +465,11 @@ export function AIAssistant() {
           style={{ maxHeight: 72 }}
         />
         <Button
-          type="submit"
-          size="icon"
-          disabled={isStreaming || !input.trim()}
-          className="h-9 w-9 shrink-0 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-        >
+ type="submit"
+ size="icon" aria-label="Enviar mensagem" 
+ disabled={isStreaming || !input.trim()}
+ className="h-9 w-9 shrink-0 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+>
           <SendHorizontal className="h-4 w-4" />
         </Button>
       </form>

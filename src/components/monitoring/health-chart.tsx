@@ -144,12 +144,12 @@ export function HealthChart() {
               </Button>
             ))}
             <Button
-              variant="ghost"
-              size="icon"
-              onClick={fetchLogs}
-              disabled={loading}
-              className="h-7 w-7"
-            >
+ variant="ghost"
+ size="icon" aria-label="Atualizar" 
+ onClick={fetchLogs}
+ disabled={loading}
+ className="h-7 w-7"
+>
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           </div>

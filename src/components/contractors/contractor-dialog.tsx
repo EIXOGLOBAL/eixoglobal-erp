@@ -102,7 +102,7 @@ export function ContractorDialog({ companyId, contractor, open: controlledOpen, 
             {!isControlled && (
                 <DialogTrigger asChild>
                     {isEdit ? (
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" aria-label="Editar">
                             <Pencil className="h-4 w-4" />
                         </Button>
                     ) : (

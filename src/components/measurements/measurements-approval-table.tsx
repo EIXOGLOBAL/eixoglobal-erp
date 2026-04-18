@@ -194,10 +194,10 @@ export function MeasurementsApprovalTable({ data }: MeasurementsApprovalTablePro
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleApprove(m.id)} disabled={isPending}>
+                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleApprove(m.id)} aria-label="Confirmar" disabled={isPending}>
                                                 <Check className="h-4 w-4" />
                                             </Button>
-                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleRejectClick(m.id)} disabled={isPending}>
+                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleRejectClick(m.id)} aria-label="Fechar" disabled={isPending}>
                                                 <X className="h-4 w-4" />
                                             </Button>
                                         </div>

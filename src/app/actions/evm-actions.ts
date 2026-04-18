@@ -14,13 +14,17 @@ export interface EVMMetrics {
   pv: number
   ev: number
   ac: number
-  sv: number
-  cv: number
-  spi: number
-  cpi: number
-  eac: number
-  etc: number
-  vac: number
+  sv: number | null
+  cv: number | null
+  spi: number | null
+  cpi: number | null
+  eac: number | null
+  etc: number | null
+  vac: number | null
+  /** true when both EV and AC come from real data (bulletins + financial records) */
+  hasRealData: boolean
+  /** true when EV=0 or AC=0, meaning indicators cannot be reliably calculated */
+  dataInsufficient: boolean
 }
 
 export interface EVMProjectData extends EVMMetrics {
@@ -38,11 +42,11 @@ export interface EVMPortfolioSummary {
   totalEV: number
   totalAC: number
   totalBudget: number
-  portfolioSPI: number
-  portfolioCPI: number
+  portfolioSPI: number | null
+  portfolioCPI: number | null
   avgProgressPercent: number
   projectCount: number
-  healthStatus: 'green' | 'yellow' | 'red'
+  healthStatus: 'green' | 'yellow' | 'red' | 'unknown'
 }
 
 export interface MonthlySCurveData {
@@ -57,7 +61,8 @@ export interface MonthlySCurveData {
 // ============================================================================
 
 /**
- * Calculate EVM metrics for a project based on contract value and bulletins
+ * Calculate EVM metrics for a project based on contract value and bulletins.
+ * NEVER fabricates data — when real data is absent, returns null for derived indicators.
  */
 function calculateEVMMetrics(
   budget: number,
@@ -75,32 +80,38 @@ function calculateEVMMetrics(
   const timeProgressPercent = totalDuration > 0 ? (elapsed / totalDuration) * 100 : 0
   const pv = budget * (timeProgressPercent / 100)
 
-  // Earned Value from approved bulletins
-  const ev = approvedBulletinValue > 0 ? approvedBulletinValue : pv * 0.9
+  // Earned Value from approved bulletins — REAL data only, no fabrication
+  const ev = approvedBulletinValue > 0 ? approvedBulletinValue : 0
 
-  // Actual Cost
-  const ac = actualCostValue > 0 ? actualCostValue : ev * 1.05
+  // Actual Cost from financial records — REAL data only, no fabrication
+  const ac = actualCostValue > 0 ? actualCostValue : 0
 
-  // Schedule Variance
-  const sv = ev - pv
+  // Determine data sufficiency
+  const hasEV = ev > 0
+  const hasAC = ac > 0
+  const dataInsufficient = !hasEV || !hasAC
+  const hasRealData = hasEV && hasAC
 
-  // Cost Variance
-  const cv = ev - ac
+  // Schedule Variance: only meaningful when EV has real data
+  const sv = hasEV ? ev - pv : null
 
-  // Schedule Performance Index
-  const spi = pv > 0 ? ev / pv : 1
+  // Cost Variance: only meaningful when both EV and AC have real data
+  const cv = hasRealData ? ev - ac : null
 
-  // Cost Performance Index
-  const cpi = ac > 0 ? ev / ac : 1
+  // Schedule Performance Index: protect division by zero
+  const spi = hasEV && pv > 0 ? ev / pv : null
 
-  // Estimate At Completion
-  const eac = cpi > 0 ? budget / cpi : budget
+  // Cost Performance Index: protect division by zero
+  const cpi = hasRealData && ac > 0 ? ev / ac : null
 
-  // Estimate To Complete
-  const etc = Math.max(0, eac - ac)
+  // Estimate At Completion: requires valid CPI
+  const eac = cpi !== null && cpi > 0 ? Number((budget / cpi).toFixed(2)) : null
 
-  // Variance At Completion
-  const vac = budget - eac
+  // Estimate To Complete: requires valid EAC
+  const etc = eac !== null ? Number(Math.max(0, eac - ac).toFixed(2)) : null
+
+  // Variance At Completion: requires valid EAC
+  const vac = eac !== null ? Number((budget - eac).toFixed(2)) : null
 
   return {
     pv,
@@ -110,16 +121,22 @@ function calculateEVMMetrics(
     cv,
     spi,
     cpi,
-    eac: Number(eac.toFixed(2)),
-    etc: Number(etc.toFixed(2)),
-    vac: Number(vac.toFixed(2)),
+    eac,
+    etc,
+    vac,
+    hasRealData,
+    dataInsufficient,
   }
 }
 
 /**
- * Get health status based on SPI and CPI
+ * Get health status based on SPI and CPI.
+ * Returns 'unknown' when data is insufficient (null indicators).
  */
-function getHealthStatus(spi: number, cpi: number): 'green' | 'yellow' | 'red' {
+function getHealthStatus(spi: number | null, cpi: number | null): 'green' | 'yellow' | 'red' | 'unknown' {
+  if (spi === null || cpi === null) {
+    return 'unknown'
+  }
   if (spi >= 0.95 && cpi >= 0.95) {
     return 'green'
   } else if (spi >= 0.85 && cpi >= 0.85) {
@@ -308,8 +325,8 @@ export async function getPortfolioEVMSummary(_companyId?: string): Promise<EVMPo
     const totalAC = projects.reduce((sum, p) => sum + p.ac, 0)
     const totalBudget = projects.reduce((sum, p) => sum + p.budget, 0)
 
-    const portfolioSPI = totalPV > 0 ? totalEV / totalPV : 1
-    const portfolioCPI = totalAC > 0 ? totalEV / totalAC : 1
+    const portfolioSPI = totalPV > 0 && totalEV > 0 ? totalEV / totalPV : null
+    const portfolioCPI = totalAC > 0 && totalEV > 0 ? totalEV / totalAC : null
     const avgProgressPercent = projects.reduce((sum, p) => sum + p.progressPercent, 0) / projects.length
 
     const healthStatus = getHealthStatus(portfolioSPI, portfolioCPI)
@@ -332,7 +349,8 @@ export async function getPortfolioEVMSummary(_companyId?: string): Promise<EVMPo
 }
 
 /**
- * Get monthly S-Curve data for a project
+ * Get monthly S-Curve data for a project.
+ * AC comes from real financial records, never fabricated from EV.
  */
 export async function getProjectSCurveData(projectId: string): Promise<MonthlySCurveData[]> {
   try {
@@ -354,6 +372,14 @@ export async function getProjectSCurveData(projectId: string): Promise<MonthlySC
             totalValue: true,
           },
           orderBy: { createdAt: 'asc' },
+        },
+        financialRecords: {
+          where: { type: 'EXPENSE', status: 'PAID' },
+          select: {
+            paidDate: true,
+            paidAmount: true,
+          },
+          orderBy: { paidDate: 'asc' },
         },
       },
     })
@@ -389,8 +415,14 @@ export async function getProjectSCurveData(projectId: string): Promise<MonthlySC
         }
       }
 
-      // AC is typically EV with a markup
-      const ac = ev > 0 ? ev * 1.05 : 0
+      // Calculate AC from REAL financial records up to this month — no fabrication
+      let ac = 0
+      for (const record of project.financialRecords) {
+        const paidDate = record.paidDate ? new Date(record.paidDate) : null
+        if (paidDate && paidDate <= nextMonth) {
+          ac += Number(record.paidAmount || 0)
+        }
+      }
 
       months.push({
         month: monthStr,

@@ -138,44 +138,85 @@ function isFinancialExpense(category: string | null, description: string): boole
 export async function generateDRE(
   companyId: string,
   year: number,
-  month?: number
+  month?: number,
+  regime: 'COMPETENCIA' | 'CAIXA' = 'COMPETENCIA'
 ): Promise<DREReport> {
   const { start: currentStart, end: currentEnd } = getDateRange(year, month)
   const { start: prevStart, end: prevEnd } = getPreviousRange(year, month)
   const { start: ytdStart, end: ytdEnd } = getYTDRange(year, month)
 
+  // A03: Filtros baseados no regime contabil
+  const isCaixa = regime === 'CAIXA'
+  const dateField = isCaixa ? 'paidDate' : 'dueDate'
+  const baseStatusFilter = isCaixa
+    ? { status: 'PAID' as const }
+    : { status: { not: 'CANCELLED' as const } }
+
+  const buildDateWhere = (start: Date, end: Date) => ({
+    companyId,
+    ...baseStatusFilter,
+    [dateField]: { gte: start, lte: end },
+  })
+
   // Fetch all necessary data in parallel
-  const [currentRecords, prevRecords, ytdRecords, costCenters, employees] = await Promise.all([
+  const [
+    currentRecords,
+    prevRecords,
+    ytdRecords,
+    employees,
+    bdiConfig,
+    activeEquipments,
+    prevPersonnelAgg,
+  ] = await Promise.all([
     prisma.financialRecord.findMany({
-      where: {
-        companyId,
-        dueDate: { gte: currentStart, lte: currentEnd },
-        status: { not: 'CANCELLED' },
-      },
+      where: buildDateWhere(currentStart, currentEnd),
       include: { costCenter: true },
     }),
     prisma.financialRecord.findMany({
-      where: {
-        companyId,
-        dueDate: { gte: prevStart, lte: prevEnd },
-        status: { not: 'CANCELLED' },
-      },
+      where: buildDateWhere(prevStart, prevEnd),
       include: { costCenter: true },
     }),
     prisma.financialRecord.findMany({
-      where: {
-        companyId,
-        dueDate: { gte: ytdStart, lte: ytdEnd },
-        status: { not: 'CANCELLED' },
-      },
+      where: buildDateWhere(ytdStart, ytdEnd),
       include: { costCenter: true },
-    }),
-    prisma.costCenter.findMany({
-      where: { companyId, isActive: true },
     }),
     prisma.employee.findMany({
       where: { companyId, status: 'ACTIVE' },
       select: { monthlySalary: true },
+    }),
+    // A02: Buscar BDI config para tributos reais
+    prisma.bDIConfig.findFirst({
+      where: { companyId, isDefault: true },
+    }),
+    // A02: Buscar equipamentos ativos para depreciacao real
+    prisma.equipment.findMany({
+      where: {
+        companyId,
+        status: { in: ['AVAILABLE', 'IN_USE', 'RESERVED'] },
+      },
+      select: {
+        acquisitionValue: true,
+        depreciationRate: true,
+        usefulLifeYears: true,
+      },
+    }),
+    // A02: Buscar despesas de pessoal reais do periodo anterior
+    prisma.financialRecord.aggregate({
+      where: {
+        companyId,
+        type: 'EXPENSE',
+        ...(isCaixa
+          ? { status: 'PAID', paidDate: { gte: prevStart, lte: prevEnd } }
+          : { status: { not: 'CANCELLED' }, dueDate: { gte: prevStart, lte: prevEnd } }),
+        OR: [
+          { category: { contains: 'pessoal', mode: 'insensitive' as const } },
+          { category: { contains: 'salario', mode: 'insensitive' as const } },
+          { category: { contains: 'folha', mode: 'insensitive' as const } },
+          { description: { contains: 'folha', mode: 'insensitive' as const } },
+          { description: { contains: 'salário', mode: 'insensitive' as const } },
+        ],
+      },
+      _sum: { amount: true },
     }),
   ])
 
@@ -237,10 +278,13 @@ export async function generateDRE(
     yearToDate: 0,
   }))
 
-  // -- Deductions (estimate 10% of revenue) --
-  const currentDeductions = currentRevenue * 0.10
-  const prevDeductions = prevRevenue * 0.10
-  const ytdDeductions = ytdRevenue * 0.10
+  // -- Deductions: ISS + PIS + COFINS reais do BDI, ou fallback 10% --
+  const taxRate = bdiConfig
+    ? (Number(bdiConfig.iss) + Number(bdiConfig.pis) + Number(bdiConfig.cofins)) / 100
+    : 0.10 // fallback 10% se nao configurado
+  const currentDeductions = currentRevenue * taxRate
+  const prevDeductions = prevRevenue * taxRate
+  const ytdDeductions = ytdRevenue * taxRate
 
   // -- Net Revenue --
   const currentNetRevenue = currentRevenue - currentDeductions
@@ -293,7 +337,11 @@ export async function generateDRE(
     0
   )
   const currentPersonnelExpenses = month !== undefined ? monthlyPayroll : monthlyPayroll * 12
-  const prevPersonnelExpenses = currentPersonnelExpenses * 0.9 // estimate previous year (10% less)
+  // A02: Buscar dados reais de pessoal do periodo anterior em vez de 90% estimado
+  const prevPersonnelFromRecords = Number(prevPersonnelAgg._sum.amount ?? 0)
+  const prevPersonnelExpenses = prevPersonnelFromRecords > 0
+    ? prevPersonnelFromRecords
+    : currentPersonnelExpenses // fallback: usar valor atual se nao houver registros anteriores
   const ytdPersonnelExpenses = month !== undefined ? monthlyPayroll * month : monthlyPayroll * 12
 
   const currentTotalOpex = currentAdminExpenses + currentCommercialExpenses + currentPersonnelExpenses
@@ -305,13 +353,28 @@ export async function generateDRE(
   const prevEBITDA = prevGrossProfit - prevTotalOpex
   const ytdEBITDA = ytdGrossProfit - ytdTotalOpex
 
-  // -- Depreciation (estimate 2% of total expenses) --
-  const totalCurrentExpenses = currentCSP + currentTotalOpex
-  const totalPrevExpenses = prevCSP + prevTotalOpex
-  const totalYtdExpenses = ytdCSP + ytdTotalOpex
-  const currentDepreciation = totalCurrentExpenses * 0.02
-  const prevDepreciation = totalPrevExpenses * 0.02
-  const ytdDepreciation = totalYtdExpenses * 0.02
+  // -- Depreciation: calcular a partir dos equipamentos ativos --
+  // A02: Depreciar com base no valor de aquisicao e taxa de depreciacao real dos equipamentos
+  const annualDepreciation = activeEquipments.reduce((sum, eq) => {
+    const acqValue = eq.acquisitionValue ? Number(eq.acquisitionValue) : 0
+    if (acqValue <= 0) return sum
+    // Usar taxa de depreciacao configurada, ou calcular pela vida util, ou fallback 10% a.a.
+    const rate = eq.depreciationRate
+      ? Number(eq.depreciationRate) / 100
+      : eq.usefulLifeYears && eq.usefulLifeYears > 0
+        ? 1 / eq.usefulLifeYears
+        : 0.10
+    return sum + acqValue * rate
+  }, 0)
+  const monthlyDepreciation = annualDepreciation / 12
+  const hasEquipmentData = activeEquipments.length > 0 && annualDepreciation > 0
+  const currentDepreciation = hasEquipmentData
+    ? (month !== undefined ? monthlyDepreciation : annualDepreciation)
+    : 0 // Sem dados de equipamento = sem estimativa
+  const prevDepreciation = currentDepreciation // Usa mesma base (sem historico de equipamentos antigos)
+  const ytdDepreciation = hasEquipmentData
+    ? (month !== undefined ? monthlyDepreciation * month : annualDepreciation)
+    : 0
 
   // -- EBIT --
   const currentEBIT = currentEBITDA - currentDepreciation
@@ -333,10 +396,13 @@ export async function generateDRE(
   const prevLAIR = prevEBIT - prevFinancialResult
   const ytdLAIR = ytdEBIT - ytdFinancialResult
 
-  // -- Taxes (estimate 15%) --
-  const currentTaxes = currentLAIR > 0 ? currentLAIR * 0.15 : 0
-  const prevTaxes = prevLAIR > 0 ? prevLAIR * 0.15 : 0
-  const ytdTaxes = ytdLAIR > 0 ? ytdLAIR * 0.15 : 0
+  // -- Taxes: IRPJ + CSLL reais do BDI, ou fallback 15% --
+  const profitTaxRate = bdiConfig
+    ? (Number(bdiConfig.irpj) + Number(bdiConfig.csll)) / 100
+    : 0.15 // fallback 15% se nao configurado
+  const currentTaxes = currentLAIR > 0 ? currentLAIR * profitTaxRate : 0
+  const prevTaxes = prevLAIR > 0 ? prevLAIR * profitTaxRate : 0
+  const ytdTaxes = ytdLAIR > 0 ? ytdLAIR * profitTaxRate : 0
 
   // -- Net Profit --
   const currentNetProfit = currentLAIR - currentTaxes
@@ -483,7 +549,7 @@ export async function generateDRE(
     },
     {
       id: 'impostos',
-      label: 'Impostos sobre Lucro (est. 15%)',
+      label: bdiConfig ? 'Impostos sobre Lucro (IRPJ + CSLL)' : 'Impostos sobre Lucro (est. 15%)',
       level: 1,
       type: 'tax',
       currentValue: -currentTaxes,
@@ -530,83 +596,77 @@ export async function generateCashflowProjection(
 ): Promise<CashflowProjection> {
   const now = new Date()
 
-  // Fetch bank account balances
-  const bankAccounts = await prisma.bankAccount.findMany({
+  // A19: Usar aggregate para saldo bancario em vez de findMany
+  const bankBalanceAgg = await prisma.bankAccount.aggregate({
     where: { companyId },
-    select: { balance: true },
+    _sum: { balance: true },
   })
-  const currentBalance = bankAccounts.reduce((sum, ba) => sum + Number(ba.balance), 0)
+  const currentBalance = Number(bankBalanceAgg._sum.balance ?? 0)
 
   // Last 6 months of records for trend analysis
   const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1)
-  const [historicalRecords, activeEmployees, pendingPOs, activeBulletins, activeRentals, activeContracts] =
-    await Promise.all([
-      prisma.financialRecord.findMany({
-        where: {
-          companyId,
-          dueDate: { gte: sixMonthsAgo, lte: now },
-          status: { not: 'CANCELLED' },
-        },
-      }),
-      prisma.employee.findMany({
-        where: { companyId, status: 'ACTIVE' },
-        select: { monthlySalary: true },
-      }),
-      prisma.purchaseOrder.findMany({
-        where: {
-          companyId,
-          status: { in: ['APPROVED', 'ORDERED'] },
-        },
-        select: { totalValue: true },
-      }),
-      prisma.measurementBulletin.findMany({
-        where: {
-          project: { companyId },
-          status: { in: ['APPROVED', 'MANAGER_APPROVED'] },
-        },
-        select: { totalValue: true, status: true },
-      }),
-      prisma.rental.findMany({
-        where: {
-          companyId,
-          status: 'ACTIVE',
-        },
-        select: { unitRate: true, billingCycle: true },
-      }),
-      prisma.contract.findMany({
-        where: {
-          companyId,
-          status: 'ACTIVE',
-        },
-        select: { value: true },
-      }),
-    ])
 
-  // Calculate monthly averages from historical records
-  const monthlyIncome: number[] = []
-  const monthlyExpense: number[] = []
+  // A19: Usar aggregate para somas historicas em vez de findMany + soma em JS
+  const [
+    historicalIncomeAgg,
+    historicalExpenseAgg,
+    activeEmployees,
+    pendingPOAgg,
+    bulletinAgg,
+    activeRentals,
+  ] = await Promise.all([
+    prisma.financialRecord.aggregate({
+      where: {
+        companyId,
+        type: 'INCOME',
+        dueDate: { gte: sixMonthsAgo, lte: now },
+        status: { not: 'CANCELLED' },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.financialRecord.aggregate({
+      where: {
+        companyId,
+        type: 'EXPENSE',
+        dueDate: { gte: sixMonthsAgo, lte: now },
+        status: { not: 'CANCELLED' },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.employee.findMany({
+      where: { companyId, status: 'ACTIVE' },
+      select: { monthlySalary: true },
+    }),
+    // A19: Aggregate para POs pendentes
+    prisma.purchaseOrder.aggregate({
+      where: {
+        companyId,
+        status: { in: ['APPROVED', 'ORDERED'] },
+      },
+      _sum: { totalValue: true },
+    }),
+    // A19: Aggregate para boletins de medicao aprovados
+    prisma.measurementBulletin.aggregate({
+      where: {
+        project: { companyId },
+        status: { in: ['APPROVED', 'MANAGER_APPROVED'] },
+      },
+      _sum: { totalValue: true },
+    }),
+    prisma.rental.findMany({
+      where: {
+        companyId,
+        status: 'ACTIVE',
+      },
+      select: { unitRate: true, billingCycle: true },
+    }),
+  ])
 
-  for (let i = 5; i >= 0; i--) {
-    const mStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const mEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999)
-
-    const mIncome = historicalRecords
-      .filter(r => r.type === 'INCOME' && new Date(r.dueDate) >= mStart && new Date(r.dueDate) <= mEnd)
-      .reduce((sum, r) => sum + Number(r.amount), 0)
-    const mExpense = historicalRecords
-      .filter(r => r.type === 'EXPENSE' && new Date(r.dueDate) >= mStart && new Date(r.dueDate) <= mEnd)
-      .reduce((sum, r) => sum + Number(r.amount), 0)
-
-    monthlyIncome.push(mIncome)
-    monthlyExpense.push(mExpense)
-  }
-
-  const avgIncome = monthlyIncome.length > 0
-    ? monthlyIncome.reduce((a, b) => a + b, 0) / monthlyIncome.length
-    : 0
-  const avgExpense = monthlyExpense.length > 0
-    ? monthlyExpense.reduce((a, b) => a + b, 0) / monthlyExpense.length
-    : 0
+  // Calculate monthly averages from aggregated totals (6 months)
+  const totalHistIncome = Number(historicalIncomeAgg._sum.amount ?? 0)
+  const totalHistExpense = Number(historicalExpenseAgg._sum.amount ?? 0)
+  const avgIncome = totalHistIncome / 6
+  const avgExpense = totalHistExpense / 6
 
   // Payroll projection
   const monthlyPayroll = activeEmployees.reduce(
@@ -615,13 +675,11 @@ export async function generateCashflowProjection(
   )
 
   // Pending POs total (distribute over 3 months)
-  const pendingPOTotal = pendingPOs.reduce((sum, po) => sum + toNumber(po.totalValue), 0)
+  const pendingPOTotal = Number(pendingPOAgg._sum.totalValue ?? 0)
   const monthlyPOBurn = pendingPOTotal / 3
 
   // Approved bulletins as future income (distribute over 2 months)
-  const bulletinIncome = activeBulletins
-    .filter(b => b.status === 'APPROVED' || b.status === 'MANAGER_APPROVED')
-    .reduce((sum, b) => sum + toNumber(b.totalValue), 0)
+  const bulletinIncome = Number(bulletinAgg._sum.totalValue ?? 0)
   const monthlyBulletinIncome = bulletinIncome / 2
 
   // Rental monthly cost
@@ -736,10 +794,42 @@ export async function generateCostCenterReport(
   const yearStart = new Date(year, 0, 1)
   const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999)
 
-  const [costCenters, records, budgets] = await Promise.all([
+  // A19: Usar groupBy para agregar por costCenter e reduzir transferencia de dados
+  const [costCenters, expenseGrouped, incomeGrouped, budgets, topRecords] = await Promise.all([
     prisma.costCenter.findMany({
       where: { companyId, isActive: true },
     }),
+    // A19: groupBy para despesas por costCenter
+    prisma.financialRecord.groupBy({
+      by: ['costCenterId'],
+      where: {
+        companyId,
+        type: 'EXPENSE',
+        dueDate: { gte: yearStart, lte: yearEnd },
+        status: { not: 'CANCELLED' },
+        costCenterId: { not: null },
+      },
+      _sum: { amount: true },
+    }),
+    // A19: groupBy para receitas por costCenter
+    prisma.financialRecord.groupBy({
+      by: ['costCenterId'],
+      where: {
+        companyId,
+        type: 'INCOME',
+        dueDate: { gte: yearStart, lte: yearEnd },
+        status: { not: 'CANCELLED' },
+        costCenterId: { not: null },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.costCenterBudget.findMany({
+      where: {
+        costCenter: { companyId },
+        year,
+      },
+    }),
+    // Manter findMany apenas para top transacoes e evolucao mensal (precisa de datas individuais)
     prisma.financialRecord.findMany({
       where: {
         companyId,
@@ -748,33 +838,43 @@ export async function generateCostCenterReport(
         costCenterId: { not: null },
       },
       orderBy: { dueDate: 'desc' },
-    }),
-    prisma.costCenterBudget.findMany({
-      where: {
-        costCenter: { companyId },
-        year,
+      select: {
+        costCenterId: true,
+        description: true,
+        amount: true,
+        dueDate: true,
       },
     }),
   ])
 
+  // Mapear os groupBy results para lookup rapido
+  const expenseMap = new Map<string, number>()
+  for (const g of expenseGrouped) {
+    if (g.costCenterId) expenseMap.set(g.costCenterId, Number(g._sum.amount ?? 0))
+  }
+  const incomeMap = new Map<string, number>()
+  for (const g of incomeGrouped) {
+    if (g.costCenterId) incomeMap.set(g.costCenterId, Number(g._sum.amount ?? 0))
+  }
+
   const items: CostCenterReportItem[] = costCenters.map(cc => {
-    const ccRecords = records.filter(r => r.costCenterId === cc.id)
     const ccBudgets = budgets.filter(b => b.costCenterId === cc.id)
 
     const budgeted = ccBudgets.reduce((sum, b) => sum + toNumber(b.budgetedAmount), 0)
-    const realized = ccRecords.reduce((sum, r) => {
-      const amount = toNumber(r.amount)
-      return sum + (r.type === 'EXPENSE' ? amount : -amount)
-    }, 0)
+    // A19: Usar valores pre-agregados do groupBy
+    const expenseTotal = expenseMap.get(cc.id) ?? 0
+    const incomeTotal = incomeMap.get(cc.id) ?? 0
+    const realized = expenseTotal - incomeTotal
     const variance = budgeted - realized
     const variancePercent = budgeted > 0 ? (variance / budgeted) * 100 : 0
 
-    // Monthly evolution
+    // Monthly evolution (ainda precisa de dados granulares para detalhe mensal)
+    const ccTopRecords = topRecords.filter(r => r.costCenterId === cc.id)
     const monthlyEvolution: { month: string; value: number }[] = []
     for (let m = 0; m < 12; m++) {
       const mStart = new Date(year, m, 1)
       const mEnd = new Date(year, m + 1, 0, 23, 59, 59, 999)
-      const monthTotal = ccRecords
+      const monthTotal = ccTopRecords
         .filter(r => {
           const d = new Date(r.dueDate)
           return d >= mStart && d <= mEnd
@@ -786,7 +886,7 @@ export async function generateCostCenterReport(
     }
 
     // Top 5 transactions
-    const topTransactions = ccRecords
+    const topTransactions = ccTopRecords
       .slice(0, 5)
       .map(r => ({
         description: r.description,
@@ -829,36 +929,36 @@ export async function getFinancialKPIs(companyId: string): Promise<FinancialKPIs
   const year = now.getFullYear()
   const month = now.getMonth() + 1
 
-  // Run DRE for current month and get cash flow data
-  const [dre, bankAccounts, employees, overdueRecords, overdueFiscalNotes, historicalRecords] =
+  // A19: Usar aggregate em vez de findMany para KPIs
+  const [dre, bankBalanceAgg, employees, overdueAgg, overdueFiscalAgg, historicalExpenseAgg] =
     await Promise.all([
       generateDRE(companyId, year, month),
-      prisma.bankAccount.findMany({
+      prisma.bankAccount.aggregate({
         where: { companyId },
-        select: { balance: true },
+        _sum: { balance: true },
       }),
       prisma.employee.findMany({
         where: { companyId, status: 'ACTIVE' },
         select: { monthlySalary: true },
       }),
-      prisma.financialRecord.findMany({
+      prisma.financialRecord.aggregate({
         where: {
           companyId,
           type: 'INCOME',
           status: 'PENDING',
           dueDate: { lt: now },
         },
-        select: { amount: true },
+        _sum: { amount: true },
       }),
-      prisma.fiscalNote.findMany({
+      prisma.fiscalNote.aggregate({
         where: {
           companyId,
           status: 'ISSUED',
           dueDate: { lt: now, not: null },
         },
-        select: { value: true },
+        _sum: { value: true },
       }),
-      prisma.financialRecord.findMany({
+      prisma.financialRecord.aggregate({
         where: {
           companyId,
           type: 'EXPENSE',
@@ -868,14 +968,14 @@ export async function getFinancialKPIs(companyId: string): Promise<FinancialKPIs
             lte: now,
           },
         },
-        select: { amount: true },
+        _sum: { amount: true },
       }),
     ])
 
-  const currentBalance = bankAccounts.reduce((sum, ba) => sum + Number(ba.balance), 0)
+  const currentBalance = Number(bankBalanceAgg._sum.balance ?? 0)
 
   // Burn rate: average monthly expenses over last 6 months
-  const totalHistoricalExpenses = historicalRecords.reduce((sum, r) => sum + Number(r.amount), 0)
+  const totalHistoricalExpenses = Number(historicalExpenseAgg._sum.amount ?? 0)
   const burnRate = totalHistoricalExpenses / 6
 
   // Cash runway
@@ -883,8 +983,8 @@ export async function getFinancialKPIs(companyId: string): Promise<FinancialKPIs
 
   // Overdue receivables
   const overdueReceivables =
-    overdueRecords.reduce((sum, r) => sum + Number(r.amount), 0) +
-    overdueFiscalNotes.reduce((sum, n) => sum + Number(n.value), 0)
+    Number(overdueAgg._sum.amount ?? 0) +
+    Number(overdueFiscalAgg._sum.value ?? 0)
 
   // Simple next month projection
   const monthlyPayroll = employees.reduce(

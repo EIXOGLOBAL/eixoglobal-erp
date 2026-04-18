@@ -331,7 +331,7 @@ export function CompanyContacts({ companyId, contacts }: CompanyContactsProps) {
                 <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" disabled={isDeleting}>
+                            <Button variant="ghost" size="icon" disabled={isDeleting} aria-label="Excluir contato">
                                 {isDeleting
                                     ? <Loader2 className="h-4 w-4 animate-spin" />
                                     : <MoreHorizontal className="h-4 w-4" />

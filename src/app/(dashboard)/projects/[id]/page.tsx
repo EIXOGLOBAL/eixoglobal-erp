@@ -163,7 +163,7 @@ const session = await getSession()
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" asChild>
+                <Button variant="ghost" size="icon" asChild aria-label="Voltar">
                     <Link href="/projects">
                         <ArrowLeft className="h-4 w-4" />
                     </Link>

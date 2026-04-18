@@ -494,7 +494,7 @@ export function PrintEmployeeClient({ employee, company }: PrintEmployeeClientPr
                                         <td className="border border-gray-300 px-1.5 py-1">
                                             {tp.training.title}
                                             {tp.training.instructor && (
-                                                <span className="text-gray-400 ml-1">
+                                                <span className="text-gray-600 ml-1">
                                                     ({tp.training.instructor})
                                                 </span>
                                             )}
@@ -565,7 +565,7 @@ export function PrintEmployeeClient({ employee, company }: PrintEmployeeClientPr
                 )}
 
                 {/* RODAPE */}
-                <footer className="mt-6 pt-3 border-t border-gray-200 text-[9px] text-gray-400 flex justify-between">
+                <footer className="mt-6 pt-3 border-t border-gray-200 text-[9px] text-gray-600 flex justify-between">
                     <span>ERP Eixo Global &mdash; Ficha de Funcionario</span>
                     <span>
                         Emitido em {new Date().toLocaleString('pt-BR')}

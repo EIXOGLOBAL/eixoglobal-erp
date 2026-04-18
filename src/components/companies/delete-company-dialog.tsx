@@ -49,7 +49,7 @@ export function DeleteCompanyDialog({ id, name }: DeleteCompanyDialogProps) {
     return (
         <AlertDialog open={open} onOpenChange={setOpen}>
             <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" aria-label="Excluir">
                     <Trash2 className="h-4 w-4" />
                 </Button>
             </AlertDialogTrigger>

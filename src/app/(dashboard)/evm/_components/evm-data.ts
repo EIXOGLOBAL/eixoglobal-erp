@@ -14,15 +14,17 @@ export interface EVMProject {
   pv: number
   ev: number
   ac: number
-  sv: number
-  cv: number
-  spi: number
-  cpi: number
-  eac: number
-  etc: number
-  vac: number
+  sv: number | null
+  cv: number | null
+  spi: number | null
+  cpi: number | null
+  eac: number | null
+  etc: number | null
+  vac: number | null
   progressPercent: number
   timeProgressPercent: number
+  hasRealData: boolean
+  dataInsufficient: boolean
 }
 
 export interface EVMPortfolioSummary {
@@ -30,19 +32,19 @@ export interface EVMPortfolioSummary {
   totalEV: number
   totalAC: number
   totalBudget: number
-  portfolioSPI: number
-  portfolioCPI: number
+  portfolioSPI: number | null
+  portfolioCPI: number | null
   avgProgressPercent: number
   projectCount: number
-  healthStatus: 'green' | 'yellow' | 'red'
+  healthStatus: 'green' | 'yellow' | 'red' | 'unknown'
 }
 
 export interface MonthlyEVMTrend {
   month: string
-  spi: number
-  cpi: number
-  sv: number
-  cv: number
+  spi: number | null
+  cpi: number | null
+  sv: number | null
+  cv: number | null
 }
 
 export interface MonthlyComparison {
@@ -85,6 +87,10 @@ export async function getEVMProjects(companyId: string): Promise<EVMProject[]> {
           totalValue: true,
         },
       },
+      financialRecords: {
+        where: { type: 'EXPENSE', status: 'PAID' },
+        select: { paidAmount: true },
+      },
       tasks: {
         select: {
           id: true,
@@ -107,26 +113,32 @@ export async function getEVMProjects(companyId: string): Promise<EVMProject[]> {
     const timeProgressPercent = totalDuration > 0 ? (elapsed / totalDuration) * 100 : 0
     const pv = budget * (timeProgressPercent / 100)
 
-    // Calculate Earned Value (EV) from measurement bulletins
+    // Earned Value (EV) from approved bulletins — REAL data only, no fabrication
     const totalMeasuredValue = project.bulletins.reduce((sum, b) => sum + Number(b.totalValue || 0), 0)
-    const ev = totalMeasuredValue > 0 ? totalMeasuredValue : budget * (timeProgressPercent / 100) * 0.9
+    const ev = totalMeasuredValue > 0 ? totalMeasuredValue : 0
 
-    // Calculate Actual Cost (AC) - use EV with a markup for costs
-    const ac = ev * 1.05
+    // Actual Cost (AC) from financial records — REAL data only, no fabrication
+    const ac = project.financialRecords.reduce((sum, f) => sum + Number(f.paidAmount || 0), 0)
 
     // Calculate progress percent from tasks
     const progressPercent = project.tasks.length > 0
       ? project.tasks.reduce((sum, t) => sum + (t.percentDone || 0), 0) / project.tasks.length
       : timeProgressPercent
 
-    // Calculate EVM metrics
-    const sv = ev - pv
-    const cv = ev - ac
-    const spi = pv > 0 ? ev / pv : 1
-    const cpi = ac > 0 ? ev / ac : 1
-    const eac = cpi > 0 ? budget / cpi : budget
-    const etc = Math.max(0, eac - ac)
-    const vac = budget - eac
+    // Determine data sufficiency
+    const hasEV = ev > 0
+    const hasAC = ac > 0
+    const dataInsufficient = !hasEV || !hasAC
+    const hasRealData = hasEV && hasAC
+
+    // Calculate EVM metrics — null when data is insufficient
+    const sv = hasEV ? ev - pv : null
+    const cv = hasRealData ? ev - ac : null
+    const spi = hasEV && pv > 0 ? ev / pv : null
+    const cpi = hasRealData && ac > 0 ? ev / ac : null
+    const eac = cpi !== null && cpi > 0 ? Number((budget / cpi).toFixed(2)) : null
+    const etc = eac !== null ? Number(Math.max(0, eac - ac).toFixed(2)) : null
+    const vac = eac !== null ? Number((budget - eac).toFixed(2)) : null
 
     return {
       id: project.id,
@@ -140,11 +152,13 @@ export async function getEVMProjects(companyId: string): Promise<EVMProject[]> {
       cv,
       spi,
       cpi,
-      eac: Number(eac),
+      eac,
       etc,
       vac,
       progressPercent,
       timeProgressPercent,
+      hasRealData,
+      dataInsufficient,
     }
   })
 }
@@ -167,16 +181,19 @@ export async function getEVMPortfolioSummary(
   const totalAC = projects.reduce((sum, p) => sum + p.ac, 0)
   const totalBudget = projects.reduce((sum, p) => sum + p.budget, 0)
 
-  const portfolioSPI = totalPV > 0 ? totalEV / totalPV : 1
-  const portfolioCPI = totalAC > 0 ? totalEV / totalAC : 1
+  const portfolioSPI = totalPV > 0 && totalEV > 0 ? totalEV / totalPV : null
+  const portfolioCPI = totalAC > 0 && totalEV > 0 ? totalEV / totalAC : null
   const avgProgressPercent = projects.reduce((sum, p) => sum + p.progressPercent, 0) / projects.length
 
-  let healthStatus: 'green' | 'yellow' | 'red' = 'green'
-  if (portfolioSPI < 0.95 || portfolioCPI < 0.95) {
-    healthStatus = 'yellow'
-  }
-  if (portfolioSPI < 0.85 || portfolioCPI < 0.85) {
-    healthStatus = 'red'
+  let healthStatus: 'green' | 'yellow' | 'red' | 'unknown' = 'unknown'
+  if (portfolioSPI !== null && portfolioCPI !== null) {
+    healthStatus = 'green'
+    if (portfolioSPI < 0.95 || portfolioCPI < 0.95) {
+      healthStatus = 'yellow'
+    }
+    if (portfolioSPI < 0.85 || portfolioCPI < 0.85) {
+      healthStatus = 'red'
+    }
   }
 
   return {
@@ -191,4 +208,3 @@ export async function getEVMPortfolioSummary(
     healthStatus,
   }
 }
-

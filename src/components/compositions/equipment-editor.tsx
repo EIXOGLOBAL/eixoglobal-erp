@@ -108,7 +108,7 @@ export function EquipmentEditor({ compositionId, equipment }: EquipmentEditorPro
                                         <div className="flex gap-2">
                                             <Button
                                                 variant="ghost"
-                                                size="icon"
+                                                size="icon" aria-label="Editar"
                                                 onClick={() => {
                                                     setEditingEquipment(item)
                                                     setShowDialog(true)
@@ -118,7 +118,7 @@ export function EquipmentEditor({ compositionId, equipment }: EquipmentEditorPro
                                             </Button>
                                             <Button
                                                 variant="ghost"
-                                                size="icon"
+                                                size="icon" aria-label="Excluir"
                                                 onClick={() => handleDelete(item.id, item.description)}
                                             >
                                                 <Trash2 className="h-4 w-4 text-red-600" />

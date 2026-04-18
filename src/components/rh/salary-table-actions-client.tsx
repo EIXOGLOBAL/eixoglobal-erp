@@ -66,7 +66,7 @@ export function DeleteSalaryGradeButton({ id, label }: DeleteSalaryGradeButtonPr
     }
 
     return (
-        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={handleDelete} disabled={loading}>
+        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={handleDelete} disabled={loading} aria-label="Excluir">
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
         </Button>
     )

@@ -208,6 +208,10 @@ export async function getSuppliers(params?: {
 
 export async function getActiveSuppliers(companyId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return []
+        if (session.user.companyId !== companyId) return []
+
         const suppliers = await prisma.supplier.findMany({
             where: { companyId, isActive: true },
             select: { id: true, name: true, tradeName: true, cnpj: true, category: true },
@@ -222,6 +226,10 @@ export async function getActiveSuppliers(companyId: string) {
 
 export async function getSuppliersWithScore(companyId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return []
+        if (session.user.companyId !== companyId) return []
+
         const suppliers = await prisma.supplier.findMany({
             where: { companyId, isActive: true },
             select: {
@@ -364,6 +372,11 @@ export async function removeSupplierContact(contactId: string) {
         })
         if (!contact) return { success: false, error: "Contato não encontrado" }
 
+        // Verificar que o fornecedor pertence à empresa do usuário
+        if (contact.supplier.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         await prisma.supplierContact.delete({ where: { id: contactId } })
 
         await logAudit({
@@ -406,6 +419,11 @@ export async function uploadSupplierDocument(formData: FormData) {
             select: { name: true, companyId: true },
         })
         if (!supplier) return { success: false, error: "Fornecedor não encontrado" }
+
+        // Verificar que o fornecedor pertence à empresa do usuário
+        if (supplier.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
 
         // Ensure upload directory
         const uploadDir = path.join(process.cwd(), "public", "uploads", "suppliers", supplierId)
@@ -458,6 +476,15 @@ export async function evaluateSupplier(
     try {
         const session = await getSession()
         if (!session) return { success: false, error: "Sessão expirada" }
+
+        // Verificar que o fornecedor pertence à empresa do usuário
+        const supplierCheck = await prisma.supplier.findUnique({
+            where: { id: supplierId },
+            select: { companyId: true }
+        })
+        if (!supplierCheck || supplierCheck.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
 
         const score = (data.quality + data.delivery + data.price + data.support) / 4
 
@@ -584,6 +611,18 @@ export async function getSupplierDetail(supplierId: string) {
 
 export async function getSupplierFinancialHistory(supplierId: string) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        // Verificar que o fornecedor pertence à empresa do usuário
+        const supplierCheck = await prisma.supplier.findUnique({
+            where: { id: supplierId },
+            select: { companyId: true }
+        })
+        if (!supplierCheck || supplierCheck.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         // Purchase orders
         const purchaseOrders = await prisma.purchaseOrder.findMany({
             where: { supplierId },
@@ -696,6 +735,10 @@ function formatMonthLabel(yearMonth: string): string {
 
 export async function getSuppliersWithExpiringDocuments(companyId: string, days: number = 30) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, data: [], error: "Não autenticado" }
+        if (session.user.companyId !== companyId) return { success: false, data: [], error: "Acesso negado" }
+
         const now = new Date()
         const futureDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000)
 

@@ -31,7 +31,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   companyId String?
-  company   Company? @relation(fields: [companyId], references: [id])
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   // Permissões granulares (configuráveis pelo ADMIN)
   canDelete          Boolean @default(false) // Pode excluir registros
@@ -220,7 +220,7 @@ model Employee {
   department String?
 
   companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   // Grade Salarial
   salaryGradeId String?
@@ -332,12 +332,12 @@ model Project {
   longitude   Float?
   startDate   DateTime
   endDate     DateTime?
-  budget      Decimal?
+  budget      Decimal?      @db.Decimal(18, 4)
   area        Float? // área em m²
   status      ProjectStatus @default(PLANNING)
 
   companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   engineerId String?
   engineer   User?   @relation(fields: [engineerId], references: [id])
@@ -402,10 +402,10 @@ model Contract {
   status      ContractStatus @default(ACTIVE)
 
   companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
 
   // Can be a contract with a Contractor (External) or Internal management
   contractorId String?
@@ -573,7 +573,7 @@ model FinancialRecord {
   paidAmount  Decimal           @default(0) @db.Decimal(18, 4)
 
   companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   bankAccountId String?
   bankAccount   BankAccount? @relation(fields: [bankAccountId], references: [id])
@@ -782,7 +782,7 @@ model MeasurementBulletin {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   contractId String
-  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Restrict)
 
   createdById String
   createdBy   User   @relation("BulletinCreator", fields: [createdById], references: [id])
@@ -2060,7 +2060,7 @@ model AuditLog {
   userId     String?
   user       User?    @relation("AuditLogUser", fields: [userId], references: [id], onDelete: SetNull)
   companyId  String?
-  company    Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   ipAddress  String?
   userAgent  String?
   createdAt  DateTime @default(now())
@@ -2771,8 +2771,8 @@ model ApprovalLevel {
   roleRequired   Role?
   specificUserId String?
   specificUser   User?            @relation("ApprovalLevelUser", fields: [specificUserId], references: [id])
-  minAmount      Float?
-  maxAmount      Float?
+  minAmount      Decimal?         @db.Decimal(18, 4)
+  maxAmount      Decimal?         @db.Decimal(18, 4)
   createdAt      DateTime         @default(now())
 
   @@index([workflowId, level])

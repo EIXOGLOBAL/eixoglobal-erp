@@ -565,7 +565,7 @@ export function PrintProjectClient({ project }: PrintProjectClientProps) {
                 )}
 
                 {/* RODAPE */}
-                <footer className="mt-6 pt-3 border-t border-gray-200 text-[9px] text-gray-400 flex justify-between">
+                <footer className="mt-6 pt-3 border-t border-gray-200 text-[9px] text-gray-600 flex justify-between">
                     <span>ERP Eixo Global &mdash; Relatorio de Projeto</span>
                     <span>
                         Emitido em {new Date().toLocaleString('pt-BR')}

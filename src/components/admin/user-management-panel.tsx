@@ -506,7 +506,7 @@ export function UserManagementPanel({ initialData }: UserManagementPanelProps) {
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
-                              size="icon"
+                              size="icon" aria-label="Abrir menu de ações"
                               className="h-8 w-8"
                               onClick={(e) => e.stopPropagation()}
                             >

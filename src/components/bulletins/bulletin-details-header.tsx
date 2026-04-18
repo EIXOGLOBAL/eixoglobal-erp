@@ -40,7 +40,7 @@ export function BulletinDetailsHeader({
 }: BulletinDetailsHeaderProps) {
     return (
         <div className="flex items-center gap-4 mb-4">
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" asChild aria-label="Voltar">
                 <Link href="/measurements">
                     <ArrowLeft className="h-4 w-4" />
                 </Link>

@@ -69,21 +69,21 @@ export function MatriculaEditor({ employeeId, matricula }: MatriculaEditorProps)
           disabled={loading}
         />
         <Button
-          size="icon"
-          variant="ghost"
-          className="h-6 w-6"
-          onClick={save}
-          disabled={loading}
-        >
+ size="icon" aria-label="Confirmar matrícula" 
+ variant="ghost"
+ className="h-6 w-6"
+ onClick={save}
+ disabled={loading}
+>
           <Check className="h-3 w-3 text-green-600" />
         </Button>
         <Button
-          size="icon"
-          variant="ghost"
-          className="h-6 w-6"
-          onClick={cancelEditing}
-          disabled={loading}
-        >
+ size="icon" aria-label="Cancelar edição" 
+ variant="ghost"
+ className="h-6 w-6"
+ onClick={cancelEditing}
+ disabled={loading}
+>
           <X className="h-3 w-3 text-red-500" />
         </Button>
       </div>
@@ -96,11 +96,11 @@ export function MatriculaEditor({ employeeId, matricula }: MatriculaEditorProps)
         {matricula ? `[${matricula}]` : '[----]'}
       </span>
       <Button
-        size="icon"
-        variant="ghost"
-        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={startEditing}
-      >
+ size="icon" aria-label="Editar matrícula" 
+ variant="ghost"
+ className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+ onClick={startEditing}
+>
         <Pencil className="h-3 w-3" />
       </Button>
     </div>

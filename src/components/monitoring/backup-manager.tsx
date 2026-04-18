@@ -267,12 +267,12 @@ export function BackupManager() {
                       </Badge>
                     )}
                     <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      title="Baixar backup"
-                      asChild
-                    >
+ variant="outline"
+ size="icon" aria-label="Baixar backup" 
+ className="h-8 w-8"
+ title="Baixar backup"
+ asChild
+>
                       <a
                         href={`/backups/${encodeURIComponent(backup.filename)}`}
                         download
@@ -282,7 +282,7 @@ export function BackupManager() {
                     </Button>
                     <Button
                       variant="outline"
-                      size="icon"
+                      size="icon" aria-label="Excluir"
                       className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
                       title="Excluir backup"
                       disabled={deletingFile === backup.filename}

@@ -199,7 +199,7 @@ export function DailyReportsTable({ reports, projects, companyId }: DailyReports
                                 <TableCell className="text-right">
                                     <div className="flex justify-end gap-1">
                                         <Link href={`/rdo/${r.id}`}>
-                                            <Button variant="ghost" size="icon" title="Ver detalhes">
+                                            <Button variant="ghost" size="icon" title="Ver detalhes" aria-label="Visualizar">
                                                 <Eye className="h-4 w-4" />
                                             </Button>
                                         </Link>
@@ -207,7 +207,7 @@ export function DailyReportsTable({ reports, projects, companyId }: DailyReports
                                             <>
                                                 <Button
                                                     variant="ghost"
-                                                    size="icon"
+                                                    size="icon" aria-label="Enviar"
                                                     title="Submeter para aprovação"
                                                     onClick={() => handleSubmit(r.id)}
                                                 >
@@ -215,7 +215,7 @@ export function DailyReportsTable({ reports, projects, companyId }: DailyReports
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
-                                                    size="icon"
+                                                    size="icon" aria-label="Excluir"
                                                     title="Excluir"
                                                     onClick={() => handleDelete(r.id)}
                                                 >
@@ -226,7 +226,7 @@ export function DailyReportsTable({ reports, projects, companyId }: DailyReports
                                         {r.status === 'SUBMITTED' && (
                                             <Button
                                                 variant="ghost"
-                                                size="icon"
+                                                size="icon" aria-label="Confirmar"
                                                 title="Aprovar"
                                                 onClick={() => handleApprove(r.id)}
                                             >

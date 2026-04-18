@@ -279,7 +279,7 @@ export function PrintTrainingsClient({ trainings, company }: PrintTrainingsClien
                                                         key={p.id}
                                                         className={pIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
                                                     >
-                                                        <td className="border border-gray-300 px-1.5 py-0.5 text-center text-gray-400">
+                                                        <td className="border border-gray-300 px-1.5 py-0.5 text-center text-gray-600">
                                                             {pIdx + 1}
                                                         </td>
                                                         <td className="border border-gray-300 px-1.5 py-0.5">
@@ -289,12 +289,12 @@ export function PrintTrainingsClient({ trainings, company }: PrintTrainingsClien
                                                             {p.employee.jobTitle}
                                                         </td>
                                                         <td className="border border-gray-300 px-1.5 py-0.5 text-center">
-                                                            <span className={p.attended ? 'text-green-700 font-semibold' : 'text-gray-400'}>
+                                                            <span className={p.attended ? 'text-green-700 font-semibold' : 'text-gray-600'}>
                                                                 {p.attended ? 'Sim' : 'Nao'}
                                                             </span>
                                                         </td>
                                                         <td className="border border-gray-300 px-1.5 py-0.5 text-center">
-                                                            <span className={p.certified ? 'text-green-700 font-semibold' : 'text-gray-400'}>
+                                                            <span className={p.certified ? 'text-green-700 font-semibold' : 'text-gray-600'}>
                                                                 {p.certified ? 'Sim' : 'Nao'}
                                                             </span>
                                                         </td>
@@ -305,7 +305,7 @@ export function PrintTrainingsClient({ trainings, company }: PrintTrainingsClien
                                     )}
 
                                     {training.participants.length === 0 && (
-                                        <p className="text-[10px] text-gray-400 italic ml-2">
+                                        <p className="text-[10px] text-gray-600 italic ml-2">
                                             Nenhum participante registrado
                                         </p>
                                     )}
@@ -317,14 +317,14 @@ export function PrintTrainingsClient({ trainings, company }: PrintTrainingsClien
 
                 {trainings.length === 0 && (
                     <section className="mb-5">
-                        <p className="text-center text-gray-400 py-8">
+                        <p className="text-center text-gray-600 py-8">
                             Nenhum treinamento registrado.
                         </p>
                     </section>
                 )}
 
                 {/* RODAPE */}
-                <footer className="mt-6 pt-3 border-t border-gray-200 text-[9px] text-gray-400 flex justify-between">
+                <footer className="mt-6 pt-3 border-t border-gray-200 text-[9px] text-gray-600 flex justify-between">
                     <span>ERP Eixo Global &mdash; Relatorio de Treinamentos</span>
                     <span>
                         Emitido em {new Date().toLocaleString('pt-BR')}

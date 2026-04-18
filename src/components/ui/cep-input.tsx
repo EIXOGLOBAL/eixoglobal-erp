@@ -67,12 +67,12 @@ export function CepInput({ value, onChange, onAddressFill, disabled }: CepInputP
           className="flex-1"
         />
         <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={handleSearch}
-          disabled={disabled || loading || value.replace(/\D/g,'').length !== 8}
-        >
+ type="button"
+ variant="outline"
+ size="icon" aria-label="Buscar CEP" 
+ onClick={handleSearch}
+ disabled={disabled || loading || value.replace(/\D/g,'').length !== 8}
+>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
         </Button>
       </div>

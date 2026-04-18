@@ -143,7 +143,7 @@ export function OrcamentosClient({ budgets }: OrcamentosClientProps) {
                                     {formatDate(budget.createdAt)}
                                 </TableCell>
                                 <TableCell>
-                                    <Button variant="ghost" size="icon" asChild>
+                                    <Button variant="ghost" size="icon" aria-label="Ver orçamento" asChild>
                                         <Link href={`/orcamentos/${budget.id}`}>
                                             <ArrowRight className="h-4 w-4" />
                                         </Link>

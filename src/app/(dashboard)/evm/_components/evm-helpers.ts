@@ -1,13 +1,15 @@
 // Client-side helpers for EVM (no server dependencies)
+// NOTE: These helpers use ONLY the real data already computed on the project.
+// They do NOT fabricate or estimate any values.
 
 import type { EVMProject } from './evm-data'
 
 export interface MonthlyEVMTrend {
   month: string
-  spi: number
-  cpi: number
-  sv: number
-  cv: number
+  spi: number | null
+  cpi: number | null
+  sv: number | null
+  cv: number | null
 }
 
 export interface MonthlyComparison {
@@ -18,71 +20,54 @@ export interface MonthlyComparison {
 }
 
 // ---------------------------------------------------------------------------
-// Generate monthly EVM trends for a project
+// Generate monthly EVM trends for a project.
+// Returns a single data point with the project's REAL current indicators.
+// Without real monthly snapshots from the server, we cannot fabricate a trend.
 // ---------------------------------------------------------------------------
 
 export function generateMonthlyEVMTrends(
   project: EVMProject,
-  months: number = 12
+  _months: number = 12
 ): MonthlyEVMTrend[] {
-  const trends: MonthlyEVMTrend[] = []
-  const now = new Date()
-
-  for (let i = 0; i < months; i++) {
-    const d = new Date(now)
-    d.setMonth(d.getMonth() - (months - i - 1))
-    const monthLabel = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
-
-    const timeProgress = (i + 1) / months
-    const pv = project.budget * timeProgress
-    const ev = project.budget * timeProgress * 0.95
-    const ac = ev * 1.05
-
-    const sv = ev - pv
-    const cv = ev - ac
-    const spi = pv > 0 ? ev / pv : 1
-    const cpi = ac > 0 ? ev / ac : 1
-
-    trends.push({
-      month: monthLabel,
-      spi: Math.max(0.8, Math.min(spi, 1.2)),
-      cpi: Math.max(0.8, Math.min(cpi, 1.2)),
-      sv,
-      cv,
-    })
+  // We only have real data for the current snapshot.
+  // Fabricating monthly points would violate the no-mock-data rule.
+  if (project.dataInsufficient) {
+    return []
   }
 
-  return trends
+  const now = new Date()
+  const monthLabel = now.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
+
+  return [
+    {
+      month: monthLabel,
+      spi: project.spi,
+      cpi: project.cpi,
+      sv: project.sv,
+      cv: project.cv,
+    },
+  ]
 }
 
 // ---------------------------------------------------------------------------
-// Generate monthly comparison data for a project
+// Generate monthly comparison data for a project.
+// Returns a single data point with the project's REAL current PV/EV/AC.
+// Without real monthly snapshots from the server, we cannot fabricate a trend.
 // ---------------------------------------------------------------------------
 
 export function generateMonthlyComparison(
   project: EVMProject,
-  months: number = 12
+  _months: number = 12
 ): MonthlyComparison[] {
-  const data: MonthlyComparison[] = []
   const now = new Date()
+  const monthLabel = now.toLocaleDateString('pt-BR', { month: 'short' })
 
-  for (let i = 0; i < months; i++) {
-    const d = new Date(now)
-    d.setMonth(d.getMonth() - (months - i - 1))
-    const monthLabel = d.toLocaleDateString('pt-BR', { month: 'short' })
-
-    const timeProgress = (i + 1) / months
-    const pv = (project.budget * timeProgress) / 1000
-    const ev = (project.budget * timeProgress * 0.95) / 1000
-    const ac = (ev * 1000 * 1.05) / 1000
-
-    data.push({
+  return [
+    {
       month: monthLabel,
-      PV: Math.round(pv),
-      EV: Math.round(ev),
-      AC: Math.round(ac),
-    })
-  }
-
-  return data
+      PV: Math.round(project.pv / 1000),
+      EV: Math.round(project.ev / 1000),
+      AC: Math.round(project.ac / 1000),
+    },
+  ]
 }

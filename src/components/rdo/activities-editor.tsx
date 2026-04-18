@@ -211,19 +211,19 @@ export function ActivitiesEditor({ reportId, activities: initialActivities, repo
                                     <TableCell className="text-right">
                                         {editId === a.id ? (
                                             <div className="flex justify-end gap-1">
-                                                <Button variant="ghost" size="icon" onClick={() => handleUpdate(a.id)} title="Salvar">
+                                                <Button variant="ghost" size="icon" onClick={() => handleUpdate(a.id)} aria-label="Confirmar" title="Salvar">
                                                     <Check className="h-4 w-4 text-green-600" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => setEditId(null)} title="Cancelar">
+                                                <Button variant="ghost" size="icon" onClick={() => setEditId(null)} aria-label="Fechar" title="Cancelar">
                                                     <X className="h-4 w-4 text-gray-500" />
                                                 </Button>
                                             </div>
                                         ) : (
                                             <div className="flex justify-end gap-1">
-                                                <Button variant="ghost" size="icon" onClick={() => startEdit(a)} title="Editar">
+                                                <Button variant="ghost" size="icon" onClick={() => startEdit(a)} aria-label="Editar" title="Editar">
                                                     <Pencil className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleDelete(a.id)} title="Remover">
+                                                <Button variant="ghost" size="icon" onClick={() => handleDelete(a.id)} aria-label="Excluir" title="Remover">
                                                     <Trash2 className="h-4 w-4 text-red-500" />
                                                 </Button>
                                             </div>

@@ -238,10 +238,10 @@ export function ChatPanel() {
               className="flex-1"
             />
             <Button
-              onClick={handleSendMessage}
-              disabled={loading || !input.trim()}
-              size="icon"
-            >
+ onClick={handleSendMessage}
+ disabled={loading || !input.trim()}
+ size="icon" aria-label="Enviar mensagem" 
+>
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (

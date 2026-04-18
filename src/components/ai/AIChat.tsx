@@ -154,27 +154,27 @@ export function AIChat() {
         <div className="flex items-center gap-1">
           {isLoading && (
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={stop}
-              title="Parar"
-            >
+ variant="ghost"
+ size="icon" aria-label="Assistente IA" 
+ className="h-7 w-7"
+ onClick={stop}
+ title="Parar"
+>
               <Square className="h-3.5 w-3.5" />
             </Button>
           )}
           <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={clearHistory}
-            title="Limpar conversa"
-          >
+ variant="ghost"
+ size="icon" aria-label="Expandir" 
+ className="h-7 w-7"
+ onClick={clearHistory}
+ title="Limpar conversa"
+>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
           <Button
             variant="ghost"
-            size="icon"
+            size="icon" aria-label="Minimizar"
             className="h-7 w-7"
             onClick={() => setIsExpanded(!isExpanded)}
             title={isExpanded ? 'Reduzir' : 'Expandir'}
@@ -183,7 +183,7 @@ export function AIChat() {
           </Button>
           <Button
             variant="ghost"
-            size="icon"
+            size="icon" aria-label="Fechar"
             className="h-7 w-7"
             onClick={() => setIsOpen(false)}
             title="Fechar"
@@ -325,11 +325,11 @@ export function AIChat() {
             disabled={isLoading}
           />
           <Button
-            type="submit"
-            size="icon"
-            className="h-10 w-10 rounded-xl shrink-0"
-            disabled={!input.trim() || isLoading}
-          >
+ type="submit"
+ size="icon" aria-label="Enviar mensagem" 
+ className="h-10 w-10 rounded-xl shrink-0"
+ disabled={!input.trim() || isLoading}
+>
             <SendHorizontal className="h-4 w-4" />
           </Button>
         </div>

@@ -291,7 +291,7 @@ export function FornecedoresClient({ suppliers, companyId }: FornecedoresClientP
                                 <TableCell>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} aria-label="Abrir menu de ações">
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>

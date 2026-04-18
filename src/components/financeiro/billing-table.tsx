@@ -327,7 +327,7 @@ export function BillingTable({ records }: BillingTableProps) {
                                     <TableCell>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" disabled={loadingId === record.id}>
+                                                <Button variant="ghost" size="icon" disabled={loadingId === record.id} aria-label="Abrir menu de ações">
                                                     <MoreHorizontal className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>

@@ -192,7 +192,7 @@ export default async function FolhaPagamentoPage({
         <div className="space-y-6 print:space-y-4">
             {/* Header */}
             <div className="flex items-center gap-4 print:hidden">
-                <Button variant="ghost" size="icon" asChild>
+                <Button variant="ghost" size="icon" asChild aria-label="Voltar">
                     <Link href="/rh/funcionarios">
                         <ArrowLeft className="h-4 w-4" />
                     </Link>

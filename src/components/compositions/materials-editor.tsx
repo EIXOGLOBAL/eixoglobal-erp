@@ -108,7 +108,7 @@ export function MaterialsEditor({ compositionId, materials }: MaterialsEditorPro
                                         <div className="flex gap-2">
                                             <Button
                                                 variant="ghost"
-                                                size="icon"
+                                                size="icon" aria-label="Editar"
                                                 onClick={() => {
                                                     setEditingMaterial(material)
                                                     setShowDialog(true)
@@ -118,7 +118,7 @@ export function MaterialsEditor({ compositionId, materials }: MaterialsEditorPro
                                             </Button>
                                             <Button
                                                 variant="ghost"
-                                                size="icon"
+                                                size="icon" aria-label="Excluir"
                                                 onClick={() => handleDelete(material.id, material.description)}
                                             >
                                                 <Trash2 className="h-4 w-4 text-red-600" />

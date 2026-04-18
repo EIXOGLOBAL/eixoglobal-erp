@@ -372,7 +372,7 @@ export function BudgetDetailClient({ budget, companyId, bdiInfo }: BudgetDetailC
             {/* Header */}
             <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
-                    <Button variant="ghost" size="icon" asChild>
+                    <Button variant="ghost" size="icon" asChild aria-label="Voltar">
                         <Link href="/orcamentos">
                             <ArrowLeft className="h-4 w-4" />
                         </Link>
@@ -646,14 +646,14 @@ export function BudgetDetailClient({ budget, companyId, bdiInfo }: BudgetDetailC
                                                         <div className="flex items-center justify-end gap-1">
                                                             <Button
                                                                 variant="ghost"
-                                                                size="icon"
+                                                                size="icon" aria-label="Excluir"
                                                                 onClick={() => setEditingItem(item)}
                                                             >
                                                                 <Pencil className="h-3.5 w-3.5" />
                                                             </Button>
                                                             <AlertDialog>
                                                                 <AlertDialogTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                                                                    <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700 hover:bg-red-50" aria-label="Excluir">
                                                                         <Trash2 className="h-3.5 w-3.5" />
                                                                     </Button>
                                                                 </AlertDialogTrigger>

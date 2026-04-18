@@ -124,11 +124,11 @@ export function CompositionsListClient({
 
                     {hasFilters && (
                         <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={handleClearFilters}
-                            title="Limpar filtros"
-                        >
+ variant="outline"
+ size="icon" aria-label="Limpar filtros" 
+ onClick={handleClearFilters}
+ title="Limpar filtros"
+>
                             <X className="h-4 w-4" />
                         </Button>
                     )}

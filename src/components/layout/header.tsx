@@ -36,9 +36,9 @@ export function Header({ user, modulePermissions = {} }: HeaderProps) {
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 sm:gap-4 border-b bg-background px-3 sm:px-4 md:static md:h-auto md:border-0 md:bg-transparent md:px-6">
             <Sheet>
                 <SheetTrigger asChild>
-                    <Button size="icon" variant="outline" className="md:hidden">
+                    <Button size="icon" variant="outline" className="md:hidden" aria-label="Menu">
                         <Menu className="h-5 w-5" />
-                        <span className="sr-only">Toggle Menu</span>
+                        <span className="sr-only">Alternar menu</span>
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-[280px] sm:max-w-xs p-0 overflow-y-auto">
@@ -64,9 +64,9 @@ export function Header({ user, modulePermissions = {} }: HeaderProps) {
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="secondary" size="icon" className="rounded-full">
+                            <Button variant="secondary" size="icon" className="rounded-full" aria-label="Usuário">
                                 <User className="h-5 w-5" />
-                                <span className="sr-only">Toggle user menu</span>
+                                <span className="sr-only">Menu do usuário</span>
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">

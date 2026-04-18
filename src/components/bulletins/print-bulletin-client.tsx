@@ -280,7 +280,7 @@ export function PrintBulletinClient({ bulletin, company }: PrintBulletinClientPr
                                         idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                                     }`}
                                 >
-                                    <td className="border border-gray-300 px-1.5 py-1 text-center text-gray-400">
+                                    <td className="border border-gray-300 px-1.5 py-1 text-center text-gray-600">
                                         {idx + 1}
                                     </td>
                                     <td className="border border-gray-300 px-1.5 py-1">
@@ -388,10 +388,10 @@ export function PrintBulletinClient({ bulletin, company }: PrintBulletinClientPr
                             {bulletin.comments.slice(0, 5).map((c) => (
                                 <div key={c.id} className="text-[10px] border-l-2 border-gray-300 pl-3">
                                     <span className="font-semibold">{c.author?.name ?? 'Sistema'}</span>
-                                    <span className="text-gray-400 ml-2">
+                                    <span className="text-gray-600 ml-2">
                                         ({formatDateTime(c.createdAt)})
                                     </span>
-                                    <span className="ml-2 text-gray-400">
+                                    <span className="ml-2 text-gray-600">
                                         [{c.commentType}]
                                     </span>
                                     <p className="mt-0.5 text-gray-700">{c.text}</p>
@@ -413,7 +413,7 @@ export function PrintBulletinClient({ bulletin, company }: PrintBulletinClientPr
                             <p className="text-gray-500 mt-0.5">
                                 {bulletin.createdBy?.name ?? '___________________'}
                             </p>
-                            <p className="text-gray-400 mt-2">Data: _____ / _____ / _________</p>
+                            <p className="text-gray-600 mt-2">Data: _____ / _____ / _________</p>
                         </div>
                         <div>
                             <div className="border-b border-gray-400 mb-3 h-14"></div>
@@ -421,7 +421,7 @@ export function PrintBulletinClient({ bulletin, company }: PrintBulletinClientPr
                             <p className="text-gray-500 mt-0.5">
                                 {bulletin.engineer?.name ?? '___________________'}
                             </p>
-                            <p className="text-gray-400 mt-2">Data: _____ / _____ / _________</p>
+                            <p className="text-gray-600 mt-2">Data: _____ / _____ / _________</p>
                         </div>
                         <div>
                             <div className="border-b border-gray-400 mb-3 h-14"></div>
@@ -429,13 +429,13 @@ export function PrintBulletinClient({ bulletin, company }: PrintBulletinClientPr
                             <p className="text-gray-500 mt-0.5">
                                 {bulletin.manager?.name ?? '___________________'}
                             </p>
-                            <p className="text-gray-400 mt-2">Data: _____ / _____ / _________</p>
+                            <p className="text-gray-600 mt-2">Data: _____ / _____ / _________</p>
                         </div>
                     </div>
                 </section>
 
                 {/* ══ RODAPÉ ═════════════════════════════════════════════════ */}
-                <footer className="mt-6 pt-3 border-t border-gray-200 text-[9px] text-gray-400 flex justify-between">
+                <footer className="mt-6 pt-3 border-t border-gray-200 text-[9px] text-gray-600 flex justify-between">
                     <span>ERP Eixo Global — Boletim de Medição {bulletin.number}</span>
                     <span>
                         Emitido em {new Date().toLocaleString('pt-BR')}

@@ -64,8 +64,9 @@ export async function createUser(
     prevState: UserActionState,
     formData: FormData
 ): Promise<UserActionState> {
+    let session
     try {
-        const session = await assertAuthenticated()
+        session = await assertAuthenticated()
         await assertRole(session, "ADMIN")
     } catch (e) {
         return { message: e instanceof Error ? e.message : "Acesso negado", success: false }
@@ -73,13 +74,16 @@ export async function createUser(
 
     const rawRole = formData.get("role") as string;
 
+    // Forçar companyId da sessão — nunca aceitar do frontend
+    const safeCompanyId = session.user.companyId
+
     const result = createUserSchema.safeParse({
         name: formData.get("name"),
         username: formData.get("username"),
         email: formData.get("email") || "",
         password: formData.get("password"),
         role: rawRole,
-        companyId: formData.get("companyId") || null,
+        companyId: safeCompanyId || null,
         canDelete: formData.get("canDelete") === "true",
         canApprove: formData.get("canApprove") === "true",
         canManageFinancial: formData.get("canManageFinancial") === "true",
@@ -155,14 +159,18 @@ export async function updateUser(
     prevState: UserActionState,
     formData: FormData
 ): Promise<UserActionState> {
+    let session
     try {
-        const session = await assertAuthenticated()
+        session = await assertAuthenticated()
         await assertRole(session, "ADMIN")
     } catch (e) {
         return { message: e instanceof Error ? e.message : "Acesso negado", success: false }
     }
 
     const rawRole = formData.get("role") as string;
+
+    // Forçar companyId da sessão — nunca aceitar do frontend
+    const safeCompanyId = session.user.companyId
 
     const result = updateUserSchema.safeParse({
         id: formData.get("id"),
@@ -171,7 +179,7 @@ export async function updateUser(
         email: formData.get("email") || "",
         password: formData.get("password"),
         role: rawRole,
-        companyId: formData.get("companyId") || null,
+        companyId: safeCompanyId || null,
         canDelete: formData.get("canDelete") === "true",
         canApprove: formData.get("canApprove") === "true",
         canManageFinancial: formData.get("canManageFinancial") === "true",
@@ -205,6 +213,11 @@ export async function updateUser(
         }
 
         const oldUser = await prisma.user.findUnique({ where: { id: result.data.id } })
+
+        // Verificar que o usuário pertence à mesma empresa
+        if (!oldUser || oldUser.companyId !== session.user.companyId) {
+            return { message: "Acesso negado: usuário pertence a outra empresa.", success: false }
+        }
 
         const updateData: Parameters<typeof prisma.user.update>[0]['data'] = {
             name: result.data.name,
@@ -261,6 +274,32 @@ export async function deleteUser(id: string) {
         }
 
         const oldUser = await prisma.user.findUnique({ where: { id } })
+        if (!oldUser) {
+            return { message: "Usuário não encontrado.", success: false }
+        }
+
+        // Verificar que o usuário pertence à mesma empresa
+        if (oldUser.companyId !== session.user.companyId) {
+            return { message: "Acesso negado: usuário pertence a outra empresa.", success: false }
+        }
+
+        // Verificar dependências antes de deletar
+        const [auditCount, notifCount, approvalCount] = await Promise.all([
+            prisma.auditLog.count({ where: { userId: id } }),
+            prisma.notification.count({ where: { userId: id } }),
+            prisma.approvalRequest.count({ where: { requestedById: id } }),
+        ])
+
+        if (auditCount > 0 || notifCount > 0 || approvalCount > 0) {
+            const deps: string[] = []
+            if (auditCount > 0) deps.push(`${auditCount} registro(s) de auditoria`)
+            if (notifCount > 0) deps.push(`${notifCount} notificação(ões)`)
+            if (approvalCount > 0) deps.push(`${approvalCount} solicitação(ões) de aprovação`)
+            return {
+                message: `Não é possível excluir: usuário possui ${deps.join(', ')}. Desative o usuário em vez de excluí-lo.`,
+                success: false,
+            }
+        }
 
         await prisma.user.delete({ where: { id } })
 
@@ -286,6 +325,12 @@ export async function blockUser(userId: string, reason: string) {
             return { success: false, error: "Você não pode bloquear sua própria conta." }
         }
 
+        // Verificar que o usuário pertence à mesma empresa
+        const targetUser = await prisma.user.findUnique({ where: { id: userId }, select: { companyId: true } })
+        if (!targetUser || targetUser.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado: usuário pertence a outra empresa." }
+        }
+
         const blocked = await prisma.user.update({
             where: { id: userId },
             data: { isBlocked: true, blockedAt: new Date(), blockedReason: reason },
@@ -305,6 +350,12 @@ export async function unblockUser(userId: string) {
     try {
         const session = await assertAuthenticated()
         await assertRole(session, "ADMIN")
+
+        // Verificar que o usuário pertence à mesma empresa
+        const targetUser = await prisma.user.findUnique({ where: { id: userId }, select: { companyId: true } })
+        if (!targetUser || targetUser.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado: usuário pertence a outra empresa." }
+        }
 
         const unblocked = await prisma.user.update({
             where: { id: userId },
@@ -330,8 +381,12 @@ export async function deactivateUser(userId: string) {
             return { success: false, error: "Você não pode desativar sua própria conta." }
         }
 
-        // Proteger último ADMIN
-        const target = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } })
+        // Proteger último ADMIN + verificar empresa
+        const target = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, companyId: true } })
+        if (!target || target.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado: usuário pertence a outra empresa." }
+        }
+
         if (target?.role === 'ADMIN') {
             const activeAdmins = await prisma.user.count({ where: { role: 'ADMIN', isActive: true, id: { not: userId } } })
             if (activeAdmins === 0) {
@@ -359,6 +414,12 @@ export async function activateUser(userId: string) {
         const session = await assertAuthenticated()
         await assertRole(session, "ADMIN")
 
+        // Verificar que o usuário pertence à mesma empresa
+        const targetUser = await prisma.user.findUnique({ where: { id: userId }, select: { companyId: true } })
+        if (!targetUser || targetUser.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado: usuário pertence a outra empresa." }
+        }
+
         const activated = await prisma.user.update({
             where: { id: userId },
             data: { isActive: true },
@@ -378,6 +439,12 @@ export async function adminResetPassword(userId: string, newPassword: string) {
     try {
         const session = await assertAuthenticated()
         await assertRole(session, "ADMIN")
+
+        // Verificar que o usuário pertence à mesma empresa
+        const targetUser = await prisma.user.findUnique({ where: { id: userId }, select: { companyId: true } })
+        if (!targetUser || targetUser.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado: usuário pertence a outra empresa." }
+        }
 
         const policy = validatePassword(newPassword)
         if (!policy.valid) {
@@ -404,14 +471,21 @@ export async function updateUserPermissions(
     targetUserId: string,
     permissions: Partial<UserPermissions>,
 ) {
+    let session
     try {
-        const session = await assertAuthenticated()
+        session = await assertAuthenticated()
         await assertRole(session, "ADMIN")
     } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : "Acesso negado" }
     }
 
     try {
+        // Verificar que o usuário pertence à mesma empresa
+        const targetUser = await prisma.user.findUnique({ where: { id: targetUserId }, select: { companyId: true } })
+        if (!targetUser || targetUser.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado: usuário pertence a outra empresa." }
+        }
+
         const updatedPerms = await prisma.user.update({
             where: { id: targetUserId },
             data: permissions,
@@ -428,15 +502,19 @@ export async function updateUserPermissions(
 }
 
 export async function getUsers(companyId?: string) {
+    let session
     try {
-        await assertAuthenticated()
+        session = await assertAuthenticated()
     } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : "Acesso negado", data: [] }
     }
 
+    // Forçar companyId da sessão — nunca aceitar do frontend
+    const safeCompanyId = session.user.companyId
+
     try {
         const users = await prisma.user.findMany({
-            where: companyId ? { companyId } : undefined,
+            where: safeCompanyId ? { companyId: safeCompanyId } : undefined,
             select: {
                 id: true,
                 username: true,
@@ -464,8 +542,9 @@ export async function getUsers(companyId?: string) {
 }
 
 export async function getUserById(id: string) {
+    let session
     try {
-        await assertAuthenticated()
+        session = await assertAuthenticated()
     } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : "Acesso negado" }
     }
@@ -494,6 +573,12 @@ export async function getUserById(id: string) {
             },
         })
         if (!user) return { success: false, error: 'Usuário não encontrado' }
+
+        // Verificar que o usuário pertence à mesma empresa
+        if (user.companyId !== session.user.companyId) {
+            return { success: false, error: 'Acesso negado' }
+        }
+
         return { success: true, data: user }
     } catch (error) {
         log.error({ err: error }, "[getUserById]")

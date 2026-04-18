@@ -13,8 +13,6 @@ const PUBLIC_PATHS = [
   '/api/webhooks',
   '/api/version',
   '/api/admin/reset-password',
-  '/api/admin/reset-users',
-  '/api/admin/fix-schema',
   '/setup',
   '/register-setup',
   '/manutencao',
@@ -27,9 +25,22 @@ const PUBLIC_PREFIXES = [
   '/uploads/',
 ]
 
+// ---------------------------------------------------------------------------
+// CRON routes – protected by CRON_SECRET Bearer token (C06)
+// ---------------------------------------------------------------------------
+const CRON_PATHS = [
+  '/api/cron/',
+  '/api/admin/fix-schema',
+  '/api/admin/reset-users',
+]
+
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+}
+
+function isCronRoute(pathname: string): boolean {
+  return CRON_PATHS.some((p) => pathname.startsWith(p))
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +135,20 @@ export async function proxy(request: NextRequest) {
     const response = NextResponse.next()
     applySecurityHeaders(response)
     return response
+  }
+
+  // ---- CRON routes (C06) — require Bearer CRON_SECRET ----
+  if (isCronRoute(pathname)) {
+    const auth = request.headers.get('authorization')
+    const secret = process.env.CRON_SECRET
+    if (secret && auth === `Bearer ${secret}`) {
+      const response = NextResponse.next()
+      applySecurityHeaders(response)
+      return response
+    }
+    const denied = NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    applySecurityHeaders(denied)
+    return denied
   }
 
   // ---- Auth check ----

@@ -67,6 +67,11 @@ export async function createEquipment(
         const session = await getSession()
         if (!session?.user?.id) return { success: false, error: "Não autenticado" }
 
+        // Verificar acesso à empresa
+        if (session.user.companyId !== companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
+
         // Check write permission - USER role cannot create equipment
         if (session.user.role === 'USER') {
             return { success: false, error: "Sem permissão para criar equipamento" }
@@ -128,6 +133,12 @@ export async function updateEquipment(
         const validated = equipmentSchema.parse(data)
 
         const oldData = await prisma.equipment.findUnique({ where: { id } })
+        if (!oldData) return { success: false, error: "Equipamento não encontrado" }
+
+        // Verificar que o equipamento pertence à empresa do usuário
+        if (oldData.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
 
         const equipment = await prisma.equipment.update({
             where: { id },
@@ -179,6 +190,11 @@ export async function deleteEquipment(id: string) {
 
         if (!equipment) {
             return { success: false, error: "Equipamento não encontrado" }
+        }
+
+        // Verificar que o equipamento pertence à empresa do usuário
+        if (equipment.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
         }
 
         const activeUsage = await prisma.equipmentUsage.findFirst({
@@ -285,7 +301,16 @@ export async function updateEquipmentStatus(
     status: 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE' | 'INACTIVE' | 'RENTED_OUT'
 ) {
     try {
-        const oldEquipment = await prisma.equipment.findUnique({ where: { id }, select: { status: true, name: true } })
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
+        const oldEquipment = await prisma.equipment.findUnique({ where: { id }, select: { status: true, name: true, companyId: true } })
+        if (!oldEquipment) return { success: false, error: "Equipamento não encontrado" }
+
+        // Verificar que o equipamento pertence à empresa do usuário
+        if (oldEquipment.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
 
         const equipment = await prisma.equipment.update({
             where: { id },
@@ -324,10 +349,18 @@ export async function addUsage(
     data: z.infer<typeof usageSchema>
 ) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
         const validated = usageSchema.parse(data)
 
         const equipment = await prisma.equipment.findUnique({ where: { id: equipmentId } })
         if (!equipment) return { success: false, error: "Equipamento não encontrado" }
+
+        // Verificar que o equipamento pertence à empresa do usuário
+        if (equipment.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
 
         const hasActiveUsage = await prisma.equipmentUsage.findFirst({
             where: { equipmentId, endDate: null },
@@ -386,12 +419,20 @@ export async function endUsage(
     days?: number
 ) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
         const usage = await prisma.equipmentUsage.findUnique({
             where: { id: usageId },
             include: { equipment: true },
         })
 
         if (!usage) return { success: false, error: "Registro de uso não encontrado" }
+
+        // Verificar que o equipamento pertence à empresa do usuário
+        if (usage.equipment.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
 
         const totalCost = calcTotalCost(
             hours ?? (usage.hours !== null ? toNumber(usage.hours) : null),
@@ -433,10 +474,18 @@ export async function addMaintenance(
     data: z.infer<typeof maintenanceSchema>
 ) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
         const validated = maintenanceSchema.parse(data)
 
         const equipment = await prisma.equipment.findUnique({ where: { id: equipmentId } })
         if (!equipment) return { success: false, error: "Equipamento não encontrado" }
+
+        // Verificar que o equipamento pertence à empresa do usuário
+        if (equipment.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
 
         const maintenance = await prisma.equipmentMaintenance.create({
             data: {
@@ -503,11 +552,20 @@ export async function completeMaintenance(
     cost?: number
 ) {
     try {
+        const session = await getSession()
+        if (!session?.user?.id) return { success: false, error: "Não autenticado" }
+
         const maintenance = await prisma.equipmentMaintenance.findUnique({
             where: { id: maintenanceId },
+            include: { equipment: { select: { companyId: true } } },
         })
 
         if (!maintenance) return { success: false, error: "Manutenção não encontrada" }
+
+        // Verificar que o equipamento pertence à empresa do usuário
+        if (maintenance.equipment.companyId !== session.user.companyId) {
+            return { success: false, error: "Acesso negado" }
+        }
 
         const updated = await prisma.equipmentMaintenance.update({
             where: { id: maintenanceId },

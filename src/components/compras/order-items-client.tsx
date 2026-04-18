@@ -254,7 +254,7 @@ export function OrderItemsClient({ orderId, items, materials, totalValue }: Orde
                                             <div className="flex gap-1">
                                                 <Button
                                                     variant="ghost"
-                                                    size="icon"
+                                                    size="icon" aria-label="Editar"
                                                     className="h-8 w-8"
                                                     onClick={() => openEditDialog(item)}
                                                 >
@@ -262,7 +262,7 @@ export function OrderItemsClient({ orderId, items, materials, totalValue }: Orde
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
-                                                    size="icon"
+                                                    size="icon" aria-label="Excluir"
                                                     className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                                                     onClick={() => handleDelete(item.id, item.description)}
                                                 >

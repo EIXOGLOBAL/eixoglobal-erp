@@ -83,7 +83,7 @@ export function KanbanBoard({ tasks, onTaskClick, onTasksReorder, currentUserId 
                 <div className="flex items-center gap-1">
                   <Badge variant="secondary" className="h-5 min-w-[20px] text-xs px-1">{colTasks.length}</Badge>
                   <Button
-                    variant="ghost" size="icon" className="h-5 w-5"
+                    variant="ghost" size="icon" aria-label="Adicionar" className="h-5 w-5"
                     onClick={() => { setQuickCreate(col.id); setQuickTitle("") }}
                   >
                     <Plus className="h-3 w-3" />
@@ -108,7 +108,7 @@ export function KanbanBoard({ tasks, onTaskClick, onTasksReorder, currentUserId 
                     <Button size="sm" className="h-6 text-xs px-2" disabled={creating} onClick={() => handleQuickCreate(col.id)}>
                       {creating ? "..." : "Criar"}
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setQuickCreate(null)}>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setQuickCreate(null)} aria-label="Fechar">
                       <X className="h-3 w-3" />
                     </Button>
                   </div>

@@ -100,7 +100,7 @@ export default async function PurchaseOrderDetailPage({ params }: PageProps) {
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                     <Link href="/compras">
-                        <Button variant="outline" size="icon">
+                        <Button variant="outline" size="icon" aria-label="Voltar">
                             <ArrowLeft className="h-4 w-4" />
                         </Button>
                     </Link>

@@ -195,7 +195,7 @@ export function ContractFinancialSchedule({
                                             contractId={contractId}
                                             item={itemToEditData(item)}
                                             trigger={
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar">
                                                     <Pencil className="h-3.5 w-3.5" />
                                                 </Button>
                                             }
@@ -203,11 +203,11 @@ export function ContractFinancialSchedule({
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
                                                 <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-destructive hover:text-destructive"
-                                                    disabled={deletingId === item.id}
-                                                >
+ variant="ghost"
+ size="icon" aria-label="Excluir parcela" 
+ className="h-8 w-8 text-destructive hover:text-destructive"
+ disabled={deletingId === item.id}
+>
                                                     {deletingId === item.id ? (
                                                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                     ) : (

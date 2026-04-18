@@ -106,7 +106,7 @@ export function LaborEditor({ compositionId, labor }: LaborEditorProps) {
                                         <div className="flex gap-2">
                                             <Button
                                                 variant="ghost"
-                                                size="icon"
+                                                size="icon" aria-label="Editar"
                                                 onClick={() => {
                                                     setEditingLabor(item)
                                                     setShowDialog(true)
@@ -116,7 +116,7 @@ export function LaborEditor({ compositionId, labor }: LaborEditorProps) {
                                             </Button>
                                             <Button
                                                 variant="ghost"
-                                                size="icon"
+                                                size="icon" aria-label="Excluir"
                                                 onClick={() => handleDelete(item.id, item.description)}
                                             >
                                                 <Trash2 className="h-4 w-4 text-red-600" />

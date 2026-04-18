@@ -275,7 +275,7 @@ export function SupplierDetailClient({ supplier, financialData, companyId }: Pro
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => router.push('/fornecedores')}>
+                <Button variant="ghost" size="icon" onClick={() => router.push('/fornecedores')} aria-label="Voltar">
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <div className="flex-1">
@@ -554,7 +554,7 @@ function TabInfo({ supplier }: { supplier: SupplierData }) {
                                         <TableCell>
                                             <Button
                                                 variant="ghost"
-                                                size="icon"
+                                                size="icon" aria-label="Excluir"
                                                 onClick={() => handleRemoveContact(contact.id)}
                                                 disabled={removingId === contact.id}
                                             >
@@ -707,7 +707,7 @@ function TabDocuments({ supplier }: { supplier: SupplierData }) {
                                                 <DocStatusBadge expiresAt={doc.expiresAt} />
                                             </div>
                                         </div>
-                                        <Button variant="ghost" size="icon" asChild>
+                                        <Button variant="ghost" size="icon" asChild aria-label="Baixar">
                                             <a href={doc.filePath} download target="_blank" rel="noopener noreferrer">
                                                 <Download className="h-4 w-4" />
                                             </a>

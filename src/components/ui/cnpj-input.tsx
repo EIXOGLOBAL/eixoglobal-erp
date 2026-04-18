@@ -102,13 +102,13 @@ export function CnpjInput({ value, onChange, onDataFill, disabled }: CnpjInputPr
           className="flex-1"
         />
         <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={handleSearch}
-          disabled={disabled || loading || value.replace(/\D/g, '').length !== 14}
-          title="Consultar Receita Federal"
-        >
+ type="button"
+ variant="outline"
+ size="icon" aria-label="Consultar CNPJ" 
+ onClick={handleSearch}
+ disabled={disabled || loading || value.replace(/\D/g, '').length !== 14}
+ title="Consultar Receita Federal"
+>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
         </Button>
       </div>

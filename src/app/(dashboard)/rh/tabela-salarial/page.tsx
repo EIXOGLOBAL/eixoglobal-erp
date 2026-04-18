@@ -204,7 +204,7 @@ export default async function TabelaSalarialPage() {
                                                                     taxRate: Number(grade.taxRate),
                                                                 }}
                                                                 trigger={
-                                                                    <Button size="icon" variant="ghost" className="h-7 w-7">
+                                                                    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Editar">
                                                                         <span className="text-xs">✎</span>
                                                                     </Button>
                                                                 }

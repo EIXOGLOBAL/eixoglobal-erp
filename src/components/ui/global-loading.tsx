@@ -48,6 +48,11 @@ export function GlobalLoading() {
     <div className="fixed top-0 left-0 right-0 z-[9999] h-0.5">
       <div
         className="h-full bg-primary transition-all duration-200 ease-out"
+        role="progressbar"
+        aria-valuenow={progress}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Carregando página"
         style={{ width: `${progress}%` }}
       />
     </div>

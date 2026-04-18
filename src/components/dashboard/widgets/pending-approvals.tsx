@@ -191,23 +191,23 @@ function ApprovalItem({ approval }: { approval: PendingApprovalData }) {
 
       <div className="flex items-center gap-1 shrink-0">
         <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
-          onClick={handleApprove}
-          disabled={isPending}
-          title="Aprovar"
-        >
+ variant="ghost"
+ size="icon" aria-label="Aprovar" 
+ className="h-7 w-7 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+ onClick={handleApprove}
+ disabled={isPending}
+ title="Aprovar"
+>
           {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
         </Button>
         <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-600"
-          onClick={handleReject}
-          disabled={isPending}
-          title="Rejeitar"
-        >
+ variant="ghost"
+ size="icon" aria-label="Rejeitar" 
+ className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-600"
+ onClick={handleReject}
+ disabled={isPending}
+ title="Rejeitar"
+>
           <X className="h-3.5 w-3.5" />
         </Button>
       </div>

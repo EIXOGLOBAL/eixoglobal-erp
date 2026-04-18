@@ -133,10 +133,10 @@ export function TasksClient({
         <div className="ml-auto flex items-center gap-2">
           <span className="text-sm text-muted-foreground hidden sm:inline">{filtered.length} tarefa(s)</span>
           <div className="flex items-center rounded-md border p-0.5 gap-0.5">
-            <Button variant={view === "kanban" ? "secondary" : "ghost"} size="icon" className="h-7 w-7" onClick={() => setView("kanban")}>
+            <Button variant={view === "kanban" ? "secondary" : "ghost"} size="icon" className="h-7 w-7" onClick={() => setView("kanban")} aria-label="Visualização em grade">
               <LayoutGrid className="h-3.5 w-3.5" />
             </Button>
-            <Button variant={view === "list" ? "secondary" : "ghost"} size="icon" className="h-7 w-7" onClick={() => setView("list")}>
+            <Button variant={view === "list" ? "secondary" : "ghost"} size="icon" className="h-7 w-7" onClick={() => setView("list")} aria-label="Visualização em lista">
               <List className="h-3.5 w-3.5" />
             </Button>
           </div>

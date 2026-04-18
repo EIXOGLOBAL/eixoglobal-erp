@@ -315,7 +315,7 @@ export function PrintContractClient({ contract, company }: PrintContractClientPr
                                             idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                                         }`}
                                     >
-                                        <td className="border border-gray-300 px-1.5 py-1 text-center text-gray-400">
+                                        <td className="border border-gray-300 px-1.5 py-1 text-center text-gray-600">
                                             {idx + 1}
                                         </td>
                                         <td className="border border-gray-300 px-1.5 py-1">
@@ -487,9 +487,9 @@ export function PrintContractClient({ contract, company }: PrintContractClientPr
                             <p className="font-semibold text-gray-800">CONTRATANTE</p>
                             <p className="text-gray-600 mt-0.5">{company?.name ?? 'Eixo Global Engenharia'}</p>
                             {company?.cnpj && (
-                                <p className="text-gray-400 text-[9px]">CNPJ: {company.cnpj}</p>
+                                <p className="text-gray-600 text-[9px]">CNPJ: {company.cnpj}</p>
                             )}
-                            <p className="text-gray-400 mt-2">Data: _____ / _____ / _________</p>
+                            <p className="text-gray-600 mt-2">Data: _____ / _____ / _________</p>
                         </div>
                         <div>
                             <div className="border-b border-gray-400 mb-3 h-16"></div>
@@ -498,17 +498,17 @@ export function PrintContractClient({ contract, company }: PrintContractClientPr
                                 {contract.contractor?.name ?? '___________________'}
                             </p>
                             {contract.contractor?.document && (
-                                <p className="text-gray-400 text-[9px]">
+                                <p className="text-gray-600 text-[9px]">
                                     CNPJ/CPF: {contract.contractor.document}
                                 </p>
                             )}
-                            <p className="text-gray-400 mt-2">Data: _____ / _____ / _________</p>
+                            <p className="text-gray-600 mt-2">Data: _____ / _____ / _________</p>
                         </div>
                     </div>
                 </section>
 
                 {/* ══ RODAPÉ ═════════════════════════════════════════════════ */}
-                <footer className="mt-6 pt-3 border-t border-gray-200 text-[9px] text-gray-400 flex justify-between">
+                <footer className="mt-6 pt-3 border-t border-gray-200 text-[9px] text-gray-600 flex justify-between">
                     <span>ERP Eixo Global — Contrato {contract.identifier}</span>
                     <span>
                         Emitido em {new Date().toLocaleString('pt-BR')}

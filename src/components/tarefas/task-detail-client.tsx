@@ -261,7 +261,7 @@ export function TaskDetailClient({
                   {sub.title}
                 </span>
                 <Button
-                  variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100"
+                  variant="ghost" size="icon" aria-label="Excluir" className="h-5 w-5 opacity-0 group-hover:opacity-100"
                   onClick={() => handleDeleteSubtask(sub.id)}
                 >
                   <Trash2 className="h-3 w-3 text-destructive" />
@@ -308,7 +308,7 @@ export function TaskDetailClient({
                     </span>
                     {(comment.authorId === currentUserId || userRole === "ADMIN") && (
                       <Button
-                        variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100 ml-auto"
+                        variant="ghost" size="icon" aria-label="Excluir" className="h-5 w-5 opacity-0 group-hover:opacity-100 ml-auto"
                         onClick={() => handleDeleteComment(comment.id)}
                       >
                         <Trash2 className="h-3 w-3 text-destructive" />
@@ -328,7 +328,7 @@ export function TaskDetailClient({
               rows={2}
               className="resize-none"
             />
-            <Button size="icon" disabled={submittingComment || !commentText.trim()} onClick={handleAddComment}>
+            <Button size="icon" disabled={submittingComment || !commentText.trim()} onClick={handleAddComment} aria-label="Enviar">
               <Send className="h-4 w-4" />
             </Button>
           </div>

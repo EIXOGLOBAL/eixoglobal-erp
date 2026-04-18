@@ -766,7 +766,7 @@ export function NotificationsClient({ initialNotifications, initialStats }: Noti
                       {/* View detail */}
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="icon" aria-label="Visualizar"
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                         title="Ver detalhes"
                         onClick={() => handleClick(n)}
@@ -778,7 +778,7 @@ export function NotificationsClient({ initialNotifications, initialStats }: Noti
                       {n.link && (
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="icon" aria-label="Abrir em nova aba"
                           className="h-8 w-8 text-muted-foreground hover:text-blue-600"
                           title="Ir para o recurso"
                           onClick={() => handleGoToResource(n)}
@@ -791,7 +791,7 @@ export function NotificationsClient({ initialNotifications, initialStats }: Noti
                       {!n.read && (
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="icon" aria-label="Confirmar"
                           className="h-8 w-8 text-muted-foreground hover:text-green-600"
                           title="Marcar como lida"
                           onClick={() => handleMarkRead(n.id)}
@@ -803,7 +803,7 @@ export function NotificationsClient({ initialNotifications, initialStats }: Noti
                       {/* Delete */}
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="icon" aria-label="Excluir"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         title="Remover notificacao"
                         onClick={() => handleDelete(n.id)}
