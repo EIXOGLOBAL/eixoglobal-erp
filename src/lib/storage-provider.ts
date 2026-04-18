@@ -125,16 +125,22 @@ export class R2StorageProvider implements StorageProvider {
   private publicUrl: string
 
   constructor() {
-    const accountId       = process.env.R2_ACCOUNT_ID!
     const accessKeyId     = process.env.R2_ACCESS_KEY_ID!
     const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY!
     this.bucket           = process.env.R2_BUCKET_NAME!
     this.publicUrl        = process.env.R2_PUBLIC_URL || ''
 
+    // S3_ENDPOINT = MinIO interno (http://minio:9000)
+    // R2_ACCOUNT_ID = Cloudflare R2 (deriva o endpoint)
+    const endpoint = process.env.S3_ENDPOINT
+      || `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+
     this.client = new S3Client({
       region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      endpoint,
       credentials: { accessKeyId, secretAccessKey },
+      // MinIO requer forçar path-style (bucket no path, não no hostname)
+      forcePathStyle: !!process.env.S3_ENDPOINT,
     })
   }
 
@@ -185,14 +191,14 @@ let _provider: StorageProvider | null = null
 export function getStorageProvider(): StorageProvider {
   if (_provider) return _provider
 
-  const hasR2 = !!(
-    process.env.R2_ACCOUNT_ID &&
+  const hasS3 = !!(
     process.env.R2_ACCESS_KEY_ID &&
     process.env.R2_SECRET_ACCESS_KEY &&
-    process.env.R2_BUCKET_NAME
+    process.env.R2_BUCKET_NAME &&
+    (process.env.S3_ENDPOINT || process.env.R2_ACCOUNT_ID)
   )
 
-  _provider = hasR2 ? new R2StorageProvider() : new LocalStorageProvider()
+  _provider = hasS3 ? new R2StorageProvider() : new LocalStorageProvider()
   return _provider
 }
 
