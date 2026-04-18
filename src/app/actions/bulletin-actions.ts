@@ -75,6 +75,13 @@ export async function createMeasurementBulletin(
     data: z.infer<typeof createBulletinSchema>
 ) {
     try {
+        const session = await getSession()
+        if (!session?.user) return { success: false, error: 'Não autenticado' }
+        const sessionUser = session.user as { id: string; role: string }
+        if (sessionUser.role !== 'ADMIN' && sessionUser.role !== 'MANAGER' && sessionUser.id !== userId) {
+            return { success: false, error: 'Sem permissão' }
+        }
+
         const validated = createBulletinSchema.parse(data)
 
         // Buscar contrato e itens

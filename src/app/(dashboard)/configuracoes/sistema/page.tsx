@@ -1,7 +1,7 @@
 import { requireAdmin } from '@/lib/route-guard'
 import { getAnomalies } from '@/app/actions/monitoring-actions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent } from '@/components/ui/card'
+
 import {
   Monitor,
   HardDrive,
@@ -9,9 +9,10 @@ import {
   Heart,
   ShieldAlert,
   Database,
-  Construction,
 } from 'lucide-react'
+
 import { SystemOverview } from '@/components/system/system-overview'
+import { DependencyChecker } from '@/components/system/dependency-checker'
 import { StorageUsage } from '@/components/monitoring/storage-usage'
 import { HealthChart } from '@/components/monitoring/health-chart'
 import { FraudAlerts } from '@/components/monitoring/fraud-alerts'
@@ -75,15 +76,7 @@ export default async function SistemaPage() {
         </TabsContent>
 
         <TabsContent value="updates">
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
-              <Construction className="h-12 w-12 text-muted-foreground" />
-              <p className="text-lg font-medium">Em desenvolvimento</p>
-              <p className="text-sm text-muted-foreground">
-                O gerenciamento de atualizacoes estara disponivel em breve.
-              </p>
-            </CardContent>
-          </Card>
+          <DependencyChecker />
         </TabsContent>
 
         <TabsContent value="health">

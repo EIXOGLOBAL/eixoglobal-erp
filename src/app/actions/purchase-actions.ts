@@ -44,6 +44,13 @@ export async function createPurchaseOrder(
     companyId: string
 ) {
     try {
+        const session = await getSession()
+        if (!session?.user) return { success: false, error: 'Não autenticado' }
+        const sessionUser = session.user as { companyId: string; role: string }
+        if (sessionUser.role !== 'ADMIN' && sessionUser.companyId !== companyId) {
+            return { success: false, error: 'Sem permissão' }
+        }
+
         const validated = orderSchema.parse(data)
 
         const number = `PC-${Date.now()}`
