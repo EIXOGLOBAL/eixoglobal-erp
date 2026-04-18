@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +27,14 @@ async function addColumn(table: string, column: string, type: string, defaultVal
 }
 
 export async function POST() {
+  const session = await getSession()
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+  }
+  if (session.user.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Acesso restrito a administradores' }, { status: 403 })
+  }
+
   const log: string[] = []
 
   try {
@@ -496,7 +505,141 @@ export async function POST() {
     log.push(await exec(`CREATE INDEX IF NOT EXISTS "scheduled_reports_isActive_nextRun_idx" ON "scheduled_reports"("isActive", "nextRun")`, 'INDEX scheduled_reports_active'))
 
     // =========================================================================
-    // 9. Resultado
+    // 9. Fix column types (Decimal precision)
+    // =========================================================================
+
+    // A14 - Project.budget needs DECIMAL(18,4)
+    log.push(await exec(
+      `ALTER TABLE "projects" ALTER COLUMN "budget" TYPE DECIMAL(18,4)`,
+      'projects.budget TYPE DECIMAL(18,4)'
+    ))
+
+    // A15 - ApprovalLevel amounts: DOUBLE PRECISION -> DECIMAL(18,4)
+    log.push(await exec(
+      `ALTER TABLE "approval_levels" ALTER COLUMN "minAmount" TYPE DECIMAL(18,4)`,
+      'approval_levels.minAmount TYPE DECIMAL(18,4)'
+    ))
+    log.push(await exec(
+      `ALTER TABLE "approval_levels" ALTER COLUMN "maxAmount" TYPE DECIMAL(18,4)`,
+      'approval_levels.maxAmount TYPE DECIMAL(18,4)'
+    ))
+
+    // =========================================================================
+    // 10. Fix foreign key constraints (onDelete behavior)
+    // =========================================================================
+
+    // C16 - AuditLog: SET NULL instead of CASCADE on company delete
+    log.push(await exec(
+      `ALTER TABLE "audit_logs" DROP CONSTRAINT IF EXISTS "audit_logs_companyId_fkey"`,
+      'DROP FK audit_logs.companyId'
+    ))
+    log.push(await exec(
+      `ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+      'ADD FK audit_logs.companyId SET NULL'
+    ))
+
+    // C20 - Company -> User: RESTRICT (nao deletar empresa com usuarios)
+    log.push(await exec(
+      `ALTER TABLE "users" DROP CONSTRAINT IF EXISTS "users_companyId_fkey"`,
+      'DROP FK users.companyId'
+    ))
+    log.push(await exec(
+      `ALTER TABLE "users" ADD CONSTRAINT "users_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+      'ADD FK users.companyId RESTRICT'
+    ))
+
+    // C20 - Company -> Employee: RESTRICT
+    log.push(await exec(
+      `ALTER TABLE "employees" DROP CONSTRAINT IF EXISTS "employees_companyId_fkey"`,
+      'DROP FK employees.companyId'
+    ))
+    log.push(await exec(
+      `ALTER TABLE "employees" ADD CONSTRAINT "employees_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+      'ADD FK employees.companyId RESTRICT'
+    ))
+
+    // C20 - Company -> Project: RESTRICT
+    log.push(await exec(
+      `ALTER TABLE "projects" DROP CONSTRAINT IF EXISTS "projects_companyId_fkey"`,
+      'DROP FK projects.companyId'
+    ))
+    log.push(await exec(
+      `ALTER TABLE "projects" ADD CONSTRAINT "projects_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+      'ADD FK projects.companyId RESTRICT'
+    ))
+
+    // C20 - Company -> Contract: RESTRICT
+    log.push(await exec(
+      `ALTER TABLE "contracts" DROP CONSTRAINT IF EXISTS "contracts_companyId_fkey"`,
+      'DROP FK contracts.companyId'
+    ))
+    log.push(await exec(
+      `ALTER TABLE "contracts" ADD CONSTRAINT "contracts_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+      'ADD FK contracts.companyId RESTRICT'
+    ))
+
+    // C20 - Company -> FinancialRecord: RESTRICT
+    log.push(await exec(
+      `ALTER TABLE "financial_records" DROP CONSTRAINT IF EXISTS "financial_records_companyId_fkey"`,
+      'DROP FK financial_records.companyId'
+    ))
+    log.push(await exec(
+      `ALTER TABLE "financial_records" ADD CONSTRAINT "financial_records_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+      'ADD FK financial_records.companyId RESTRICT'
+    ))
+
+    // C20 - Project -> Contract: RESTRICT (nao deletar projeto com contratos)
+    log.push(await exec(
+      `ALTER TABLE "contracts" DROP CONSTRAINT IF EXISTS "contracts_projectId_fkey"`,
+      'DROP FK contracts.projectId'
+    ))
+    log.push(await exec(
+      `ALTER TABLE "contracts" ADD CONSTRAINT "contracts_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+      'ADD FK contracts.projectId RESTRICT'
+    ))
+
+    // C20 - Contract -> MeasurementBulletin: RESTRICT
+    log.push(await exec(
+      `ALTER TABLE "measurement_bulletins" DROP CONSTRAINT IF EXISTS "measurement_bulletins_contractId_fkey"`,
+      'DROP FK measurement_bulletins.contractId'
+    ))
+    log.push(await exec(
+      `ALTER TABLE "measurement_bulletins" ADD CONSTRAINT "measurement_bulletins_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "contracts"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+      'ADD FK measurement_bulletins.contractId RESTRICT'
+    ))
+
+    // C20 - User -> AuditLog: SET NULL (preservar auditoria mesmo se user for deletado)
+    log.push(await exec(
+      `ALTER TABLE "audit_logs" DROP CONSTRAINT IF EXISTS "audit_logs_userId_fkey"`,
+      'DROP FK audit_logs.userId'
+    ))
+    log.push(await exec(
+      `ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+      'ADD FK audit_logs.userId SET NULL'
+    ))
+
+    // C20 - StatusHistory: CASCADE (deletar com pai) - garantindo explicitamente
+    log.push(await exec(
+      `ALTER TABLE "project_status_history" DROP CONSTRAINT IF EXISTS "project_status_history_projectId_fkey"`,
+      'DROP FK project_status_history.projectId'
+    ))
+    log.push(await exec(
+      `ALTER TABLE "project_status_history" ADD CONSTRAINT "project_status_history_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      'ADD FK project_status_history.projectId CASCADE'
+    ))
+
+    // C20 - SalaryHistory: CASCADE (deletar com pai)
+    log.push(await exec(
+      `ALTER TABLE "salary_history" DROP CONSTRAINT IF EXISTS "salary_history_employeeId_fkey"`,
+      'DROP FK salary_history.employeeId'
+    ))
+    log.push(await exec(
+      `ALTER TABLE "salary_history" ADD CONSTRAINT "salary_history_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "employees"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      'ADD FK salary_history.employeeId CASCADE'
+    ))
+
+    // =========================================================================
+    // 11. Resultado
     // =========================================================================
 
     const cols = await prisma.$queryRaw<{column_name: string}[]>`
