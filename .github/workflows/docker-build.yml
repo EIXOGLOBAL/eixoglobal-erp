@@ -34,33 +34,82 @@ jobs:
             ghcr.io/eixoglobal/eixoglobal-erp:latest
             ghcr.io/eixoglobal/eixoglobal-erp:${{ github.sha }}
 
-      - name: Atualizar IMAGE_TAG no Dokploy
-        env:
-          DOKPLOY_COMPOSE_ENV: ${{ secrets.DOKPLOY_COMPOSE_ENV }}
+      - name: Atualizar IMAGE_TAG no Dokploy (preserva env existente)
         run: |
-          ENV_BLOCK="${DOKPLOY_COMPOSE_ENV}
-          IMAGE_TAG=${{ github.sha }}"
-          jq -n --arg id "${{ secrets.DOKPLOY_COMPOSE_ID }}" --arg env "$ENV_BLOCK" \
-            '{composeId:$id, env:$env}' > payload.json
+          DOKPLOY_URL="${{ secrets.DOKPLOY_URL }}"
+          COMPOSE_ID="${{ secrets.DOKPLOY_COMPOSE_ID }}"
+          API_KEY="${{ secrets.DOKPLOY_API_KEY }}"
+          NEW_SHA="${{ github.sha }}"
+
+          # 1. Busca o env atual do Dokploy
+          CURRENT_ENV=$(curl -sf \
+            "${DOKPLOY_URL}/api/trpc/compose.one?input=%7B%22json%22%3A%7B%22composeId%22%3A%22${COMPOSE_ID}%22%7D%7D" \
+            -H "x-api-key: ${API_KEY}" | \
+            python3 -c "import sys,json; d=json.load(sys.stdin); print(d['result']['data']['json']['env'])")
+
+          if [ -z "$CURRENT_ENV" ]; then
+            echo "ERRO: nao foi possivel buscar o env atual do Dokploy"
+            exit 1
+          fi
+
+          # 2. Substitui ou adiciona IMAGE_TAG sem tocar nas outras vars
+          UPDATED_ENV=$(echo "$CURRENT_ENV" | grep -v "^IMAGE_TAG=")
+          UPDATED_ENV="${UPDATED_ENV}
+          IMAGE_TAG=${NEW_SHA}"
+
+          # 3. Atualiza no Dokploy preservando todo o resto
           for i in 1 2 3; do
-            curl -sX POST "${{ secrets.DOKPLOY_URL }}/api/compose.update" \
+            RESULT=$(python3 -c "
+          import json, sys
+          env = sys.stdin.read()
+          payload = json.dumps({'json': {'composeId': '$COMPOSE_ID', 'env': env}})
+          print(payload)
+          " <<< "$UPDATED_ENV" | curl -sf -X POST \
+              "${DOKPLOY_URL}/api/trpc/compose.update" \
               -H "Content-Type: application/json" \
-              -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
+              -H "x-api-key: ${API_KEY}" \
               --connect-timeout 15 --max-time 60 \
-              --data @payload.json && break
-            echo "Attempt $i failed, retrying..."
+              --data @-)
+
+            if echo "$RESULT" | grep -q '"result"'; then
+              echo "IMAGE_TAG atualizado para ${NEW_SHA}"
+              break
+            fi
+            echo "Tentativa $i falhou, aguardando..."
             sleep 5
           done
 
       - name: Deploy no Dokploy
         run: |
+          DOKPLOY_URL="${{ secrets.DOKPLOY_URL }}"
+          COMPOSE_ID="${{ secrets.DOKPLOY_COMPOSE_ID }}"
+          API_KEY="${{ secrets.DOKPLOY_API_KEY }}"
           for i in 1 2 3; do
-            curl -sX POST "${{ secrets.DOKPLOY_URL }}/api/compose.deploy" \
-              -H "accept: application/json" \
+            RESULT=$(curl -sf -X POST "${DOKPLOY_URL}/api/trpc/compose.deploy" \
               -H "Content-Type: application/json" \
-              -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
+              -H "x-api-key: ${API_KEY}" \
               --connect-timeout 15 --max-time 60 \
-              -d '{"composeId": "${{ secrets.DOKPLOY_COMPOSE_ID }}"}' && break
-            echo "Attempt $i failed, retrying..."
+              -d "{\"json\":{\"composeId\":\"${COMPOSE_ID}\"}}") && \
+            echo "Deploy disparado: $RESULT" && break
+            echo "Tentativa $i falhou, aguardando..."
             sleep 5
           done
+
+      - name: Aguardar ERP responder com novo commit
+        run: |
+          NEW_SHA_SHORT="${{ github.sha }}"
+          NEW_SHA_SHORT="${NEW_SHA_SHORT:0:7}"
+          APP_URL="${{ secrets.DOKPLOY_URL == '' && 'https://erp.eixoglobal.com.br' || 'https://erp.eixoglobal.com.br' }}"
+          echo "Aguardando ERP subir com commit ${NEW_SHA_SHORT}..."
+          for i in $(seq 1 24); do
+            DEPLOYED=$(curl -sf https://erp.eixoglobal.com.br/api/version 2>/dev/null | \
+              python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('commit',''))" 2>/dev/null || echo "")
+            if [ "${DEPLOYED}" = "${NEW_SHA_SHORT}" ]; then
+              echo "✓ ERP online com commit ${DEPLOYED}"
+              exit 0
+            fi
+            echo "Aguardando... (${i}/24) — atual: ${DEPLOYED}"
+            sleep 15
+          done
+          echo "AVISO: timeout aguardando deploy. Verifique manualmente."
+          exit 1
