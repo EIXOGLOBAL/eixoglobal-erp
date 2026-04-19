@@ -23,9 +23,8 @@ ENV NEXT_PUBLIC_BUILD_TIME=""
 ENV DATABASE_URL="postgresql://fake:fake@localhost:5432/fake"
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Gerar Drizzle schema (se necessário) e Prisma (mantido temporariamente para compatibilidade)
-RUN npx prisma generate || true
-RUN npx drizzle-kit generate || true
+# Gerar Prisma Client e compilar Next.js
+RUN npx prisma generate
 RUN npm run build
 
 # --- Runner ---
@@ -46,17 +45,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
-# Prisma (mantido temporariamente para compatibilidade)
+# Prisma (schema + client gerado)
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/src/lib/generated ./src/lib/generated
 
-# Drizzle ORM
-COPY --from=builder /app/drizzle ./drizzle
-COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
-COPY --from=builder /app/src/lib/db ./src/lib/db
-
-# Scripts e outros
+# Scripts (create-admin etc)
 COPY --from=builder /app/scripts ./scripts
 
 RUN mkdir -p /app/public/uploads && chown nextjs:nodejs /app/public/uploads
