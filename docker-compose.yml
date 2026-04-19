@@ -35,11 +35,6 @@ services:
       AUTH_TYPE: plain
     networks:
       - eixo_network
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 5432 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   minio:
     image: minio/minio:latest
@@ -87,7 +82,7 @@ services:
     restart: unless-stopped
     depends_on:
       pgbouncer:
-        condition: service_healthy
+        condition: service_started
       minio:
         condition: service_healthy
     environment:
