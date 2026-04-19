@@ -34,6 +34,7 @@ interface SystemInfo {
       rss: { bytes: number; formatted: string }
       heapUsed: { bytes: number; formatted: string }
       heapTotal: { bytes: number; formatted: string }
+      heapLimit?: { bytes: number; formatted: string }
       percentUsed: number
     }
     cpu: {
@@ -214,18 +215,19 @@ export function SystemOverview() {
 
       {/* Metric grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {/* RAM */}
-        <MetricCard icon={MemoryStick} title="Memoria RAM">
+        {/* Heap Node.js — não é "RAM" do servidor, é o heap V8 do processo */}
+        <MetricCard icon={MemoryStick} title="Heap Node.js">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-2xl font-bold">{mem.percentUsed}%</span>
               <Badge variant="outline" className={memColors.badge}>
-                {mem.heapUsed.formatted} / {mem.heapTotal.formatted}
+                {mem.heapUsed.formatted}
+                {mem.heapLimit ? ` / ${mem.heapLimit.formatted}` : ` / ${mem.heapTotal.formatted}`}
               </Badge>
             </div>
             <ProgressBar percent={mem.percentUsed} colorClass={memColors.bar} />
             <p className="text-xs text-muted-foreground">
-              RSS: {mem.rss.formatted}
+              RSS: {mem.rss.formatted} · Heap alocado: {mem.heapTotal.formatted}
             </p>
           </div>
         </MetricCard>

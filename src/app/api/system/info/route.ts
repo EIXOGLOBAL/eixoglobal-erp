@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { execSync } from "child_process"
 import { readFileSync } from "fs"
 import { join } from "path"
+import v8 from "v8"
 import { getSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
@@ -170,6 +171,11 @@ export async function GET() {
     // ---- Server info ----
     const uptimeSeconds = process.uptime()
     const memUsage = process.memoryUsage()
+    const heapStats = v8.getHeapStatistics()
+    // heap_size_limit = limite do --max-old-space-size (4GB em prod).
+    // Usar esse valor para o percentual real (heapTotal é dinâmico e
+    // começa pequeno; comparar heapUsed/heapTotal dava "97%" enganoso).
+    const heapLimit = heapStats.heap_size_limit
     const cpuUsage = process.cpuUsage()
 
     // ---- Database checks (parallel) ----
@@ -230,8 +236,10 @@ export async function GET() {
           rss: { bytes: memUsage.rss, formatted: formatBytes(memUsage.rss) },
           heapUsed: { bytes: memUsage.heapUsed, formatted: formatBytes(memUsage.heapUsed) },
           heapTotal: { bytes: memUsage.heapTotal, formatted: formatBytes(memUsage.heapTotal) },
-          percentUsed: memUsage.heapTotal > 0
-            ? Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100)
+          heapLimit: { bytes: heapLimit, formatted: formatBytes(heapLimit) },
+          // Percentual real: heap em uso vs. limite máximo do V8 (--max-old-space-size)
+          percentUsed: heapLimit > 0
+            ? Math.round((memUsage.heapUsed / heapLimit) * 100)
             : 0,
         },
         cpu: {
