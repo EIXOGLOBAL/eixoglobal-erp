@@ -40,7 +40,15 @@ export async function GET() {
     prisma.qualityCheckpoint.findMany({ where: { companyId }, take: 3 })
   )
   await run("qualityNonConformity.findMany", () =>
-    prisma.qualityNonConformity.findMany({ where: { companyId }, take: 3 })
+    prisma.qualityNonConformity.findMany({
+      where: {
+        OR: [
+          { checkpoint: { companyId } },
+          { safetyIncident: { companyId } },
+        ],
+      },
+      take: 3,
+    })
   )
 
   // /seguranca-trabalho
