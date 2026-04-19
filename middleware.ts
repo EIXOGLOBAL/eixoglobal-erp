@@ -30,8 +30,11 @@ const PUBLIC_PATHS = [
   '/privacy',
 ];
 
-// Cookies emitidos pelo Better-Auth com cookiePrefix "eixo-erp"
+// Cookies de sessão aceitos:
+// - `session`: JWT do fluxo legacy (JOSE) — emitido por login() em auth-actions.ts
+// - `eixo-erp.session_token`: Better-Auth (reservado caso a migração aconteça)
 const SESSION_COOKIE_NAMES = [
+  'session',
   'eixo-erp.session_token',
   'eixo-erp.session',
   '__Secure-eixo-erp.session_token',
@@ -61,7 +64,9 @@ export function middleware(request: NextRequest) {
   );
 
   if (!hasSession) {
-    const loginUrl = new URL('/auth/login', request.url);
+    // Redireciona para /login (fluxo legacy em uso), preservando a URL
+    // pretendida via ?redirect=
+    const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }

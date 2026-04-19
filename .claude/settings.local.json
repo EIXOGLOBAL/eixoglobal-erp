@@ -4,7 +4,14 @@
       "Bash(npx prisma generate)",
       "Bash(npm install @prisma/client@5.22.0)",
       "Bash(npm run build)",
-      "Bash(tee build-errors.log)"
+      "Bash(tee build-errors.log)",
+      "Bash(git pull *)",
+      "Bash(mkdir -p ~/.claude/agents ~/.claude/commands)",
+      "Bash(cp ~/claude-ecosystem/repos/everything-claude-code/agents/*.md ~/.claude/agents/)",
+      "Read(//Users/daniloribeiro/.claude/**)",
+      "Bash(mkdir -p ~/.claude/skills)",
+      "Bash(cp -r ~/claude-ecosystem/repos/superpowers/skills/* ~/.claude/skills/)",
+      "Bash(cp ~/claude-ecosystem/repos/superpowers/CLAUDE.md ~/claude-ecosystem/configs/superpowers-CLAUDE.md)"
     ],
     "deny": [],
     "ask": []

@@ -13,11 +13,18 @@ if (!connectionString && !isBuildTime) {
 }
 
 // Create postgres client (only if not in build mode)
-const client = connectionString && !isBuildTime 
+// Detecta se estamos atrás de PgBouncer (transaction pooling) — a URL do
+// ERP inclui `?pgbouncer=true`. Nesse modo prepared statements são
+// incompatíveis com o pooler, então desligamos via `prepare: false`.
+const usesPgBouncer =
+  !!connectionString && /[?&]pgbouncer=true/i.test(connectionString);
+
+const client = connectionString && !isBuildTime
   ? postgres(connectionString, {
       max: 10,
       idle_timeout: 20,
       connect_timeout: 10,
+      prepare: usesPgBouncer ? false : undefined,
     })
   : null;
 
