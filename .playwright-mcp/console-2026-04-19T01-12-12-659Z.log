@@ -1,0 +1,6 @@
+[   15496ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://erp.eixoglobal.com.br/contratos:0
+[   15536ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://erp.eixoglobal.com.br/orcamentos:0
+[   16351ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://erp.eixoglobal.com.br/comunicados:0
+[   16454ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://erp.eixoglobal.com.br/seguranca-trabalho:0
+[   16494ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://erp.eixoglobal.com.br/qualidade:0
+[   30517ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://erp.eixoglobal.com.br/api/admin/debug-errors:0

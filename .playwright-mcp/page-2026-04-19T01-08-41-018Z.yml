@@ -1,0 +1,37 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e5]:
+        - img [ref=e6]
+        - text: Eixo Global ERP
+      - blockquote [ref=e9]:
+        - paragraph [ref=e10]: “Gestão eficiente para alcançar novos patamares.”
+        - contentinfo [ref=e11]: Equipe Eixo Global
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - heading "Acesse sua conta" [level=1] [ref=e15]
+        - paragraph [ref=e16]: Entre com seu usuário e senha
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]: Usuário
+          - textbox "Usuário" [ref=e20]:
+            - /placeholder: admin
+        - generic [ref=e21]:
+          - generic [ref=e22]: Senha
+          - generic [ref=e23]:
+            - textbox "Senha" [ref=e24]
+            - button "Mostrar senha" [ref=e25]:
+              - img [ref=e26]
+        - button "Entrar" [ref=e29]
+      - paragraph [ref=e30]:
+        - text: Ao clicar em continuar, você concorda com nossos
+        - link "Termos de Serviço" [ref=e31] [cursor=pointer]:
+          - /url: /terms
+        - text: e
+        - link "Política de Privacidade" [ref=e32] [cursor=pointer]:
+          - /url: /privacy
+        - text: .
+      - 'generic "Atualização unknown Commit: b26e461 Build: 19/04/2026, 01:05" [ref=e34]': unknown·b26e461
+  - region "Notifications (F8)":
+    - list
+  - alert [ref=e35]
