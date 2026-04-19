@@ -15,13 +15,23 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import argon2 from "argon2";
 
-// Initialize rate limiter for auth endpoints
-const ratelimit = new Ratelimit({
-  redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(10, "15 m"), // 10 requests per 15 minutes
-  analytics: true,
-  prefix: "@upstash/ratelimit/auth",
-});
+/**
+ * Rate limiter opcional: só inicializa se as env Upstash estiverem configuradas.
+ * Sem isso, Redis.fromEnv() lança no import do módulo e derruba o middleware
+ * (todas as rotas passam a retornar 500).
+ */
+const hasUpstash =
+  !!process.env.UPSTASH_REDIS_REST_URL &&
+  !!process.env.UPSTASH_REDIS_REST_TOKEN;
+
+const ratelimit = hasUpstash
+  ? new Ratelimit({
+      redis: Redis.fromEnv(),
+      limiter: Ratelimit.slidingWindow(10, "15 m"), // 10 requests per 15 minutes
+      analytics: true,
+      prefix: "@upstash/ratelimit/auth",
+    })
+  : null;
 
 // Custom password hasher using Argon2
 const argon2Hasher = {
