@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect, useCallback } from "react"
 import { useForm } from "react-hook-form"
@@ -86,7 +87,9 @@ interface DailyReportDialogProps {
     trigger?: React.ReactNode
 }
 
-export function DailyReportDialog({ companyId, projects, report, trigger }: DailyReportDialogProps) {
+export function DailyReportDialog({
+  companyId, projects, report, trigger }: DailyReportDialogProps) {
+  const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
@@ -172,7 +175,7 @@ export function DailyReportDialog({ companyId, projects, report, trigger }: Dail
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

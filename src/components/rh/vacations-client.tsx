@@ -67,6 +67,16 @@ import { formatDate } from "@/lib/formatters"
 import { ExportButton } from "@/components/ui/export-button"
 import type { ExportColumn } from "@/lib/export-utils"
 import { formatDate as fmtDateExport } from "@/lib/export-utils"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 // ---- Types ----
 
 type LeaveType = 'VACATION' | 'SICK_LEAVE' | 'MATERNITY' | 'PATERNITY' | 'BEREAVEMENT' | 'PERSONAL' | 'ACCIDENT' | 'OTHER'
@@ -210,6 +220,7 @@ export function VacationsClient({ requests, employees }: VacationsClientProps) {
 
     // Dialog states
     const [formOpen, setFormOpen] = useState(false)
+    const [deleteTarget, setDeleteTarget] = useState<VacationRequest | null>(null)
     const [approveOpen, setApproveOpen] = useState(false)
     const [rejectOpen, setRejectOpen] = useState(false)
 
@@ -372,13 +383,15 @@ export function VacationsClient({ requests, employees }: VacationsClientProps) {
         }
     }
 
-    async function handleDelete(req: VacationRequest) {
-        const confirmed = window.confirm(
-            `Tem certeza que deseja excluir a solicitação de ${req.employee.name}? Esta ação não pode ser desfeita.`
-        )
-        if (!confirmed) return
+    function handleDelete(req: VacationRequest) {
+        setDeleteTarget(req)
+    }
 
-        const result = await deleteVacationRequest(req.id)
+    async function confirmDelete() {
+        if (!deleteTarget) return
+        const target = deleteTarget
+        setDeleteTarget(null)
+        const result = await deleteVacationRequest(target.id)
         if (result.success) {
             toast({ title: "Solicitação excluída com sucesso!" })
         } else {
@@ -402,6 +415,22 @@ export function VacationsClient({ requests, employees }: VacationsClientProps) {
 
     return (
         <div className="space-y-4">
+        <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir solicitação</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Tem certeza que deseja excluir a solicitação de {deleteTarget?.employee?.name}? Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Excluir
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
             {/* Header */}
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Solicitações</h3>

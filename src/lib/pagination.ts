@@ -1,6 +1,6 @@
 /**
  * Pagination Helper
- * 
+ *
  * Utilitários para paginação consistente em todo o sistema
  */
 
@@ -25,18 +25,18 @@ export const DEFAULT_PAGE_SIZE = 20
 export const MAX_PAGE_SIZE = 100
 
 /**
- * Normaliza parâmetros de paginação
+ * Normaliza parâmetros de paginação — aceita undefined (sem paginação explícita)
  */
-export function normalizePaginationParams(params: PaginationParams): {
+export function normalizePaginationParams(params?: PaginationParams): {
   page: number
   pageSize: number
   skip: number
   take: number
 } {
-  const page = Math.max(1, params.page || 1)
+  const page = Math.max(1, params?.page || 1)
   const pageSize = Math.min(
     MAX_PAGE_SIZE,
-    Math.max(1, params.pageSize || DEFAULT_PAGE_SIZE)
+    Math.max(1, params?.pageSize || DEFAULT_PAGE_SIZE)
   )
   const skip = (page - 1) * pageSize
   const take = pageSize
@@ -70,17 +70,10 @@ export function createPaginationResult<T>(
 
 /**
  * Helper para paginação com Prisma
- * 
- * @example
- * const result = await paginateQuery(
- *   prisma.user,
- *   { page: 1, pageSize: 20 },
- *   { where: { isActive: true }, orderBy: { createdAt: 'desc' } }
- * )
  */
 export async function paginateQuery<T, M extends { findMany: any; count: any }>(
   model: M,
-  params: PaginationParams,
+  params: PaginationParams | undefined,
   query: {
     where?: any
     orderBy?: any
@@ -145,16 +138,14 @@ export function getPaginationUrl(
 }
 
 /**
- * Alias para compatibilidade com código legado
- * @deprecated Use normalizePaginationParams
+ * Alias para compatibilidade — aceita undefined sem crash
  */
-export function getPaginationArgs(params: PaginationParams) {
+export function getPaginationArgs(params?: PaginationParams) {
   return normalizePaginationParams(params)
 }
 
 /**
- * Alias para compatibilidade com código legado
- * @deprecated Use createPaginationResult
+ * Alias para compatibilidade
  */
 export function paginatedResponse<T>(
   data: T[],
@@ -164,4 +155,3 @@ export function paginatedResponse<T>(
 ) {
   return createPaginationResult(data, total, page, pageSize)
 }
-

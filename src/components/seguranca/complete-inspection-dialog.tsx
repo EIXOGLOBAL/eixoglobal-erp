@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useTransition } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
@@ -71,6 +72,7 @@ export function CompleteInspectionDialog({
   open,
   onOpenChange,
 }: CompleteInspectionDialogProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [checklistItems, setChecklistItems] = useState<string[]>(DEFAULT_CHECKLIST_ITEMS)
   const [newChecklistItem, setNewChecklistItem] = useState('')
@@ -127,7 +129,7 @@ export function CompleteInspectionDialog({
           onOpenChange(false)
           form.reset()
           setChecklistItems(DEFAULT_CHECKLIST_ITEMS)
-          window.location.reload()
+          router.refresh()
         } else {
           toast({
             variant: 'destructive',

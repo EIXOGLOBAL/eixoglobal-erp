@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -92,7 +93,9 @@ interface OrderItemsClientProps {
     totalValue: number
 }
 
-export function OrderItemsClient({ orderId, items, materials, totalValue }: OrderItemsClientProps) {
+export function OrderItemsClient({
+  orderId, items, materials, totalValue }: OrderItemsClientProps) {
+  const router = useRouter()
     const { toast } = useToast()
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editingItem, setEditingItem] = useState<OrderItem | null>(null)
@@ -157,7 +160,7 @@ export function OrderItemsClient({ orderId, items, materials, totalValue }: Orde
         const result = await deleteOrderItem(itemId)
         if (result.success) {
             toast({ title: "Item Removido", description: `"${description}" foi removido.` })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({ variant: "destructive", title: "Erro", description: result.error })
         }
@@ -186,7 +189,7 @@ export function OrderItemsClient({ orderId, items, materials, totalValue }: Orde
                         : `"${values.description}" foi adicionado ao pedido.`,
                 })
                 setDialogOpen(false)
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({ variant: "destructive", title: "Erro", description: result.error })
             }
@@ -319,7 +322,7 @@ export function OrderItemsClient({ orderId, items, materials, totalValue }: Orde
                                     <FormItem>
                                         <FormLabel>Material do Estoque (opcional)</FormLabel>
                                         <Select
-                                            onValueChange={field.onChange}
+                                            onValueChange={(v) => field.onChange(v === '__none__' ? null : v)}
                                             value={field.value || ""}
                                         >
                                             <FormControl>
@@ -328,7 +331,7 @@ export function OrderItemsClient({ orderId, items, materials, totalValue }: Orde
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="">Nenhum</SelectItem>
+                                                <SelectItem value="__none__">Nenhum</SelectItem>
                                                 {materials.map(m => (
                                                     <SelectItem key={m.id} value={m.id}>
                                                         [{m.code}] {m.name} ({m.unit})
@@ -348,7 +351,7 @@ export function OrderItemsClient({ orderId, items, materials, totalValue }: Orde
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Unidade *</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value}>
+                                            <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue />

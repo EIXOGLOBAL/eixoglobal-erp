@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -43,7 +44,9 @@ interface FinancialRecordDialogProps {
     onOpenChange?: (open: boolean) => void
 }
 
-export function FinancialRecordDialog({ companyId, record, bankAccounts = [], projects = [], costCenters: initialCostCenters = [], trigger, open: controlledOpen, onOpenChange }: FinancialRecordDialogProps) {
+export function FinancialRecordDialog({
+  companyId, record, bankAccounts = [], projects = [], costCenters: initialCostCenters = [], trigger, open: controlledOpen, onOpenChange }: FinancialRecordDialogProps) {
+  const router = useRouter()
     const [internalOpen, setInternalOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [costCenters, setCostCenters] = useState(initialCostCenters)
@@ -119,7 +122,7 @@ export function FinancialRecordDialog({ companyId, record, bankAccounts = [], pr
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({ variant: "destructive", title: "Erro", description: result.error })
             }
@@ -166,7 +169,7 @@ export function FinancialRecordDialog({ companyId, record, bankAccounts = [], pr
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Tipo *</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={(v) => field.onChange(v === "__none__" ? null : v)} defaultValue={field.value}>
                                             <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                             <SelectContent>
                                                 <SelectItem value="INCOME">Receita</SelectItem>
@@ -207,7 +210,7 @@ export function FinancialRecordDialog({ companyId, record, bankAccounts = [], pr
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Status</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={(v) => field.onChange(v === "__none__" ? null : v)} defaultValue={field.value}>
                                             <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                             <SelectContent>
                                                 <SelectItem value="PENDING">Pendente</SelectItem>
@@ -237,10 +240,10 @@ export function FinancialRecordDialog({ companyId, record, bankAccounts = [], pr
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Conta Bancária</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select onValueChange={(v) => field.onChange(v === "__none__" ? null : v)} defaultValue={field.value}>
                                                 <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
                                                 <SelectContent>
-                                                    <SelectItem value="">Nenhuma</SelectItem>
+                                                    <SelectItem value="__none__">Nenhuma</SelectItem>
                                                     {bankAccounts.map(a => (
                                                         <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                                                     ))}
@@ -259,10 +262,10 @@ export function FinancialRecordDialog({ companyId, record, bankAccounts = [], pr
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Projeto</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                                            <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value ?? '__none__'}>
                                                 <FormControl><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger></FormControl>
                                                 <SelectContent>
-                                                    <SelectItem value="">Nenhum</SelectItem>
+                                                    <SelectItem value="__none__">Nenhum</SelectItem>
                                                     {projects.map(p => (
                                                         <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                                     ))}
@@ -278,10 +281,10 @@ export function FinancialRecordDialog({ companyId, record, bankAccounts = [], pr
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Centro de Custo</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                                            <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value ?? '__none__'}>
                                                 <FormControl><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger></FormControl>
                                                 <SelectContent>
-                                                    <SelectItem value="">Nenhum</SelectItem>
+                                                    <SelectItem value="__none__">Nenhum</SelectItem>
                                                     {costCenters.map(cc => (
                                                         <SelectItem key={cc.id} value={cc.id}>{cc.code} — {cc.name}</SelectItem>
                                                     ))}

@@ -8,15 +8,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: eixo_erp
     volumes:
-      - pgdata:/var/lib/postgresql/data
+    - pgdata:/var/lib/postgresql/data
     networks:
-      - eixo_network
+    - eixo_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eixo -d eixo_erp"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U eixo -d eixo_erp
       interval: 10s
       timeout: 5s
       retries: 5
-
   pgbouncer:
     image: edoburu/pgbouncer:latest
     container_name: eixo_erp_pgbouncer
@@ -34,61 +35,23 @@ services:
       DEFAULT_POOL_SIZE: 20
       AUTH_TYPE: plain
     networks:
-      - eixo_network
-
-  minio:
-    image: minio/minio:latest
-    container_name: eixo_erp_minio
-    restart: unless-stopped
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    volumes:
-      - minio_data:/data
-    networks:
-      - eixo_network
-    command: server /data --console-address ":9001"
+    - eixo_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 15s
+      test:
+      - CMD-SHELL
+      - pgrep pgbouncer >/dev/null || exit 1
+      interval: 30s
       timeout: 5s
-      retries: 5
-
-  minio-init:
-    image: minio/mc:latest
-    container_name: eixo_erp_minio_init
-    restart: on-failure
-    depends_on:
-      minio:
-        condition: service_healthy
-    networks:
-      - eixo_network
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    entrypoint: >-
-      sh -c "
-        mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
-        mc mb local/eixoglobal-erp --ignore-existing &&
-        mc anonymous set download local/eixoglobal-erp/avatars &&
-        mc anonymous set download local/eixoglobal-erp/logos &&
-        echo '[minio-init] Bucket criado e configurado.'
-      "
-
+      retries: 3
   erp:
-    image: ghcr.io/eixoglobal/eixoglobal-erp:${IMAGE_TAG:-latest}
-    pull_policy: always
+    build: .
     container_name: eixo_erp_app
     restart: unless-stopped
     depends_on:
       pgbouncer:
         condition: service_started
-      minio:
-        condition: service_healthy
     environment:
-      # Banco via PgBouncer (connection pooling)
       DATABASE_URL: postgresql://eixo:${POSTGRES_PASSWORD}@pgbouncer:5432/eixo_erp?pgbouncer=true
-      # Conexão direta ao banco (para migrations e operações que não suportam PgBouncer)
       DIRECT_URL: postgresql://eixo:${POSTGRES_PASSWORD}@db:5432/eixo_erp
       SESSION_SECRET: ${SESSION_SECRET}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
@@ -96,7 +59,7 @@ services:
       NEXT_PUBLIC_APP_NAME: Eixo Global ERP
       NODE_ENV: production
       PORT: 3001
-      HOSTNAME: "0.0.0.0"
+      HOSTNAME: 0.0.0.0
       D4SIGN_TOKEN_API: ${D4SIGN_TOKEN_API}
       D4SIGN_CRYPT_KEY: ${D4SIGN_CRYPT_KEY}
       D4SIGN_SAFE_UUID: ${D4SIGN_SAFE_UUID}
@@ -107,30 +70,46 @@ services:
       RESET_ADMIN_PASSWORD: ${RESET_ADMIN_PASSWORD:-}
       RESET_USERS: ${RESET_USERS:-}
       CRON_SECRET: ${CRON_SECRET:-}
-      # Storage — MinIO (S3-compatível, interno ao compose)
-      S3_ENDPOINT: http://minio:9000
-      R2_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      R2_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
-      R2_BUCKET_NAME: eixoglobal-erp
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME}
       R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
-      # Credenciais R2/S3 externas (sobrescreve MinIO se preenchidas)
-      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
-      # Rate limiting distribuído (Upstash Redis)
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
       UPSTASH_REDIS_REST_URL: ${UPSTASH_REDIS_REST_URL:-}
       UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:-}
-      # Monitoramento de erros (Sentry)
       SENTRY_DSN: ${SENTRY_DSN:-}
       NEXT_PUBLIC_SENTRY_DSN: ${SENTRY_DSN:-}
-      # Integrações externas
       DIARIO_OBRA_TOKEN: ${DIARIO_OBRA_TOKEN:-}
       ALMOB_TOKEN: ${ALMOB_TOKEN:-}
     ports:
-      - "3001:3001"
+    - 127.0.0.1:3001:3001
     volumes:
-      - uploads:/app/public/uploads
+    - uploads:/app/public/uploads
     networks:
-      - eixo_network
-
+    - eixo_network
+    - dokploy-network
+    - default
+    labels:
+    - traefik.docker.network=dokploy-network
+    - traefik.http.routers.eixoglobalerp-eixoglobalerp-m339ov-3-web.rule=Host(`erp.eixoglobal.com.br`)
+    - traefik.http.routers.eixoglobalerp-eixoglobalerp-m339ov-3-web.entrypoints=web
+    - traefik.http.services.eixoglobalerp-eixoglobalerp-m339ov-3-web.loadbalancer.server.port=3001
+    - traefik.http.routers.eixoglobalerp-eixoglobalerp-m339ov-3-web.service=eixoglobalerp-eixoglobalerp-m339ov-3-web
+    - traefik.http.routers.eixoglobalerp-eixoglobalerp-m339ov-3-web.middlewares=redirect-to-https@file
+    - traefik.http.routers.eixoglobalerp-eixoglobalerp-m339ov-3-websecure.rule=Host(`erp.eixoglobal.com.br`)
+    - traefik.http.routers.eixoglobalerp-eixoglobalerp-m339ov-3-websecure.entrypoints=websecure
+    - traefik.http.services.eixoglobalerp-eixoglobalerp-m339ov-3-websecure.loadbalancer.server.port=3001
+    - traefik.http.routers.eixoglobalerp-eixoglobalerp-m339ov-3-websecure.service=eixoglobalerp-eixoglobalerp-m339ov-3-websecure
+    - traefik.http.routers.eixoglobalerp-eixoglobalerp-m339ov-3-websecure.tls.certresolver=letsencrypt
+    - traefik.enable=true
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO /dev/null http://localhost:3001/login || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
   backup:
     image: postgres:17-alpine
     container_name: eixo_erp_backup
@@ -145,46 +124,28 @@ services:
       R2_BACKUP_BUCKET: ${R2_BACKUP_BUCKET:-eixoglobal-erp-backups}
       R2_BACKUP_ENDPOINT: ${R2_BACKUP_ENDPOINT:-https://5336a0798a59f73e731cf3e05e404d42.r2.cloudflarestorage.com}
     volumes:
-      - backups:/backups
+    - backups:/backups
     networks:
-      - eixo_network
-    command: >-
-      sh -c "
-        apk add --no-cache aws-cli 2>&1 | tail -1;
-        echo '[backup] Servico iniciado';
-        while true; do
-          TS=$$(date +%Y%m%d_%H%M%S);
-          FILE=/backups/backup_$$TS.dump;
-          echo \"[backup] $$(date '+%Y-%m-%d %H:%M:%S') — iniciando pg_dump\";
-          if pg_dump -h db -U eixo -d eixo_erp -Fc -f $$FILE; then
-            SIZE=$$(du -sh $$FILE | cut -f1);
-            echo \"[backup] OK local: $$FILE ($$SIZE)\";
-            if [ -n \"$$R2_BACKUP_KEY_ID\" ]; then
-              AWS_ACCESS_KEY_ID=$$R2_BACKUP_KEY_ID \
-              AWS_SECRET_ACCESS_KEY=$$R2_BACKUP_SECRET \
-              AWS_DEFAULT_REGION=auto \
-              aws s3 cp $$FILE s3://$$R2_BACKUP_BUCKET/$$(basename $$FILE) \
-                --endpoint-url $$R2_BACKUP_ENDPOINT 2>&1 \
-                && echo \"[backup] Upload R2 OK\" \
-                || echo \"[backup] AVISO: Upload R2 falhou (backup local mantido)\";
-            fi;
-          else
-            echo \"[backup] ERRO pg_dump em $$(date)\";
-            rm -f $$FILE;
-          fi;
-          ls -t /backups/backup_*.dump 2>/dev/null | tail -n +8 | xargs rm -f;
-          COUNT=$$(ls /backups/backup_*.dump 2>/dev/null | wc -l);
-          echo \"[backup] $$COUNT backup(s) locais mantidos. Proxima execucao em 24h.\";
-          sleep 86400;
-        done
-      "
-
+    - eixo_network
+    command: "sh -c '\n  apk add --no-cache aws-cli 2>&1 | tail -1\n  echo [backup]\
+      \ Servico iniciado\n  while true; do\n    TS=$$(date +%Y%m%d_%H%M%S)\n    FILE=/backups/backup_$$TS.dump\n\
+      \    if pg_dump -h db -U eixo -d eixo_erp -Fc -f $$FILE; then\n      SIZE=$$(du\
+      \ -sh $$FILE | cut -f1)\n      echo \"[backup] OK: $$FILE ($$SIZE)\"\n     \
+      \ if [ -n \"$$R2_BACKUP_KEY_ID\" ]; then\n        export AWS_ACCESS_KEY_ID=$$R2_BACKUP_KEY_ID\n\
+      \        export AWS_SECRET_ACCESS_KEY=$$R2_BACKUP_SECRET\n        export AWS_DEFAULT_REGION=auto\n\
+      \        FNAME=$$(basename $$FILE)\n        aws s3 cp $$FILE s3://$$R2_BACKUP_BUCKET/$$FNAME\
+      \ --endpoint-url $$R2_BACKUP_ENDPOINT\n        if [ $$? -eq 0 ]; then echo \"\
+      [backup] R2 OK\"; else echo \"[backup] R2 FALHOU\"; fi\n      fi\n    else\n\
+      \      echo \"[backup] ERRO pg_dump\"; rm -f $$FILE\n    fi\n    ls -t /backups/backup_*.dump\
+      \ 2>/dev/null | tail -n +8 | xargs rm -f\n    COUNT=$$(ls /backups/backup_*.dump\
+      \ 2>/dev/null | wc -l)\n    echo \"[backup] $$COUNT backups locais. Proxima\
+      \ em 24h.\"\n    sleep 86400\n  done\n'"
 volumes:
-  pgdata:
-  uploads:
-  backups:
-  minio_data:
-
+  pgdata: null
+  uploads: null
+  backups: null
 networks:
   eixo_network:
     driver: bridge
+  dokploy-network:
+    external: true

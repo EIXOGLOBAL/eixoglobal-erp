@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
@@ -54,6 +55,7 @@ export function InspectionDialog({
   open: controlledOpen,
   onOpenChange,
 }: InspectionDialogProps) {
+  const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
@@ -85,7 +87,7 @@ export function InspectionDialog({
           })
           setOpen(false)
           form.reset()
-          window.location.reload()
+          router.refresh()
         } else {
           toast({
             variant: 'destructive',

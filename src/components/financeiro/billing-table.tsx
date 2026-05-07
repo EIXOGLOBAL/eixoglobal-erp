@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -89,7 +90,9 @@ interface BillingTableProps {
     records: BillingRecord[]
 }
 
-export function BillingTable({ records }: BillingTableProps) {
+export function BillingTable({
+  records }: BillingTableProps) {
+  const router = useRouter()
     const { toast } = useToast()
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
@@ -118,7 +121,7 @@ export function BillingTable({ records }: BillingTableProps) {
             const result = await updateBillingStatus({ id, status: status as any })
             if (result.success) {
                 toast({ title: "Status atualizado", description: `Faturamento ${status === 'ISSUED' ? 'emitido' : status === 'PAID' ? 'marcado como pago' : 'atualizado'}.` })
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({ variant: "destructive", title: "Erro", description: result.error })
             }
@@ -136,7 +139,7 @@ export function BillingTable({ records }: BillingTableProps) {
             const result = await deleteBilling(id)
             if (result.success) {
                 toast({ title: "Faturamento excluido" })
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({ variant: "destructive", title: "Erro", description: result.error })
             }

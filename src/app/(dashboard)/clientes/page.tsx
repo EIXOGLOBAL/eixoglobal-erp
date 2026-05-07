@@ -5,8 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, Building2, CheckCircle2, CalendarDays } from 'lucide-react'
 import { ClientsTable } from '@/components/clients/clients-table'
-import { ClientDialog } from '@/components/clients/client-dialog'
-import { CreateShortcut } from '@/components/ui/page-keyboard-shortcuts'
+import { CreateClienteButton } from '@/components/clients/create-cliente-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,13 +55,7 @@ export default async function ClientesPage() {
             Gerencie os clientes que contratam a Eixo Global
           </p>
         </div>
-        {canWrite && (
-          <CreateShortcut label="Novo Cliente">
-            {({ open, onOpenChange }) => (
-              <ClientDialog companyId={companyId} open={open} onOpenChange={onOpenChange} />
-            )}
-          </CreateShortcut>
-        )}
+        {canWrite && <CreateClienteButton companyId={companyId} />}
       </div>
 
       {/* KPI Cards */}

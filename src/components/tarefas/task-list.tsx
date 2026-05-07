@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import Link from "next/link"
@@ -39,7 +40,9 @@ interface TaskListProps {
   onTaskClick: (task: TaskCardData) => void
 }
 
-export function TaskList({ tasks, currentUserId, userRole, onEditTask, onTaskClick }: TaskListProps) {
+export function TaskList({
+  tasks, currentUserId, userRole, onEditTask, onTaskClick }: TaskListProps) {
+  const router = useRouter()
   const { toast } = useToast()
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -52,7 +55,7 @@ export function TaskList({ tasks, currentUserId, userRole, onEditTask, onTaskCli
     if (res.success) {
       toast({ title: "Tarefa excluída" })
       setDeleteTarget(null)
-      window.location.reload()
+      router.refresh()
     } else {
       toast({ variant: "destructive", title: "Erro", description: res.error })
     }

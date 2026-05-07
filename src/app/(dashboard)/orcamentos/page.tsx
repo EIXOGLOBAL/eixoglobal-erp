@@ -4,8 +4,7 @@ import { getBudgets } from "@/app/actions/budget-actions"
 import { getDefaultBDIConfig } from "@/app/actions/bdi-config-actions"
 import { prisma } from "@/lib/prisma"
 import { OrcamentosClient } from "@/components/orcamentos/orcamentos-client"
-import { BudgetDialog } from "@/components/orcamentos/budget-dialog"
-import { CreateShortcut } from "@/components/ui/page-keyboard-shortcuts"
+import { CreateOrcamentoButton } from "@/components/orcamentos/create-orcamento-button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileSpreadsheet, Clock, CheckCircle, TrendingUp, Calculator } from "lucide-react"
 import { toNumber, formatCurrency, formatPercent } from "@/lib/formatters"
@@ -57,13 +56,7 @@ export default async function OrcamentosPage() {
                         Gerencie orçamentos de obras e projetos
                     </p>
                 </div>
-                {canWrite && (
-                    <CreateShortcut label="Novo Orçamento">
-                        {({ open, onOpenChange }) => (
-                            <BudgetDialog companyId={companyId} projects={projects} open={open} onOpenChange={onOpenChange} />
-                        )}
-                    </CreateShortcut>
-                )}
+                {canWrite && <CreateOrcamentoButton companyId={companyId} projects={projects} />}
             </div>
 
             {/* KPIs */}

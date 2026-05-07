@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,7 @@ export function ClockInDialog({
   open: controlledOpen,
   onOpenChange,
 }: ClockInDialogProps) {
+  const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [projectId, setProjectId] = useState<string>('')
@@ -102,7 +104,7 @@ export function ClockInDialog({
         setOpen(false)
         setProjectId('')
         setLocation(null)
-        window.location.reload()
+        router.refresh()
       } else {
         toast({
           variant: 'destructive',

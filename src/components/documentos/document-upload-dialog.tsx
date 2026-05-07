@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect, useTransition, useCallback, useRef } from 'react'
 import { useForm } from 'react-hook-form'
@@ -111,6 +112,7 @@ export function DocumentUploadDialog({
   onOpenChange,
   defaultFolderId,
 }: DocumentUploadDialogProps) {
+  const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [folders, setFolders] = useState<Folder[]>([])
@@ -268,7 +270,7 @@ export function DocumentUploadDialog({
             description: `O documento "${values.name}" foi enviado com sucesso.`,
           })
           setOpen(false)
-          window.location.reload()
+          router.refresh()
         } else {
           toast({
             variant: 'destructive',

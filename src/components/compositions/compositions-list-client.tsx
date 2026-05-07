@@ -93,12 +93,12 @@ export function CompositionsListClient({
                         className="max-w-md"
                     />
 
-                    <Select value={unitFilter} onValueChange={setUnitFilter}>
+                    <Select value={unitFilter || '__none__'} onValueChange={(v) => setUnitFilter(v === '__none__' ? '' : v)}>
                         <SelectTrigger className="w-[200px]">
                             <SelectValue placeholder="Filtrar por unidade" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">Todas as unidades</SelectItem>
+                            <SelectItem value="__none__">Todas as unidades</SelectItem>
                             {uniqueUnits.map(unit => (
                                 <SelectItem key={unit} value={unit}>
                                     {unit}
@@ -107,12 +107,12 @@ export function CompositionsListClient({
                         </SelectContent>
                     </Select>
 
-                    <Select value={projectFilter} onValueChange={setProjectFilter}>
+                    <Select value={projectFilter || '__none__'} onValueChange={(v) => setProjectFilter(v === '__none__' ? '' : v)}>
                         <SelectTrigger className="w-[200px]">
                             <SelectValue placeholder="Filtrar por projeto" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">Todos os projetos</SelectItem>
+                            <SelectItem value="__none__">Todos os projetos</SelectItem>
                             <SelectItem value="global">Globais</SelectItem>
                             {projects.map(project => (
                                 <SelectItem key={project.id} value={project.id}>

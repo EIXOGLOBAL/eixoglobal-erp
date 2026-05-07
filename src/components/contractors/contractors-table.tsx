@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import {
@@ -53,7 +54,9 @@ const STATUS_LABELS: Record<string, string> = {
     BLOCKED: 'Bloqueado',
 }
 
-export function ContractorsTable({ data, companyId }: ContractorsTableProps) {
+export function ContractorsTable({
+  data, companyId }: ContractorsTableProps) {
+  const router = useRouter()
     const { toast } = useToast()
     const [editingContractor, setEditingContractor] = useState<Contractor | null>(null)
 
@@ -61,7 +64,7 @@ export function ContractorsTable({ data, companyId }: ContractorsTableProps) {
         const result = await changeContractorStatus(id, status)
         if (result.success) {
             toast({ title: "Status Alterado", description: `${name} → ${STATUS_LABELS[status]}` })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({ variant: "destructive", title: "Erro", description: result.error })
         }

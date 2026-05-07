@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -53,7 +54,7 @@ const formSchema = z.object({
     object: z.string().optional(),
     warrantyValue: z.number().min(0).optional(),
     warrantyExpiry: z.string().optional(),
-    executionDeadline: z.number().min(1).optional(),
+    executionDeadline: z.number().min(0).optional().nullable(),
     baselineEndDate: z.string().optional(),
     reajusteIndex: z.string().optional(),
     reajusteBaseDate: z.string().optional(),
@@ -84,6 +85,7 @@ export function ContractDialog({
     open: controlledOpen,
     onOpenChange,
 }: ContractDialogProps) {
+  const router = useRouter()
     const [internalOpen, setInternalOpen] = useState(false)
     const [loading, setLoading] = useState(false)
 
@@ -179,7 +181,7 @@ export function ContractDialog({
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload() // Temporary - should use router.refresh()
+                router.refresh() // Temporary - should use router.refresh()
             } else {
                 toast({
                     variant: "destructive",
@@ -319,9 +321,19 @@ export function ContractDialog({
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Tipo de Contrato</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="Ex: Obra, Serviços, Fornecimento" {...field} />
-                                            </FormControl>
+                                            <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value || ''}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Selecione o tipo" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="PUBLIC">Público</SelectItem>
+                                                    <SelectItem value="PRIVATE">Privado</SelectItem>
+                                                    <SelectItem value="FRAMEWORK">Framework</SelectItem>
+                                                    <SelectItem value="OTHER">Outro</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -465,10 +477,10 @@ export function ContractDialog({
                                                 <FormControl>
                                                     <Input
                                                         type="number"
-                                                        min="1"
+                                                        min="0"
                                                         placeholder="Ex: 365"
-                                                        {...field}
-                                                        value={field.value || ''}
+                                                        value={field.value ?? ''}
+                                                        onChange={(e) => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))}
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
@@ -498,9 +510,19 @@ export function ContractDialog({
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Índice de Reajuste</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="Ex: IPCA, IGP-M" {...field} />
-                                                </FormControl>
+                                                <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value || ''}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Selecione o índice" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="INCC">INCC</SelectItem>
+                                                        <SelectItem value="IPCA">IPCA</SelectItem>
+                                                        <SelectItem value="IGP_M">IGP-M</SelectItem>
+                                                        <SelectItem value="CUSTOM">Personalizado</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -535,8 +557,8 @@ export function ContractDialog({
                                                         max="100"
                                                         step="0.1"
                                                         placeholder="Ex: 5"
-                                                        {...field}
-                                                        value={field.value || ''}
+                                                        value={field.value ?? ''}
+                                                        onChange={(e) => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
                                                     />
                                                 </FormControl>
                                                 <FormMessage />

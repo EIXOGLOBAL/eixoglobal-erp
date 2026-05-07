@@ -3,9 +3,8 @@ import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import { ContractDialog } from "@/components/contracts/contract-dialog"
 import { ContractsTable } from "@/components/contracts/contracts-table"
-import { CreateShortcut } from '@/components/ui/page-keyboard-shortcuts'
+import { CreateContratoButton } from '@/components/contracts/create-contrato-button'
 import {
     Card,
     CardContent,
@@ -73,19 +72,7 @@ export default async function ContractsPage() {
                         Gerencie contratos, aditivos e reajustes.
                     </p>
                 </div>
-                {canWrite && (
-                    <CreateShortcut label="Novo Contrato">
-                        {({ open, onOpenChange }) => (
-                            <ContractDialog
-                                projects={projects}
-                                contractors={contractors}
-                                companyId={companyId}
-                                open={open}
-                                onOpenChange={onOpenChange}
-                            />
-                        )}
-                    </CreateShortcut>
-                )}
+                {canWrite && <CreateContratoButton companyId={companyId} projects={projects} contractors={contractors} />}
             </div>
 
             {/* KPI Cards */}

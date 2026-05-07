@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useTransition } from 'react'
 import {
@@ -111,7 +112,9 @@ function isPreviewable(mimeType: string): boolean {
   return mimeType.startsWith('image/') || mimeType === 'application/pdf'
 }
 
-export function DocumentGrid({ documents, folders, allFolders, onFolderClick }: DocumentGridProps) {
+export function DocumentGrid({
+  documents, folders, allFolders, onFolderClick }: DocumentGridProps) {
+  const router = useRouter()
   const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null)
   const [renameDoc, setRenameDoc] = useState<DocumentItem | null>(null)
   const [moveDoc, setMoveDoc] = useState<DocumentItem | null>(null)
@@ -134,7 +137,7 @@ export function DocumentGrid({ documents, folders, allFolders, onFolderClick }: 
       if (result.success) {
         toast({ title: 'Documento Renomeado', description: `Renomeado para "${newName.trim()}"` })
         setRenameDoc(null)
-        window.location.reload()
+        router.refresh()
       } else {
         toast({ variant: 'destructive', title: 'Erro', description: result.error })
       }
@@ -148,7 +151,7 @@ export function DocumentGrid({ documents, folders, allFolders, onFolderClick }: 
       if (result.success) {
         toast({ title: 'Documento Movido', description: 'Documento movido com sucesso.' })
         setMoveDoc(null)
-        window.location.reload()
+        router.refresh()
       } else {
         toast({ variant: 'destructive', title: 'Erro', description: result.error })
       }
@@ -161,7 +164,7 @@ export function DocumentGrid({ documents, folders, allFolders, onFolderClick }: 
       const result = await deleteDocument(doc.id)
       if (result.success) {
         toast({ title: 'Documento Excluido', description: `"${doc.name}" foi excluido.` })
-        window.location.reload()
+        router.refresh()
       } else {
         toast({ variant: 'destructive', title: 'Erro', description: result.error })
       }

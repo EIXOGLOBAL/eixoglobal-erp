@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useTransition } from 'react'
 import {
@@ -28,6 +29,7 @@ export function DeleteDocumentDialog({
   open,
   onOpenChange,
 }: DeleteDocumentDialogProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
 
@@ -42,7 +44,7 @@ export function DeleteDocumentDialog({
             description: `O documento "${documentName}" foi excluido com sucesso.`,
           })
           onOpenChange(false)
-          window.location.reload()
+          router.refresh()
         } else {
           toast({
             variant: 'destructive',

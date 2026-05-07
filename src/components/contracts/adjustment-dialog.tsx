@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import { useForm } from "react-hook-form"
@@ -50,7 +51,9 @@ interface AdjustmentDialogProps {
     currentValue?: number
 }
 
-export function AdjustmentDialog({ contractId, currentValue = 0 }: AdjustmentDialogProps) {
+export function AdjustmentDialog({
+  contractId, currentValue = 0 }: AdjustmentDialogProps) {
+  const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
@@ -101,7 +104,7 @@ export function AdjustmentDialog({ contractId, currentValue = 0 }: AdjustmentDia
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

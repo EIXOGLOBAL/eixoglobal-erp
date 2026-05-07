@@ -19,16 +19,10 @@ const BUILD_COMMIT =
 const BUILD_COMMIT_SHORT = BUILD_COMMIT.slice(0, 7);
 const BUILD_TIME = new Date().toISOString();
 
-// Versão no formato DDMMYYYY-XX (tag git) ou fallback para package.json
 function getAppVersion(): string {
-  // 1. Tentar ler da env (passada pelo CI/CD ou Dockerfile)
   if (process.env.APP_VERSION) return process.env.APP_VERSION;
-
-  // 2. Tentar ler a tag git mais recente no formato DDMMYYYY-XX
   const latestTag = safeExec("git describe --tags --abbrev=0", "");
   if (latestTag && /^\d{8}-\d{2}$/.test(latestTag)) return latestTag;
-
-  // 3. Fallback: gerar versão baseada na data atual
   const now = new Date();
   const dd = String(now.getDate()).padStart(2, "0");
   const mm = String(now.getMonth() + 1).padStart(2, "0");
@@ -39,7 +33,6 @@ function getAppVersion(): string {
 const APP_VERSION = getAppVersion();
 
 const nextConfig: NextConfig = {
-  // output: "standalone", // Desabilitado temporariamente devido a bug do Turbopack
   reactCompiler: true,
   serverExternalPackages: ['@prisma/client'],
   typescript: {
@@ -61,6 +54,25 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'X-XSS-Protection', value: '1; mode=block' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: blob: https:",
+              "font-src 'self' data:",
+              "connect-src 'self' wss: https:",
+              "frame-src 'none'",
+              "frame-ancestors 'none'",
+              "object-src 'none'",
+              "base-uri 'self'",
+            ].join('; '),
+          },
         ],
       },
     ]

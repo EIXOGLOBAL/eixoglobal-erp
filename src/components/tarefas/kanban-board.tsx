@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useTransition } from "react"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
@@ -19,7 +20,9 @@ interface KanbanBoardProps {
   currentUserId: string
 }
 
-export function KanbanBoard({ tasks, onTaskClick, onTasksReorder, currentUserId }: KanbanBoardProps) {
+export function KanbanBoard({
+  tasks, onTaskClick, onTasksReorder, currentUserId }: KanbanBoardProps) {
+  const router = useRouter()
   const { toast } = useToast()
   const [, startTransition] = useTransition()
   const [quickCreate, setQuickCreate] = useState<string | null>(null)
@@ -64,7 +67,7 @@ export function KanbanBoard({ tasks, onTaskClick, onTasksReorder, currentUserId 
     if (res.success) {
       setQuickCreate(null)
       setQuickTitle("")
-      window.location.reload()
+      router.refresh()
     } else {
       toast({ variant: "destructive", title: "Erro", description: res.error })
     }

@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -73,6 +74,7 @@ export function CompositionDialog({
     composition,
     trigger
 }: CompositionDialogProps) {
+  const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
@@ -120,7 +122,7 @@ export function CompositionDialog({
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

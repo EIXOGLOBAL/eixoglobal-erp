@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -58,7 +59,9 @@ interface EquipmentDialogProps {
     onOpenChange: (open: boolean) => void
 }
 
-export function EquipmentDialog({ compositionId, equipment, open, onOpenChange }: EquipmentDialogProps) {
+export function EquipmentDialog({
+  compositionId, equipment, open, onOpenChange }: EquipmentDialogProps) {
+  const router = useRouter()
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
 
@@ -107,7 +110,7 @@ export function EquipmentDialog({ compositionId, equipment, open, onOpenChange }
                     description: `${values.description} foi ${equipment ? 'atualizado' : 'adicionado'} com sucesso.`,
                 })
                 onOpenChange(false)
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

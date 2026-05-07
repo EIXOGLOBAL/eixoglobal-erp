@@ -174,7 +174,7 @@ export function RentalDialog({ companyId, items, projects, costCenters = [], tri
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Item Locado *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o item" />
@@ -199,14 +199,14 @@ export function RentalDialog({ companyId, items, projects, costCenters = [], tri
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Projeto (opcional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                  <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value ?? '__none__'}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Sem projeto vinculado" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
+                      <SelectItem value="__none__">Nenhum</SelectItem>
                       {projects.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.name}
@@ -226,14 +226,14 @@ export function RentalDialog({ companyId, items, projects, costCenters = [], tri
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Centro de Custo (opcional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                    <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value ?? '__none__'}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Sem centro de custo" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Nenhum</SelectItem>
+                        <SelectItem value="__none__">Nenhum</SelectItem>
                         {costCenters.map((cc) => (
                           <SelectItem key={cc.id} value={cc.id}>
                             {cc.code} — {cc.name}
@@ -254,7 +254,7 @@ export function RentalDialog({ companyId, items, projects, costCenters = [], tri
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Ciclo de Cobrança *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue />

@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useMemo } from "react"
 import Link from "next/link"
@@ -69,7 +70,9 @@ const statusLabels: Record<string, string> = {
     ON_HOLD: "Em Espera",
 }
 
-export function ProjectsTable({ data, companies, clients = [] }: ProjectsTableProps) {
+export function ProjectsTable({
+  data, companies, clients = [] }: ProjectsTableProps) {
+  const router = useRouter()
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [editingProject, setEditingProject] = useState<any>(null)
     const [search, setSearch] = useState('')
@@ -91,7 +94,7 @@ export function ProjectsTable({ data, companies, clients = [] }: ProjectsTablePr
         const result = await changeProjectStatus(id, status)
         if (result.success) {
             toast({ title: "Status Alterado", description: `${name} → ${statusLabels[status]}` })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({ variant: "destructive", title: "Erro", description: result.error })
         }

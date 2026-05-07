@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,7 +24,9 @@ const typeLabels: Record<string, string> = {
   SYSTEM_ERROR: 'Erro do Sistema',
 }
 
-export function AnomalyList({ anomalies }: { anomalies: any[] }) {
+export function AnomalyList({
+  anomalies }: { anomalies: any[] }) {
+  const router = useRouter()
   const [resolving, setResolving] = useState<string | null>(null)
   const { toast } = useToast()
 
@@ -35,7 +38,7 @@ export function AnomalyList({ anomalies }: { anomalies: any[] }) {
         toast({
           title: falsePositive ? 'Marcado como falso positivo' : 'Anomalia resolvida',
         })
-        window.location.reload()
+        router.refresh()
       } else {
         toast({ title: 'Erro', description: result.error, variant: 'destructive' })
       }

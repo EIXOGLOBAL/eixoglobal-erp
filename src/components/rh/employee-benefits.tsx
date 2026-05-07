@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -122,7 +123,7 @@ function BenefitDialog({
             if (result.success) {
                 toast({ title: benefit ? 'Benefício atualizado' : 'Benefício adicionado' })
                 onOpenChange(false)
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({ variant: 'destructive', title: 'Erro', description: result.error })
             }
@@ -224,7 +225,9 @@ function BenefitDialog({
     )
 }
 
-export function EmployeeBenefits({ employeeId, benefits }: { employeeId: string; benefits: Benefit[] }) {
+export function EmployeeBenefits({
+  employeeId, benefits }: { employeeId: string; benefits: Benefit[] }) {
+  const router = useRouter()
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editBenefit, setEditBenefit] = useState<Benefit | undefined>()
     const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -250,7 +253,7 @@ export function EmployeeBenefits({ employeeId, benefits }: { employeeId: string;
             const result = await deleteEmployeeBenefit(benefitId, employeeId)
             if (result.success) {
                 toast({ title: 'Benefício removido' })
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({ variant: 'destructive', title: 'Erro', description: result.error })
             }

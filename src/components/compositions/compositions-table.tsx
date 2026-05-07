@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useMemo } from "react"
 import Link from "next/link"
@@ -30,7 +31,9 @@ interface CompositionsTableProps {
     compositions: any[]
 }
 
-export function CompositionsTable({ compositions }: CompositionsTableProps) {
+export function CompositionsTable({
+  compositions }: CompositionsTableProps) {
+  const router = useRouter()
     const { toast } = useToast()
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
@@ -58,7 +61,7 @@ export function CompositionsTable({ compositions }: CompositionsTableProps) {
                     title: "Composição Deletada",
                     description: `${code} foi removida com sucesso.`,
                 })
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

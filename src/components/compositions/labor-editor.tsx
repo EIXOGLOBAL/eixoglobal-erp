@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -21,7 +22,9 @@ interface LaborEditorProps {
     labor: any[]
 }
 
-export function LaborEditor({ compositionId, labor }: LaborEditorProps) {
+export function LaborEditor({
+  compositionId, labor }: LaborEditorProps) {
+  const router = useRouter()
     const { toast } = useToast()
     const [editingLabor, setEditingLabor] = useState<any | null>(null)
     const [showDialog, setShowDialog] = useState(false)
@@ -36,7 +39,7 @@ export function LaborEditor({ compositionId, labor }: LaborEditorProps) {
                 title: "Mão de Obra Removida",
                 description: `${description} foi removida.`,
             })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({
                 variant: "destructive",

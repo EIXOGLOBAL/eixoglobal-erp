@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -40,7 +41,9 @@ interface FinancialRecordsTableProps {
     bankAccounts: any[]
 }
 
-export function FinancialRecordsTable({ records, companyId, bankAccounts }: FinancialRecordsTableProps) {
+export function FinancialRecordsTable({
+  records, companyId, bankAccounts }: FinancialRecordsTableProps) {
+  const router = useRouter()
     const { toast } = useToast()
     const [search, setSearch] = useState('')
     const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL')
@@ -51,7 +54,7 @@ export function FinancialRecordsTable({ records, companyId, bankAccounts }: Fina
         const result = await markAsPaid(id)
         if (result.success) {
             toast({ title: "Marcado como Pago", description })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({ variant: "destructive", title: "Erro", description: result.error })
         }
@@ -62,7 +65,7 @@ export function FinancialRecordsTable({ records, companyId, bankAccounts }: Fina
         const result = await deleteFinancialRecord(id)
         if (result.success) {
             toast({ title: "Lançamento Deletado" })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({ variant: "destructive", title: "Erro", description: result.error })
         }

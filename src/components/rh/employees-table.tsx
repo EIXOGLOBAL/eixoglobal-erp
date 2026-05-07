@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -73,7 +74,9 @@ function mapEmployeesForExport(list: any[]): Record<string, unknown>[] {
     }))
 }
 
-export function EmployeesTable({ employees }: EmployeesTableProps) {
+export function EmployeesTable({
+  employees }: EmployeesTableProps) {
+  const router = useRouter()
     const { toast } = useToast()
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('ALL')
@@ -94,7 +97,7 @@ export function EmployeesTable({ employees }: EmployeesTableProps) {
         const result = await changeEmployeeStatus(id, status)
         if (result.success) {
             toast({ title: "Status Alterado", description: `${name} → ${STATUS_LABELS[status]}` })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({ variant: "destructive", title: "Erro", description: result.error })
         }

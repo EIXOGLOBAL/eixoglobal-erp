@@ -49,6 +49,16 @@ import {
 import { Plus, Pencil, Trash2, BarChart2, List } from "lucide-react"
 import { HolidayDatePicker } from "@/components/ui/holiday-date-picker"
 import { formatDate } from "@/lib/formatters"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -180,6 +190,7 @@ export function ScheduleClient({ tasks, projects }: ScheduleClientProps) {
 
     // Dialog states
     const [taskDialogOpen, setTaskDialogOpen] = useState(false)
+    const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
     const [editingTask, setEditingTask] = useState<Task | null>(null)
     const [progressDialogOpen, setProgressDialogOpen] = useState(false)
     const [progressTask, setProgressTask] = useState<Task | null>(null)
@@ -352,13 +363,15 @@ export function ScheduleClient({ tasks, projects }: ScheduleClientProps) {
         }
     }
 
-    async function handleDelete(task: Task) {
-        const confirmed = window.confirm(
-            `Tem certeza que deseja excluir a tarefa "${task.name}"? Esta acao nao pode ser desfeita.`
-        )
-        if (!confirmed) return
+    function handleDelete(task: Task) {
+        setDeleteTarget(task)
+    }
 
-        const result = await deleteTask(task.id)
+    async function confirmDelete() {
+        if (!deleteTarget) return
+        const target = deleteTarget
+        setDeleteTarget(null)
+        const result = await deleteTask(target.id)
         if (result.success) {
             toast({ title: "Tarefa excluida com sucesso!" })
         } else {
@@ -387,6 +400,22 @@ export function ScheduleClient({ tasks, projects }: ScheduleClientProps) {
 
     return (
         <div className="space-y-4">
+        <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir tarefa</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Tem certeza que deseja excluir a tarefa &quot;{deleteTarget?.name}&quot;? Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Excluir
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
             {/* Header */}
             <div className="flex items-center justify-between gap-4">
                 <h3 className="text-lg font-semibold">Tarefas</h3>

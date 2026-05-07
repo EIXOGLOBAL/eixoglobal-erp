@@ -26,6 +26,8 @@ const PUBLIC_PATHS = [
   '/register-setup',
   '/unauthorized',
   '/manutencao',
+  '/logout',
+  '/api/auth/logout',
   '/terms',
   '/privacy',
 ];

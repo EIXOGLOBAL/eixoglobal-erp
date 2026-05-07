@@ -65,6 +65,16 @@ import {
 } from "lucide-react"
 import { ExportButton } from "@/components/ui/export-button"
 import type { ExportColumn } from "@/lib/export-utils"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -167,6 +177,7 @@ interface CostCentersClientProps {
 
 export function CostCentersClient({ companyId, costCenters, projects = [] }: CostCentersClientProps) {
     const [open, setOpen] = useState(false)
+    const [deleteTarget, setDeleteTarget] = useState<CostCenter | null>(null)
     const [editingCostCenter, setEditingCostCenter] = useState<CostCenter | null>(null)
     const [search, setSearch] = useState('')
     const [filterType, setFilterType] = useState<CostCenterType | 'ALL'>('ALL')
@@ -267,13 +278,15 @@ export function CostCentersClient({ companyId, costCenters, projects = [] }: Cos
 
     // ── Actions ─────────────────────────────────────────────────────────────
 
-    async function handleDelete(cc: CostCenter) {
-        const confirmed = window.confirm(
-            `Tem certeza que deseja excluir o centro de custo "${cc.name}"? Esta ação não pode ser desfeita.`
-        )
-        if (!confirmed) return
+    function handleDelete(cc: CostCenter) {
+        setDeleteTarget(cc)
+    }
 
-        const result = await deleteCostCenter(cc.id)
+    async function confirmDelete() {
+        if (!deleteTarget) return
+        const target = deleteTarget
+        setDeleteTarget(null)
+        const result = await deleteCostCenter(target.id)
         if (result.success) {
             toast({ title: "Centro de custo excluído com sucesso!" })
         } else {
@@ -329,6 +342,22 @@ export function CostCentersClient({ companyId, costCenters, projects = [] }: Cos
 
     return (
         <div className="space-y-4">
+        <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir centro de custo</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Tem certeza que deseja excluir o centro de custo &quot;{deleteTarget?.name}&quot;? Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Excluir
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
             {/* Toolbar */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 {/* Filters */}
@@ -493,8 +522,8 @@ export function CostCentersClient({ companyId, costCenters, projects = [] }: Cos
                                     <FormItem>
                                         <FormLabel>Centro Pai (opcional)</FormLabel>
                                         <Select
-                                            onValueChange={field.onChange}
-                                            value={field.value ?? ''}
+                                            onValueChange={(v) => field.onChange(v === '__none__' ? '' : v)}
+                                            value={field.value && field.value !== '' ? field.value : '__none__'}
                                         >
                                             <FormControl>
                                                 <SelectTrigger>
@@ -502,7 +531,7 @@ export function CostCentersClient({ companyId, costCenters, projects = [] }: Cos
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="">Nenhum (centro raiz)</SelectItem>
+                                                <SelectItem value="__none__">Nenhum (centro raiz)</SelectItem>
                                                 {availableParents.map((cc) => (
                                                     <SelectItem key={cc.id} value={cc.id}>
                                                         {cc.code} — {cc.name}
@@ -524,8 +553,8 @@ export function CostCentersClient({ companyId, costCenters, projects = [] }: Cos
                                         <FormItem>
                                             <FormLabel>Projeto (opcional)</FormLabel>
                                             <Select
-                                                onValueChange={field.onChange}
-                                                value={field.value ?? ''}
+                                                onValueChange={(v) => field.onChange(v === '__none__' ? '' : v)}
+                                                value={field.value && field.value !== '' ? field.value : '__none__'}
                                             >
                                                 <FormControl>
                                                     <SelectTrigger>
@@ -533,7 +562,7 @@ export function CostCentersClient({ companyId, costCenters, projects = [] }: Cos
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    <SelectItem value="">Global (sem projeto)</SelectItem>
+                                                    <SelectItem value="__none__">Global (sem projeto)</SelectItem>
                                                     {projects.map((p) => (
                                                         <SelectItem key={p.id} value={p.id}>
                                                             {p.name}

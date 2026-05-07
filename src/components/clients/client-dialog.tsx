@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
@@ -81,6 +82,7 @@ export function ClientDialog({
   open: controlledOpen,
   onOpenChange,
 }: ClientDialogProps) {
+  const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
@@ -165,7 +167,7 @@ export function ClientDialog({
         })
         setOpen(false)
         form.reset()
-        window.location.reload()
+        router.refresh()
       } else {
         toast({
           variant: 'destructive',

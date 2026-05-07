@@ -172,10 +172,10 @@ export function TaskDialog({
               <FormField control={form.control} name="projectId" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Projeto</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                  <Select onValueChange={(v) => field.onChange(v === "__none__" ? null : v)} value={field.value ?? "__none__"}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
+                      <SelectItem value="__none__">Nenhum</SelectItem>
                       {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -186,10 +186,10 @@ export function TaskDialog({
               <FormField control={form.control} name="departmentId" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Departamento</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                  <Select onValueChange={(v) => field.onChange(v === "__none__" ? null : v)} value={field.value ?? "__none__"}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
+                      <SelectItem value="__none__">Nenhum</SelectItem>
                       {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                     </SelectContent>
                   </Select>

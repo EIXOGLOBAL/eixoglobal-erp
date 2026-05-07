@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useRef } from 'react'
 import { Input } from '@/components/ui/input'
@@ -12,7 +13,9 @@ interface MatriculaEditorProps {
   matricula: string | null
 }
 
-export function MatriculaEditor({ employeeId, matricula }: MatriculaEditorProps) {
+export function MatriculaEditor({
+  employeeId, matricula }: MatriculaEditorProps) {
+  const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(matricula ?? '')
   const [loading, setLoading] = useState(false)
@@ -41,7 +44,7 @@ export function MatriculaEditor({ employeeId, matricula }: MatriculaEditorProps)
       if (result.success) {
         toast({ title: 'Matrícula atualizada', description: `Matrícula definida como: ${value}` })
         setEditing(false)
-        window.location.reload()
+        router.refresh()
       } else {
         toast({ variant: 'destructive', title: 'Erro', description: result.error })
       }

@@ -277,7 +277,7 @@ function BudgetItemDialog({
                                     <FormItem>
                                         <FormLabel>Quantidade *</FormLabel>
                                         <FormControl>
-                                            <Input type="number" step="0.01" min="0" placeholder="0" {...field} />
+                                            <Input type="number" step="0.01" min="0" placeholder="0" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -290,7 +290,7 @@ function BudgetItemDialog({
                                     <FormItem>
                                         <FormLabel>Preço Unitário (R$) *</FormLabel>
                                         <FormControl>
-                                            <Input type="number" step="0.01" min="0" placeholder="0,00" {...field} />
+                                            <Input type="number" step="0.01" min="0" placeholder="0,00" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

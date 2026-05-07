@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
@@ -89,6 +90,7 @@ export function UploadDocumentDialog({
   open: controlledOpen,
   onOpenChange,
 }: UploadDocumentDialogProps) {
+  const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [folders, setFolders] = useState<Folder[]>([])
@@ -142,7 +144,7 @@ export function UploadDocumentDialog({
           })
           setOpen(false)
           form.reset()
-          window.location.reload()
+          router.refresh()
         } else {
           toast({
             variant: 'destructive',

@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
@@ -80,6 +81,7 @@ export function IncidentDialog({
   open: controlledOpen,
   onOpenChange,
 }: IncidentDialogProps) {
+  const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
@@ -127,7 +129,7 @@ export function IncidentDialog({
           })
           setOpen(false)
           form.reset()
-          window.location.reload()
+          router.refresh()
         } else {
           toast({
             variant: 'destructive',

@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -88,6 +89,7 @@ export function PurchaseOrderDialog({
     order,
     trigger,
 }: PurchaseOrderDialogProps) {
+  const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
@@ -145,7 +147,7 @@ export function PurchaseOrderDialog({
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",
@@ -195,7 +197,7 @@ export function PurchaseOrderDialog({
                                     <FormItem>
                                         <FormLabel>Fornecedor</FormLabel>
                                         <Select
-                                            onValueChange={field.onChange}
+                                            onValueChange={(v) => field.onChange(v === '__none__' ? null : v)}
                                             value={field.value || ""}
                                         >
                                             <FormControl>
@@ -204,7 +206,7 @@ export function PurchaseOrderDialog({
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="">Nenhum</SelectItem>
+                                                <SelectItem value="__none__">Nenhum</SelectItem>
                                                 {suppliers.map(s => (
                                                     <SelectItem key={s.id} value={s.id}>
                                                         <span className="flex items-center gap-2">
@@ -251,7 +253,7 @@ export function PurchaseOrderDialog({
                                 <FormItem>
                                     <FormLabel>Projeto</FormLabel>
                                     <Select
-                                        onValueChange={field.onChange}
+                                        onValueChange={(v) => field.onChange(v === '__none__' ? null : v)}
                                         value={field.value || ""}
                                     >
                                         <FormControl>
@@ -260,7 +262,7 @@ export function PurchaseOrderDialog({
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            <SelectItem value="">Nenhum</SelectItem>
+                                            <SelectItem value="__none__">Nenhum</SelectItem>
                                             {projects.map(p => (
                                                 <SelectItem key={p.id} value={p.id}>
                                                     {p.name}
@@ -295,7 +297,7 @@ export function PurchaseOrderDialog({
                                     <FormItem>
                                         <FormLabel>Centro de Custo</FormLabel>
                                         <Select
-                                            onValueChange={field.onChange}
+                                            onValueChange={(v) => field.onChange(v === '__none__' ? null : v)}
                                             value={field.value || ""}
                                         >
                                             <FormControl>
@@ -304,7 +306,7 @@ export function PurchaseOrderDialog({
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="">Nenhum</SelectItem>
+                                                <SelectItem value="__none__">Nenhum</SelectItem>
                                                 {costCenters.map(cc => (
                                                     <SelectItem key={cc.id} value={cc.id}>
                                                         {cc.code} — {cc.name}

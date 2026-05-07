@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
@@ -21,7 +22,9 @@ interface BulkApproveButtonProps {
   onComplete?: () => void
 }
 
-export function BulkApproveButton({ selectedIds, onComplete }: BulkApproveButtonProps) {
+export function BulkApproveButton({
+  selectedIds, onComplete }: BulkApproveButtonProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
@@ -37,7 +40,7 @@ export function BulkApproveButton({ selectedIds, onComplete }: BulkApproveButton
         })
         setOpen(false)
         onComplete?.()
-        window.location.reload()
+        router.refresh()
       } else {
         toast({
           variant: 'destructive',

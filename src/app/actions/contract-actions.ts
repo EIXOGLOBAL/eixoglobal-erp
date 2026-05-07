@@ -25,17 +25,17 @@ const contractSchema = z.object({
   endDate: z.string().optional(),
   status: z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED', 'DRAFT']).default('DRAFT'),
   projectId: z.string().uuid("Projeto inválido"),
-  contractorId: z.string().uuid("Contratada inválida").optional().nullable(),
+  contractorId: z.preprocess(v => (!v || v === '') ? null : v, z.string().uuid("Contratada inválida").optional().nullable()),
   // Additional fields from schema
   contractNumber: z.string().optional().nullable(),
-  contractType: z.enum(['PUBLIC', 'PRIVATE', 'FRAMEWORK', 'OTHER']).optional().nullable(),
+  contractType: z.preprocess(v => (!v || v === '') ? undefined : v, z.enum(['PUBLIC', 'PRIVATE', 'FRAMEWORK', 'OTHER']).optional().nullable()),
   modalidade: z.string().optional().nullable(),
   object: z.string().optional().nullable(),
   warrantyValue: z.number().min(0).optional().nullable(),
   warrantyExpiry: z.string().optional().nullable(),
   executionDeadline: z.number().optional().nullable(),
   baselineEndDate: z.string().optional().nullable(),
-  reajusteIndex: z.enum(['INCC', 'IPCA', 'IGP_M', 'CUSTOM']).optional().nullable(),
+  reajusteIndex: z.preprocess(v => (!v || v === '') ? undefined : v, z.enum(['INCC', 'IPCA', 'IGP_M', 'CUSTOM']).optional().nullable()),
   reajusteBaseDate: z.string().optional().nullable(),
   fiscalName: z.string().optional().nullable(),
   witnessNames: z.string().optional().nullable(),
@@ -152,6 +152,11 @@ export async function updateContract(id: string, data: z.infer<typeof contractSc
     const validated = contractSchema.parse(data)
 
     const oldData = await prisma.contract.findUnique({ where: { id } })
+    if (!oldData) return { success: false, error: "Contrato não encontrado" }
+    const userCompanyId = (session.user as any).companyId
+    if (userCompanyId && oldData.companyId !== userCompanyId) {
+      return { success: false, error: "Sem permissão para editar este contrato" }
+    }
 
     const contract = await prisma.contract.update({
       where: { id },
@@ -222,6 +227,11 @@ export async function deleteContract(id: string) {
 
     if (!contract) {
       return { success: false, error: "Contrato não encontrado" }
+    }
+
+    const userCompanyId2 = (session.user as any).companyId
+    if (userCompanyId2 && contract.companyId !== userCompanyId2) {
+      return { success: false, error: "Sem permissão para excluir este contrato" }
     }
 
     if (contract.status !== 'DRAFT') {

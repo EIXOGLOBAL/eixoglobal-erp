@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -82,7 +83,9 @@ interface MaterialsTableProps {
     companyId: string
 }
 
-export function MaterialsTable({ materials, companyId }: MaterialsTableProps) {
+export function MaterialsTable({
+  materials, companyId }: MaterialsTableProps) {
+  const router = useRouter()
     const { toast } = useToast()
     const [editingMaterial, setEditingMaterial] = useState<any>(null)
     const [filterCategory, setFilterCategory] = useState<string>('ALL')
@@ -107,7 +110,7 @@ export function MaterialsTable({ materials, companyId }: MaterialsTableProps) {
         const result = await changeMaterialStatus(id, isActive)
         if (result.success) {
             toast({ title: "Status Alterado", description: `${name} → ${isActive ? 'Ativo' : 'Inativo'}` })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({ variant: "destructive", title: "Erro", description: result.error })
         }

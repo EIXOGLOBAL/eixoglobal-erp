@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useTransition } from 'react'
 import {
@@ -116,6 +117,7 @@ export function CommunicationsTable({
   currentUserId,
   totalUsers,
 }: CommunicationsTableProps) {
+  const router = useRouter()
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [editItem, setEditItem] = useState<CommunicationItem | null>(null)
@@ -173,7 +175,7 @@ export function CommunicationsTable({
       if (result.success) {
         toast({ title: 'Comunicado removido com sucesso' })
         setDeleteConfirmId(null)
-        window.location.reload()
+        router.refresh()
       } else {
         toast({
           variant: 'destructive',
@@ -189,7 +191,7 @@ export function CommunicationsTable({
       const result = await markAsRead(id)
       if (result.success) {
         toast({ title: 'Marcado como lido' })
-        window.location.reload()
+        router.refresh()
       } else {
         toast({
           variant: 'destructive',

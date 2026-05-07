@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
@@ -64,6 +65,7 @@ export function CheckpointDialog({
   open: controlledOpen,
   onOpenChange,
 }: CheckpointDialogProps) {
+  const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
@@ -127,7 +129,7 @@ export function CheckpointDialog({
           })
           setOpen(false)
           form.reset()
-          window.location.reload()
+          router.refresh()
         } else {
           toast({
             variant: 'destructive',

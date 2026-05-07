@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -43,7 +44,9 @@ interface LaborDialogProps {
     onOpenChange: (open: boolean) => void
 }
 
-export function LaborDialog({ compositionId, labor, open, onOpenChange }: LaborDialogProps) {
+export function LaborDialog({
+  compositionId, labor, open, onOpenChange }: LaborDialogProps) {
+  const router = useRouter()
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
 
@@ -89,7 +92,7 @@ export function LaborDialog({ compositionId, labor, open, onOpenChange }: LaborD
                     description: `${values.description} foi ${labor ? 'atualizada' : 'adicionada'} com sucesso.`,
                 })
                 onOpenChange(false)
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

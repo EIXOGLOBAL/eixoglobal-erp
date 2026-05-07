@@ -4,9 +4,8 @@ import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, UserCheck, UserMinus, Clock } from "lucide-react"
-import { EmployeeDialog } from "@/components/rh/employee-dialog"
 import { EmployeesTable } from "@/components/rh/employees-table"
-import { CreateShortcut } from '@/components/ui/page-keyboard-shortcuts'
+import { CreateFuncionarioButton } from '@/components/rh/create-funcionario-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,13 +55,7 @@ export default async function FuncionariosPage() {
                         Gerencie sua equipe e recursos humanos
                     </p>
                 </div>
-                {canManageHR && (
-                    <CreateShortcut label="Novo Funcionário">
-                        {({ open, onOpenChange }) => (
-                            <EmployeeDialog companyId={companyId} salaryGrades={allGrades} open={open} onOpenChange={onOpenChange} />
-                        )}
-                    </CreateShortcut>
-                )}
+                {canManageHR && <CreateFuncionarioButton companyId={companyId} salaryGrades={allGrades} />}
             </div>
 
             {/* KPIs */}

@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -51,7 +52,9 @@ interface CompanyDialogProps {
     onOpenChange?: (open: boolean) => void
 }
 
-export function CompanyDialog({ company, trigger, open: controlledOpen, onOpenChange }: CompanyDialogProps) {
+export function CompanyDialog({
+  company, trigger, open: controlledOpen, onOpenChange }: CompanyDialogProps) {
+  const router = useRouter()
     const [internalOpen, setInternalOpen] = useState(false)
     const [loading, setLoading] = useState(false)
 
@@ -105,7 +108,7 @@ export function CompanyDialog({ company, trigger, open: controlledOpen, onOpenCh
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

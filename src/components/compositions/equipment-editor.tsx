@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -21,7 +22,9 @@ interface EquipmentEditorProps {
     equipment: any[]
 }
 
-export function EquipmentEditor({ compositionId, equipment }: EquipmentEditorProps) {
+export function EquipmentEditor({
+  compositionId, equipment }: EquipmentEditorProps) {
+  const router = useRouter()
     const { toast } = useToast()
     const [editingEquipment, setEditingEquipment] = useState<any | null>(null)
     const [showDialog, setShowDialog] = useState(false)
@@ -36,7 +39,7 @@ export function EquipmentEditor({ compositionId, equipment }: EquipmentEditorPro
                 title: "Equipamento Removido",
                 description: `${description} foi removido.`,
             })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({
                 variant: "destructive",

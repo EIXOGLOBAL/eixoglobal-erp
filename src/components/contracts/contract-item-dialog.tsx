@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -65,7 +66,9 @@ interface ContractItemDialogProps {
     trigger?: React.ReactNode
 }
 
-export function ContractItemDialog({ contractId, item, trigger }: ContractItemDialogProps) {
+export function ContractItemDialog({
+  contractId, item, trigger }: ContractItemDialogProps) {
+  const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
@@ -110,7 +113,7 @@ export function ContractItemDialog({ contractId, item, trigger }: ContractItemDi
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

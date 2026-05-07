@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -62,7 +63,9 @@ interface MaterialDialogProps {
     onOpenChange: (open: boolean) => void
 }
 
-export function MaterialDialog({ compositionId, material, open, onOpenChange }: MaterialDialogProps) {
+export function MaterialDialog({
+  compositionId, material, open, onOpenChange }: MaterialDialogProps) {
+  const router = useRouter()
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
 
@@ -111,7 +114,7 @@ export function MaterialDialog({ compositionId, material, open, onOpenChange }: 
                     description: `${values.description} foi ${material ? 'atualizado' : 'adicionado'} com sucesso.`,
                 })
                 onOpenChange(false)
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useMemo } from "react"
 import Link from "next/link"
@@ -9,6 +10,10 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
     DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -44,11 +49,14 @@ const statusLabels: Record<string, string> = {
     BILLED: "Faturado",
 }
 
-export function BulletinsTable({ data, userId = '' }: BulletinsTableProps) {
+export function BulletinsTable({
+  data, userId = '' }: BulletinsTableProps) {
+  const router = useRouter()
     const [loading, setLoading] = useState<string | null>(null)
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [projectFilter, setProjectFilter] = useState('ALL')
+    const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
     const { toast } = useToast()
 
     // Projetos únicos para o filtro
@@ -90,7 +98,7 @@ export function BulletinsTable({ data, userId = '' }: BulletinsTableProps) {
             const result = await submitBulletinForApproval(bulletinId)
             if (result.success) {
                 toast({ title: "Boletim enviado para aprovação com sucesso!" })
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({ variant: "destructive", title: "Erro", description: result.error })
             }
@@ -99,14 +107,20 @@ export function BulletinsTable({ data, userId = '' }: BulletinsTableProps) {
         }
     }
 
-    async function handleDelete(bulletinId: string) {
-        if (!confirm('Tem certeza que deseja excluir este boletim?')) return
-        setLoading(bulletinId)
+    function handleDelete(bulletinId: string) {
+        setDeleteTargetId(bulletinId)
+    }
+
+    async function confirmDelete() {
+        if (!deleteTargetId) return
+        const id = deleteTargetId
+        setDeleteTargetId(null)
+        setLoading(id)
         try {
-            const result = await deleteBulletin(bulletinId)
+            const result = await deleteBulletin(id)
             if (result.success) {
                 toast({ title: "Boletim excluído com sucesso!" })
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({ variant: "destructive", title: "Erro", description: result.error })
             }
@@ -130,6 +144,27 @@ export function BulletinsTable({ data, userId = '' }: BulletinsTableProps) {
     }
 
     return (
+        <>
+        <AlertDialog open={!!deleteTargetId} onOpenChange={open => !open && setDeleteTargetId(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Tem certeza que deseja excluir este boletim? Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={confirmDelete}
+                    >
+                        Excluir
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
         <Card>
             {/* Barra de Filtros */}
             <div className="flex flex-wrap items-center gap-3 p-4 border-b">
@@ -150,10 +185,11 @@ export function BulletinsTable({ data, userId = '' }: BulletinsTableProps) {
                     <SelectContent>
                         <SelectItem value="ALL">Todos os status</SelectItem>
                         <SelectItem value="DRAFT">Rascunho</SelectItem>
-                        <SelectItem value="PENDING_APPROVAL">Aguardando Aprovação</SelectItem>
+                        <SelectItem value="SUBMITTED">Aguard. Aprovação</SelectItem>
+                        <SelectItem value="ENGINEER_APPROVED">Aprovado Eng.</SelectItem>
+                        <SelectItem value="MANAGER_APPROVED">Aprovado Gest.</SelectItem>
                         <SelectItem value="APPROVED">Aprovado</SelectItem>
                         <SelectItem value="REJECTED">Rejeitado</SelectItem>
-                        <SelectItem value="BILLED">Faturado</SelectItem>
                     </SelectContent>
                 </Select>
 
@@ -280,5 +316,6 @@ export function BulletinsTable({ data, userId = '' }: BulletinsTableProps) {
                 </Table>
             )}
         </Card>
+        </>
     )
 }

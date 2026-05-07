@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import { useForm } from "react-hook-form"
@@ -45,6 +46,7 @@ export function DuplicateCompositionDialog({
     trigger,
     onClose
 }: DuplicateCompositionDialogProps) {
+  const router = useRouter()
     const [open, setOpen] = useState(trigger ? false : true)
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
@@ -68,7 +70,7 @@ export function DuplicateCompositionDialog({
                 })
                 setOpen(false)
                 if (onClose) onClose()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

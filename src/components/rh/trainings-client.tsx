@@ -71,6 +71,16 @@ import { formatDate } from "@/lib/formatters"
 import { ExportButton } from "@/components/ui/export-button"
 import type { ExportColumn } from "@/lib/export-utils"
 import { formatCurrency as fmtCurrencyExport, formatDate as fmtDateExport } from "@/lib/export-utils"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -210,6 +220,7 @@ interface TrainingsClientProps {
 
 export function TrainingsClient({ companyId, trainings, employees }: TrainingsClientProps) {
     const [open, setOpen] = useState(false)
+    const [deleteTarget, setDeleteTarget] = useState<Training | null>(null)
     const [editingTraining, setEditingTraining] = useState<Training | null>(null)
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState<TrainingStatus | 'ALL'>('ALL')
@@ -325,13 +336,15 @@ export function TrainingsClient({ companyId, trainings, employees }: TrainingsCl
         }
     }
 
-    async function handleDelete(training: Training) {
-        const confirmed = window.confirm(
-            `Tem certeza que deseja excluir o treinamento "${training.title}"? Esta ação não pode ser desfeita.`
-        )
-        if (!confirmed) return
+    function handleDelete(training: Training) {
+        setDeleteTarget(training)
+    }
 
-        const result = await deleteTraining(training.id)
+    async function confirmDelete() {
+        if (!deleteTarget) return
+        const target = deleteTarget
+        setDeleteTarget(null)
+        const result = await deleteTraining(target.id)
         if (result.success) {
             toast({ title: "Treinamento excluído com sucesso!" })
         } else {
@@ -428,6 +441,22 @@ export function TrainingsClient({ companyId, trainings, employees }: TrainingsCl
 
     return (
         <div className="space-y-4">
+        <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir treinamento</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Tem certeza que deseja excluir o treinamento &quot;{deleteTarget?.title}&quot;? Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Excluir
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
             {/* Toolbar */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-1 flex-wrap">

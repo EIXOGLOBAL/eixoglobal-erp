@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -65,7 +66,9 @@ interface ProjectDialogProps {
     onOpenChange?: (open: boolean) => void
 }
 
-export function ProjectDialog({ companies, clients = [], project, trigger, open: controlledOpen, onOpenChange }: ProjectDialogProps) {
+export function ProjectDialog({
+  companies, clients = [], project, trigger, open: controlledOpen, onOpenChange }: ProjectDialogProps) {
+  const router = useRouter()
     const [internalOpen, setInternalOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
@@ -127,7 +130,7 @@ export function ProjectDialog({ companies, clients = [], project, trigger, open:
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload() // Temporary - should use router.refresh()
+                router.refresh() // Temporary - should use router.refresh()
             } else {
                 toast({
                     variant: "destructive",
@@ -322,7 +325,6 @@ export function ProjectDialog({ companies, clients = [], project, trigger, open:
                                             type="number"
                                             step="0.01"
                                             placeholder="Ex: 1500.00"
-                                            {...field}
                                             value={field.value ?? ""}
                                             onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                                         />
@@ -365,7 +367,6 @@ export function ProjectDialog({ companies, clients = [], project, trigger, open:
                                                 type="number"
                                                 step="any"
                                                 placeholder="-15.7801"
-                                                {...field}
                                                 value={field.value ?? ''}
                                                 onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                                             />
@@ -386,7 +387,6 @@ export function ProjectDialog({ companies, clients = [], project, trigger, open:
                                                 type="number"
                                                 step="any"
                                                 placeholder="-47.9292"
-                                                {...field}
                                                 value={field.value ?? ''}
                                                 onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                                             />
@@ -426,8 +426,8 @@ export function ProjectDialog({ companies, clients = [], project, trigger, open:
                                     <FormControl>
                                         <Input
                                             placeholder="Ex: Av. Paulista, 1000, São Paulo - SP"
-                                            {...field}
                                             value={field.value ?? ""}
+                                            onChange={(e) => field.onChange(e.target.value)}
                                         />
                                     </FormControl>
                                     <FormMessage />

@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -48,7 +49,9 @@ interface OrderStatusDialogProps {
     nextStatuses: string[]
 }
 
-export function OrderStatusDialog({ orderId, currentStatus, nextStatuses }: OrderStatusDialogProps) {
+export function OrderStatusDialog({
+  orderId, currentStatus, nextStatuses }: OrderStatusDialogProps) {
+  const router = useRouter()
     const [open, setOpen] = useState(false)
     const [selectedStatus, setSelectedStatus] = useState<string>("")
     const [loading, setLoading] = useState(false)
@@ -71,7 +74,7 @@ export function OrderStatusDialog({ orderId, currentStatus, nextStatuses }: Orde
                 })
                 setOpen(false)
                 setSelectedStatus("")
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({ variant: "destructive", title: "Erro", description: result.error })
             }

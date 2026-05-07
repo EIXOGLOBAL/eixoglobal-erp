@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useTransition } from 'react'
 import { useForm } from 'react-hook-form'
@@ -58,6 +59,7 @@ export function NonConformityDialog({
   open,
   onOpenChange,
 }: NonConformityDialogProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
 
@@ -94,7 +96,7 @@ export function NonConformityDialog({
           })
           onOpenChange(false)
           form.reset()
-          window.location.reload()
+          router.refresh()
         } else {
           toast({
             variant: 'destructive',

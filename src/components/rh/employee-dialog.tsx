@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -78,7 +79,9 @@ interface EmployeeDialogProps {
     onOpenChange?: (open: boolean) => void
 }
 
-export function EmployeeDialog({ companyId, employee, trigger, salaryGrades = [], open: controlledOpen, onOpenChange }: EmployeeDialogProps) {
+export function EmployeeDialog({
+  companyId, employee, trigger, salaryGrades = [], open: controlledOpen, onOpenChange }: EmployeeDialogProps) {
+  const router = useRouter()
     const [internalOpen, setInternalOpen] = useState(false)
     const [loading, setLoading] = useState(false)
 
@@ -208,7 +211,7 @@ export function EmployeeDialog({ companyId, employee, trigger, salaryGrades = []
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

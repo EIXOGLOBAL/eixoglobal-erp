@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -71,7 +72,9 @@ interface MaterialDialogProps {
     onOpenChange?: (open: boolean) => void
 }
 
-export function MaterialDialog({ companyId, material, trigger, open: controlledOpen, onOpenChange }: MaterialDialogProps) {
+export function MaterialDialog({
+  companyId, material, trigger, open: controlledOpen, onOpenChange }: MaterialDialogProps) {
+  const router = useRouter()
     const [internalOpen, setInternalOpen] = useState(false)
     const [loading, setLoading] = useState(false)
 
@@ -132,7 +135,7 @@ export function MaterialDialog({ companyId, material, trigger, open: controlledO
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import { ContractItemDialog } from "./contract-item-dialog"
@@ -38,7 +39,9 @@ interface ContractItemsTableProps {
     items: any[]
 }
 
-export function ContractItemsTable({ contractId, items }: ContractItemsTableProps) {
+export function ContractItemsTable({
+  contractId, items }: ContractItemsTableProps) {
+  const router = useRouter()
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [selectedItem, setSelectedItem] = useState<any>(null)
     const { toast } = useToast()
@@ -54,7 +57,7 @@ export function ContractItemsTable({ contractId, items }: ContractItemsTableProp
                 description: "O item foi removido do contrato.",
             })
             setDeleteDialogOpen(false)
-            window.location.reload()
+            router.refresh()
         } else {
             toast({
                 variant: "destructive",

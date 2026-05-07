@@ -3,9 +3,8 @@ import { getClients } from "@/app/actions/client-actions"
 import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import { ProjectDialog } from "@/components/projects/project-dialog"
 import { ProjectsTable } from "@/components/projects/projects-table"
-import { CreateShortcut } from '@/components/ui/page-keyboard-shortcuts'
+import { CreateProjetoButton } from '@/components/projects/create-projeto-button'
 import {
     Card,
     CardContent,
@@ -58,13 +57,7 @@ export default async function ProjectsPage() {
                         Gerencie todos os projetos e acompanhe seu progresso.
                     </p>
                 </div>
-                {canWrite && (
-                    <CreateShortcut label="Novo Projeto">
-                        {({ open, onOpenChange }) => (
-                            <ProjectDialog companies={companies} clients={clients} open={open} onOpenChange={onOpenChange} />
-                        )}
-                    </CreateShortcut>
-                )}
+                {canWrite && <CreateProjetoButton companies={companies} clients={clients} />}
             </div>
 
             {/* KPI Cards */}

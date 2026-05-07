@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import Link from "next/link"
@@ -81,7 +82,9 @@ const contractExportColumns: ExportColumn[] = [
     { key: 'statusPtBr', label: 'Status' },
 ]
 
-export function ContractsTable({ data, projects, contractors, companyId }: ContractsTableProps) {
+export function ContractsTable({
+  data, projects, contractors, companyId }: ContractsTableProps) {
+  const router = useRouter()
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [selectedContract, setSelectedContract] = useState<any>(null)
     const [editingContract, setEditingContract] = useState<any>(null)
@@ -113,7 +116,7 @@ export function ContractsTable({ data, projects, contractors, companyId }: Contr
                 description: "O contrato foi removido com sucesso.",
             })
             setDeleteDialogOpen(false)
-            window.location.reload()
+            router.refresh()
         } else {
             toast({
                 variant: "destructive",

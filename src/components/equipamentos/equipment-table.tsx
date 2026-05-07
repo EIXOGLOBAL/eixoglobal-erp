@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -101,7 +102,9 @@ interface EquipmentTableProps {
     companyId: string
 }
 
-export function EquipmentTable({ equipment, companyId }: EquipmentTableProps) {
+export function EquipmentTable({
+  equipment, companyId }: EquipmentTableProps) {
+  const router = useRouter()
     const [typeFilter, setTypeFilter] = useState<string>('ALL')
     const [statusFilter, setStatusFilter] = useState<string>('ALL')
     const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null)
@@ -117,7 +120,7 @@ export function EquipmentTable({ equipment, companyId }: EquipmentTableProps) {
         const result = await updateEquipmentStatus(id, status)
         if (result.success) {
             toast({ title: "Status Alterado", description: `"${name}" → ${EQUIPMENT_STATUS_LABELS[status]}` })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({ title: "Erro", description: result.error ?? "Erro ao alterar status", variant: "destructive" })
         }

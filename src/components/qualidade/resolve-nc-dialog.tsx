@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useTransition } from 'react'
 import { useForm } from 'react-hook-form'
@@ -43,6 +44,7 @@ export function ResolveNcDialog({
   open,
   onOpenChange,
 }: ResolveNcDialogProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
 
@@ -68,7 +70,7 @@ export function ResolveNcDialog({
           })
           onOpenChange(false)
           form.reset()
-          window.location.reload()
+          router.refresh()
         } else {
           toast({
             variant: 'destructive',

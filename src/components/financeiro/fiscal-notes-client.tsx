@@ -33,6 +33,16 @@ import { formatCurrency as fmtCurrencyExport, formatDate as fmtDateExport } from
 
 import { formatDate } from "@/lib/formatters"
 import { DateRangeFilter, type DateRange } from "@/components/ui/date-range-filter"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 // ─── Document type labels and groups ────────────────────────────────────────
 
 export const DOC_TYPES: { value: string; label: string; group: string; icon?: React.ReactNode }[] = [
@@ -186,9 +196,9 @@ function NoteFormDialog({
             value: editNote.value,
             status: editNote.status as FormValues['status'],
             accessKey: editNote.accessKey || '',
-            supplierId: editNote.supplierId || '',
-            projectId: editNote.projectId || '',
-            costCenterId: editNote.costCenterId || '',
+            supplierId: editNote.supplierId || 'none',
+            projectId: editNote.projectId || 'none',
+            costCenterId: editNote.costCenterId || 'none',
         } : {
             number: '',
             series: '',
@@ -199,9 +209,9 @@ function NoteFormDialog({
             value: 0,
             status: 'ISSUED',
             accessKey: '',
-            supplierId: '',
-            projectId: '',
-            costCenterId: '',
+            supplierId: 'none',
+            projectId: 'none',
+            costCenterId: 'none',
         }
     })
 
@@ -229,9 +239,9 @@ function NoteFormDialog({
                 description: values.description || null,
                 dueDate: values.dueDate || null,
                 accessKey: values.accessKey || null,
-                supplierId: values.supplierId || null,
-                projectId: values.projectId || null,
-                costCenterId: values.costCenterId || null,
+                supplierId: (values.supplierId && values.supplierId !== "none") ? values.supplierId : null,
+                projectId: (values.projectId && values.projectId !== "none") ? values.projectId : null,
+                costCenterId: (values.costCenterId && values.costCenterId !== "none") ? values.costCenterId : null,
                 companyId,
             }
 
@@ -308,7 +318,7 @@ function NoteFormDialog({
                                 <SelectTrigger><SelectValue placeholder="Selecione o fornecedor (opcional)" /></SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="">— Sem fornecedor —</SelectItem>
+                                <SelectItem value="none">— Sem fornecedor —</SelectItem>
                                 {suppliers.map(s => (
                                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                                 ))}
@@ -411,7 +421,7 @@ function NoteFormDialog({
                                         <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        <SelectItem value="">Nenhum</SelectItem>
+                                        <SelectItem value="none">Nenhum</SelectItem>
                                         {projects.map(p => (
                                             <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                         ))}
@@ -430,7 +440,7 @@ function NoteFormDialog({
                                         <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        <SelectItem value="">Nenhum</SelectItem>
+                                        <SelectItem value="none">Nenhum</SelectItem>
                                         {costCenters.map(cc => (
                                             <SelectItem key={cc.id} value={cc.id}>{cc.code} — {cc.name}</SelectItem>
                                         ))}
@@ -486,6 +496,7 @@ function CreateNoteButton({ companyId, suppliers, projects = [], costCenters = [
 function NotesTable({ notes, companyId, suppliers, projects = [], costCenters = [] }: { notes: Note[]; companyId: string; suppliers: Supplier[]; projects?: Project[]; costCenters?: CostCenter[] }) {
     const { toast } = useToast()
     const [editNote, setEditNote] = useState<Note | null>(null)
+    const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
     const [search, setSearch] = useState('')
 
     // Advanced filters
@@ -538,8 +549,14 @@ function NotesTable({ notes, companyId, suppliers, projects = [], costCenters = 
         }
     }
 
-    async function handleDelete(id: string) {
-        if (!window.confirm("Excluir este documento? Esta ação não pode ser desfeita.")) return
+    function handleDelete(id: string) {
+        setDeleteTargetId(id)
+    }
+
+    async function confirmDelete() {
+        if (!deleteTargetId) return
+        const id = deleteTargetId
+        setDeleteTargetId(null)
         const result = await deleteFiscalNote(id)
         if (result.success) {
             toast({ title: "Documento excluído!" })
@@ -550,6 +567,22 @@ function NotesTable({ notes, companyId, suppliers, projects = [], costCenters = 
 
     return (
         <div className="space-y-4">
+        <AlertDialog open={!!deleteTargetId} onOpenChange={(o) => !o && setDeleteTargetId(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir documento</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Tem certeza que deseja excluir este documento fiscal? Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Excluir
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
             <div className="flex items-center gap-2">
                 <div className="relative max-w-sm flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

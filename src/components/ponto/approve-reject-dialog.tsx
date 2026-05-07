@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,7 @@ export function ApproveRejectDialog({
   open,
   onOpenChange,
 }: ApproveRejectDialogProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [text, setText] = useState('')
   const { toast } = useToast()
@@ -65,7 +67,7 @@ export function ApproveRejectDialog({
         })
         onOpenChange(false)
         setText('')
-        window.location.reload()
+        router.refresh()
       } else {
         toast({
           variant: 'destructive',

@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from 'react'
 import Link from 'next/link'
@@ -91,7 +92,9 @@ interface ClientsTableProps {
   companyId: string
 }
 
-export function ClientsTable({ clients, companyId }: ClientsTableProps) {
+export function ClientsTable({
+  clients, companyId }: ClientsTableProps) {
+  const router = useRouter()
   const { toast } = useToast()
   const [editClient, setEditClient] = useState<Client | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -113,7 +116,7 @@ export function ClientsTable({ clients, companyId }: ClientsTableProps) {
         title: 'Status alterado',
         description: `Status do cliente alterado para ${statusLabels[status]}.`,
       })
-      window.location.reload()
+      router.refresh()
     } else {
       toast({
         variant: 'destructive',

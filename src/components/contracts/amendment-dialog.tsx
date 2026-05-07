@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import { useForm } from "react-hook-form"
@@ -55,7 +56,9 @@ interface AmendmentDialogProps {
     currentEndDate?: string
 }
 
-export function AmendmentDialog({ contractId, currentValue, currentEndDate }: AmendmentDialogProps) {
+export function AmendmentDialog({
+  contractId, currentValue, currentEndDate }: AmendmentDialogProps) {
+  const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
@@ -95,7 +98,7 @@ export function AmendmentDialog({ contractId, currentValue, currentEndDate }: Am
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",

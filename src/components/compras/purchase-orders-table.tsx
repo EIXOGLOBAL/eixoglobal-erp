@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
@@ -75,7 +76,9 @@ interface PurchaseOrdersTableProps {
     projects: Project[]
 }
 
-export function PurchaseOrdersTable({ orders, companyId, suppliers, projects }: PurchaseOrdersTableProps) {
+export function PurchaseOrdersTable({
+  orders, companyId, suppliers, projects }: PurchaseOrdersTableProps) {
+  const router = useRouter()
     const { toast } = useToast()
 
     const fmt = (n: number) =>
@@ -92,7 +95,7 @@ export function PurchaseOrdersTable({ orders, companyId, suppliers, projects }: 
         const result = await deletePurchaseOrder(id)
         if (result.success) {
             toast({ title: "Pedido Deletado", description: `${number} foi removido.` })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({ variant: "destructive", title: "Erro", description: result.error })
         }

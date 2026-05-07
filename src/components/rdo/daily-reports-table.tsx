@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import Link from "next/link"
@@ -70,7 +71,9 @@ interface DailyReportsTableProps {
     companyId: string
 }
 
-export function DailyReportsTable({ reports, projects, companyId }: DailyReportsTableProps) {
+export function DailyReportsTable({
+  reports, projects, companyId }: DailyReportsTableProps) {
+  const router = useRouter()
     const { toast } = useToast()
     const [filterProject, setFilterProject] = useState<string>("all")
     const [filterStatus, setFilterStatus] = useState<string>("all")
@@ -92,7 +95,7 @@ export function DailyReportsTable({ reports, projects, companyId }: DailyReports
         const result = await deleteDailyReport(id)
         if (result.success) {
             toast({ title: "RDO excluído com sucesso." })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({ variant: "destructive", title: "Erro", description: result.error })
         }
@@ -102,7 +105,7 @@ export function DailyReportsTable({ reports, projects, companyId }: DailyReports
         const result = await submitDailyReport(id)
         if (result.success) {
             toast({ title: "RDO submetido para aprovação." })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({ variant: "destructive", title: "Erro", description: result.error })
         }
@@ -112,7 +115,7 @@ export function DailyReportsTable({ reports, projects, companyId }: DailyReports
         const result = await approveDailyReport(id)
         if (result.success) {
             toast({ title: "RDO aprovado com sucesso." })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({ variant: "destructive", title: "Erro", description: result.error })
         }

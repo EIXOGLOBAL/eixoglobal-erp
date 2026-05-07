@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useTransition } from 'react'
 import {
@@ -26,6 +27,7 @@ export function DeleteCheckpointDialog({
   open,
   onOpenChange,
 }: DeleteCheckpointDialogProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
 
@@ -40,7 +42,7 @@ export function DeleteCheckpointDialog({
             description: `"${checkpoint.name}" foi excluido com sucesso.`,
           })
           onOpenChange(false)
-          window.location.reload()
+          router.refresh()
         } else {
           toast({
             variant: 'destructive',

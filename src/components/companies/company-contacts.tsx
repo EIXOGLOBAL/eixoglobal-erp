@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -135,7 +136,7 @@ function ContactDialog({
                     description: `${values.value} salvo com sucesso.`,
                 })
                 onOpenChange(false)
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({ variant: 'destructive', title: 'Erro', description: result.error })
             }
@@ -264,7 +265,9 @@ function ContactDialog({
     )
 }
 
-export function CompanyContacts({ companyId, contacts }: CompanyContactsProps) {
+export function CompanyContacts({
+  companyId, contacts }: CompanyContactsProps) {
+  const router = useRouter()
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editContact, setEditContact] = useState<Contact | undefined>()
     const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -289,7 +292,7 @@ export function CompanyContacts({ companyId, contacts }: CompanyContactsProps) {
             const result = await deleteCompanyContact(contactId, companyId)
             if (result.success) {
                 toast({ title: 'Contato removido' })
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({ variant: 'destructive', title: 'Erro', description: result.error })
             }

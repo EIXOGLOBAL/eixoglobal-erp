@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
@@ -40,7 +41,9 @@ interface BillingDialogProps {
     }
 }
 
-export function BillingDialog({ formData }: BillingDialogProps) {
+export function BillingDialog({
+  formData }: BillingDialogProps) {
+  const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
@@ -112,7 +115,7 @@ export function BillingDialog({ formData }: BillingDialogProps) {
                 toast({ title: "Faturamento Criado", description: `${values.description} criado com sucesso.` })
                 setOpen(false)
                 form.reset()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({ variant: "destructive", title: "Erro", description: result.error })
             }
@@ -146,12 +149,12 @@ export function BillingDialog({ formData }: BillingDialogProps) {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Boletim de Medicao (opcional)</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                                        <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value ?? '__none__'}>
                                             <FormControl>
                                                 <SelectTrigger><SelectValue placeholder="Selecione um boletim aprovado..." /></SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="">Nenhum</SelectItem>
+                                                <SelectItem value="__none__">Nenhum</SelectItem>
                                                 {filteredBulletins.map(b => (
                                                     <SelectItem key={b.id} value={b.id}>
                                                         {b.number} - {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(b.totalValue)}
@@ -203,12 +206,12 @@ export function BillingDialog({ formData }: BillingDialogProps) {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Cliente</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                                        <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value ?? '__none__'}>
                                             <FormControl>
                                                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="">Nenhum</SelectItem>
+                                                <SelectItem value="__none__">Nenhum</SelectItem>
                                                 {formData.clients.map(c => (
                                                     <SelectItem key={c.id} value={c.id}>{c.displayName}</SelectItem>
                                                 ))}
@@ -222,12 +225,12 @@ export function BillingDialog({ formData }: BillingDialogProps) {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Projeto</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                                        <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value ?? '__none__'}>
                                             <FormControl>
                                                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="">Nenhum</SelectItem>
+                                                <SelectItem value="__none__">Nenhum</SelectItem>
                                                 {formData.projects.map(p => (
                                                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                                 ))}
@@ -244,12 +247,12 @@ export function BillingDialog({ formData }: BillingDialogProps) {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Contrato</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                                        <Select onValueChange={(v) => field.onChange(v === '__none__' ? null : v)} value={field.value ?? '__none__'}>
                                             <FormControl>
                                                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="">Nenhum</SelectItem>
+                                                <SelectItem value="__none__">Nenhum</SelectItem>
                                                 {filteredContracts.map(c => (
                                                     <SelectItem key={c.id} value={c.id}>{c.identifier}</SelectItem>
                                                 ))}

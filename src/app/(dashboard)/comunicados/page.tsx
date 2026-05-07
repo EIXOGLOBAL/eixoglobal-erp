@@ -5,8 +5,7 @@ import {
   getCommunicationStats,
 } from '@/app/actions/communication-actions'
 import { CommunicationsTable } from '@/components/comunicados/communications-table'
-import { CommunicationDialog } from '@/components/comunicados/communication-dialog'
-import { CreateShortcut } from '@/components/ui/page-keyboard-shortcuts'
+import { CreateComunicadoButton } from '@/components/comunicados/create-comunicado-button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Megaphone,
@@ -55,13 +54,7 @@ export default async function ComunicadosPage() {
             </p>
           </div>
         </div>
-        {canManage && (
-          <CreateShortcut label="Novo Comunicado">
-            {({ open, onOpenChange }) => (
-              <CommunicationDialog open={open} onOpenChange={onOpenChange} />
-            )}
-          </CreateShortcut>
-        )}
+        {canManage && <CreateComunicadoButton />}
       </div>
 
       {/* KPI Cards */}

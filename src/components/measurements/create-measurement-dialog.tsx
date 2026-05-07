@@ -228,8 +228,8 @@ export function CreateMeasurementDialog({ projects, employees }: CreateMeasureme
                                                 type="number"
                                                 step="0.01"
                                                 placeholder={selectedItem ? Number(selectedItem.unitPrice).toFixed(2) : "0.00"}
-                                                {...field}
                                                 value={field.value || ''}
+                                                onChange={(e) => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
                                                 onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                                             />
                                         </FormControl>

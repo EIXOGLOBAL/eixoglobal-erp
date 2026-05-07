@@ -179,7 +179,7 @@ async function checkLowStockMaterials() {
     }>>`
       SELECT id, name, code, "currentStock", "minStock", "companyId"
       FROM materials
-      WHERE "isActive" = 1 AND "currentStock" <= "minStock" AND "minStock" > 0
+      WHERE "isActive" = true AND "currentStock" <= "minStock" AND "minStock" > 0
     `
 
     for (const mat of materials) {

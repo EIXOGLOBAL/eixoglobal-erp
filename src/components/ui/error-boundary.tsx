@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import React from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
@@ -89,7 +90,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Tentar novamente
                 </Button>
-                <Button onClick={() => window.location.reload()} className="flex-1">
+                <Button onClick={() => router.refresh()} className="flex-1">
                   Recarregar página
                 </Button>
               </div>
@@ -107,6 +108,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
  * Hook para usar Error Boundary de forma funcional
  */
 export function useErrorHandler() {
+  const router = useRouter()
   const [error, setError] = React.useState<Error | null>(null)
 
   React.useEffect(() => {

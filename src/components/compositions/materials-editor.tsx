@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -21,7 +22,9 @@ interface MaterialsEditorProps {
     materials: any[]
 }
 
-export function MaterialsEditor({ compositionId, materials }: MaterialsEditorProps) {
+export function MaterialsEditor({
+  compositionId, materials }: MaterialsEditorProps) {
+  const router = useRouter()
     const { toast } = useToast()
     const [editingMaterial, setEditingMaterial] = useState<any | null>(null)
     const [showDialog, setShowDialog] = useState(false)
@@ -36,7 +39,7 @@ export function MaterialsEditor({ compositionId, materials }: MaterialsEditorPro
                 title: "Material Removido",
                 description: `${description} foi removido.`,
             })
-            window.location.reload()
+            router.refresh()
         } else {
             toast({
                 variant: "destructive",

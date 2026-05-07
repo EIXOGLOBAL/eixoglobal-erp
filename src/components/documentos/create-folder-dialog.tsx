@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState, useEffect, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
@@ -57,6 +58,7 @@ export function CreateFolderDialog({
   open: controlledOpen,
   onOpenChange,
 }: CreateFolderDialogProps) {
+  const router = useRouter()
   const [internalOpen, setInternalOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [folders, setFolders] = useState<Folder[]>([])
@@ -102,7 +104,7 @@ export function CreateFolderDialog({
           })
           setOpen(false)
           form.reset()
-          window.location.reload()
+          router.refresh()
         } else {
           toast({
             variant: 'destructive',

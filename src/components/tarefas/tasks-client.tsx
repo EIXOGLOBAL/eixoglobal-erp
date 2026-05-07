@@ -72,8 +72,8 @@ export function TasksClient({
     setEditOpen(true)
   }
 
-  function handleCreated(_: unknown) { window.location.reload() }
-  function handleUpdated(_: unknown) { window.location.reload() }
+  function handleCreated(_: unknown) { router.refresh() }
+  function handleUpdated(_: unknown) { router.refresh() }
 
   const activeFilters = [filterStatus !== "ALL", filterPriority !== "ALL", filterMyTasks, filterProject !== "ALL", filterAssignee !== "ALL", filterDateRange.from || filterDateRange.to].filter(Boolean).length
 

@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -7,6 +8,7 @@ import { runFraudAnalysis } from '@/app/actions/monitoring-actions'
 import { Search, ShieldCheck, RefreshCw } from 'lucide-react'
 
 export function MonitoringActions() {
+  const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const { toast } = useToast()
 
@@ -19,7 +21,7 @@ export function MonitoringActions() {
           title: 'Analise concluida',
           description: `${result.data?.summary.total || 0} alertas detectados (${result.data?.summary.critical || 0} criticos)`,
         })
-        window.location.reload()
+        router.refresh()
       } else {
         toast({ title: 'Erro', description: result.error, variant: 'destructive' })
       }

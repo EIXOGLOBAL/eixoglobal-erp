@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useState } from "react"
 import { useForm } from "react-hook-form"
@@ -59,7 +60,9 @@ interface MovementDialogProps {
     trigger?: React.ReactNode
 }
 
-export function MovementDialog({ material, companyId, trigger }: MovementDialogProps) {
+export function MovementDialog({
+  material, companyId, trigger }: MovementDialogProps) {
+  const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
@@ -110,7 +113,7 @@ export function MovementDialog({ material, companyId, trigger }: MovementDialogP
                 })
                 setOpen(false)
                 form.reset()
-                window.location.reload()
+                router.refresh()
             } else {
                 toast({
                     variant: "destructive",
@@ -217,8 +220,8 @@ export function MovementDialog({ material, companyId, trigger }: MovementDialogP
                                                 type="number"
                                                 step="0.01"
                                                 placeholder="0.00"
-                                                {...field}
                                                 value={field.value ?? ''}
+                                                onChange={(e) => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
                                                 onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                             />
                                         </FormControl>
