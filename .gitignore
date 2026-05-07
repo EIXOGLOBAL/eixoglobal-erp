@@ -62,3 +62,8 @@ public/uploads/*
 .claude/scheduled_tasks.lock
 AUDIT_REPORT_*.md
 
+docker-compose.yml.bak
+docker-compose.yml.bak-*
+npm_update.log
+package.json.bak
+gen_session.mjs
